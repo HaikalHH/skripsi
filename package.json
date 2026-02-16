@@ -1,0 +1,17 @@
+{
+  "name": "finance-bot-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@9.12.0",
+  "scripts": {
+    "dev:api": "pnpm --filter @finance/api dev",
+    "dev:admin": "pnpm --filter @finance/admin-web dev",
+    "dev:bot": "pnpm --filter @finance/bot dev",
+    "test": "pnpm --filter @finance/api test",
+    "prisma:migrate": "pnpm --filter @finance/api prisma:migrate",
+    "prisma:seed": "pnpm --filter @finance/api prisma:seed"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}

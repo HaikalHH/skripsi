@@ -1,0 +1,196 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+enum TransactionSource {
+  TEXT
+  OCR
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+}
+
+enum AnalysisType {
+  INTENT
+  EXTRACTION
+  INSIGHT
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  INACTIVE
+}
+
+enum RegistrationStatus {
+  PENDING
+  COMPLETED
+}
+
+enum OnboardingStep {
+  WAIT_REGISTER
+  ASK_NAME
+  ASK_CURRENCY
+  ASK_MONTHLY_BUDGET
+  ASK_SAVINGS_TARGET
+  COMPLETED
+}
+
+enum PaymentSessionStatus {
+  PENDING
+  PAID
+  EXPIRED
+}
+
+enum OutboundMessageStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+}
+
+model User {
+  id                  String              @id @default(cuid())
+  waNumber            String              @unique
+  name                String?
+  currency            String              @default("IDR")
+  monthlyBudget       Decimal?            @db.Decimal(12, 2)
+  registrationStatus  RegistrationStatus  @default(PENDING)
+  onboardingStep      OnboardingStep      @default(WAIT_REGISTER)
+  onboardingCompletedAt DateTime?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  transactions        Transaction[]
+  messageLogs         MessageLog[]
+  aiAnalysisLogs      AIAnalysisLog[]
+  budgets             Budget[]
+  savingsGoal         SavingsGoal?
+  subscriptions       Subscription[]
+  paymentSessions     PaymentSession[]
+  outboundMessages    OutboundMessage[]
+}
+
+model Transaction {
+  id         String            @id @default(cuid())
+  userId     String
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       TransactionType
+  amount     Decimal           @db.Decimal(12, 2)
+  category   String
+  merchant   String?
+  note       String?
+  occurredAt DateTime
+  source     TransactionSource
+  rawText    String?
+  createdAt  DateTime          @default(now())
+
+  @@index([userId, occurredAt])
+  @@index([userId, type])
+}
+
+model MessageLog {
+  id                  String          @id @default(cuid())
+  userId              String
+  user                User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messageType         MessageType
+  contentOrCaption    String
+  mediaUrlOrLocalPath String?
+  sentAt              DateTime        @default(now())
+  aiAnalysisLogs      AIAnalysisLog[]
+
+  @@index([userId, sentAt])
+}
+
+model AIAnalysisLog {
+  id           String       @id @default(cuid())
+  userId       String
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messageId    String?
+  message      MessageLog?  @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  analysisType AnalysisType
+  payloadJson  Json
+  createdAt    DateTime     @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model Budget {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category     String
+  monthlyLimit Decimal  @db.Decimal(12, 2)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, category])
+}
+
+model SavingsGoal {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetAmount    Decimal  @db.Decimal(12, 2)
+  currentProgress Decimal  @default(0) @db.Decimal(12, 2)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Subscription {
+  id        String             @id @default(cuid())
+  userId    String
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status    SubscriptionStatus @default(TRIAL)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  @@index([userId, status])
+}
+
+model PaymentSession {
+  id        String               @id @default(cuid())
+  userId    String
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String               @unique
+  amount    Decimal              @db.Decimal(12, 2)
+  status    PaymentSessionStatus @default(PENDING)
+  paidAt    DateTime?
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+
+  @@index([userId, status])
+}
+
+model OutboundMessage {
+  id           String                @id @default(cuid())
+  userId       String
+  user         User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  waNumber     String
+  messageText  String
+  status       OutboundMessageStatus @default(PENDING)
+  errorMessage String?
+  sentAt       DateTime?
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+}
+
+model SystemHeartbeat {
+  id         String   @id @default(cuid())
+  serviceName String  @unique
+  lastSeenAt DateTime @default(now())
+}
