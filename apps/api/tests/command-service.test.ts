@@ -30,6 +30,17 @@ describe("command parser", () => {
     expect(statusCommand).toEqual({ kind: "GOAL_STATUS" });
   });
 
+  it("parses advice command with and without question", () => {
+    const noQuestion = parseCommand("/advice");
+    expect(noQuestion).toEqual({ kind: "ADVICE", question: null });
+
+    const withQuestion = parseCommand("/advice boleh beli hp 3500000 bulan ini?");
+    expect(withQuestion).toEqual({
+      kind: "ADVICE",
+      question: "boleh beli hp 3500000 bulan ini?"
+    });
+  });
+
   it("returns NONE for invalid budget amount", () => {
     const result = parseCommand("/budget set transport abc");
     expect(result).toEqual({ kind: "NONE" });

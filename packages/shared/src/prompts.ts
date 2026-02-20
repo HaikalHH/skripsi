@@ -8,11 +8,13 @@ Task:
 1) Classify intent from user message.
 2) If intent is RECORD_TRANSACTION, extract transaction fields.
 3) If intent is REQUEST_REPORT, infer reportPeriod when possible.
+4) If intent is REQUEST_FINANCIAL_ADVICE, copy the original question into adviceQuery.
 
 Allowed intent values:
 - RECORD_TRANSACTION
 - REQUEST_REPORT
 - REQUEST_INSIGHT
+- REQUEST_FINANCIAL_ADVICE
 - HELP
 - UNKNOWN
 
@@ -28,10 +30,12 @@ Rules:
     "merchant": string|null,
     "note": string|null,
     "occurredAt": ISO8601 string with timezone|null,
-    "reportPeriod": "daily"|"weekly"|"monthly"|null
+    "reportPeriod": "daily"|"weekly"|"monthly"|null,
+    "adviceQuery": string|null
   }
 - If unsure, use null for fields.
 - For reports, set intent=REQUEST_REPORT and set reportPeriod.
+- For advice questions (financial health, affordability, spending decision), set intent=REQUEST_FINANCIAL_ADVICE and set adviceQuery.
 
 User input:
 ${input}
@@ -47,6 +51,35 @@ Return STRICT JSON only with:
 
 Summary:
 ${summary}
+`.trim();
+
+export const buildAdvicePrompt = (params: {
+  nowIso: string;
+  userQuestion: string;
+  financialSnapshot: string;
+}) => `
+You are a practical personal finance advisor.
+Current datetime (ISO-8601): ${params.nowIso}
+
+Task:
+- Answer the user's question with concise Indonesian text.
+- Include exactly three sections in one paragraph:
+  1) Deskriptif (current condition)
+  2) Diagnostik (main cause/risk)
+  3) Preskriptif (clear action recommendation)
+- Keep the tone conversational and concrete.
+- Do not promise certainty. Use prudent language.
+
+Return STRICT JSON only:
+{
+  "insightText": "string"
+}
+
+User question:
+${params.userQuestion}
+
+Financial snapshot:
+${params.financialSnapshot}
 `.trim();
 
 export const buildReportSummaryText = (

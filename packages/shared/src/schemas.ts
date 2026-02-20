@@ -8,6 +8,7 @@ export const intentSchema = z.enum([
   "RECORD_TRANSACTION",
   "REQUEST_REPORT",
   "REQUEST_INSIGHT",
+  "REQUEST_FINANCIAL_ADVICE",
   "HELP",
   "UNKNOWN"
 ]);
@@ -25,7 +26,8 @@ export const geminiExtractionSchema = z.object({
   merchant: z.string().min(1).max(128).nullable(),
   note: z.string().min(1).max(255).nullable(),
   occurredAt: isoDateLikeSchema.nullable(),
-  reportPeriod: reportPeriodSchema.nullable()
+  reportPeriod: reportPeriodSchema.nullable(),
+  adviceQuery: z.string().min(1).max(500).nullable().optional().default(null)
 });
 
 export const inboundMessageSchema = z.object({

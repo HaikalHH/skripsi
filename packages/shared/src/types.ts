@@ -2,6 +2,7 @@ export type IntentType =
   | "RECORD_TRANSACTION"
   | "REQUEST_REPORT"
   | "REQUEST_INSIGHT"
+  | "REQUEST_FINANCIAL_ADVICE"
   | "HELP"
   | "UNKNOWN";
 
@@ -19,6 +20,7 @@ export interface GeminiExtraction {
   note: string | null;
   occurredAt: string | null;
   reportPeriod: ReportPeriod | null;
+  adviceQuery: string | null;
 }
 
 export interface ReportPayload {

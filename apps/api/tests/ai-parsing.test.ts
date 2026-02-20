@@ -13,7 +13,8 @@ describe("Gemini extraction parsing", () => {
   "merchant": "Warung",
   "note": "Lunch",
   "occurredAt": "2026-02-15T12:00:00+07:00",
-  "reportPeriod": null
+  "reportPeriod": null,
+  "adviceQuery": null
 }
 \`\`\`
 `;
@@ -22,10 +23,20 @@ describe("Gemini extraction parsing", () => {
     expect(parsed.intent).toBe("RECORD_TRANSACTION");
     expect(parsed.amount).toBe(45000);
     expect(parsed.category).toBe("Food");
+    expect(parsed.adviceQuery).toBeNull();
   });
 
   it("rejects invalid payload shape", () => {
     const raw = `{"intent":"RECORD_TRANSACTION","type":"EXPENSE","amount":"abc","category":"Food","merchant":null,"note":null,"occurredAt":null,"reportPeriod":null}`;
     expect(() => geminiExtractionSchema.parse(extractJsonObject(raw))).toThrowError();
+  });
+
+  it("parses financial advice intent", () => {
+    const raw =
+      '{"intent":"REQUEST_FINANCIAL_ADVICE","type":null,"amount":null,"category":null,"merchant":null,"note":null,"occurredAt":null,"reportPeriod":null,"adviceQuery":"Boleh beli HP bulan ini?"}';
+
+    const parsed = geminiExtractionSchema.parse(extractJsonObject(raw));
+    expect(parsed.intent).toBe("REQUEST_FINANCIAL_ADVICE");
+    expect(parsed.adviceQuery).toBe("Boleh beli HP bulan ini?");
   });
 });

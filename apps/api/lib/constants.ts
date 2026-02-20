@@ -5,6 +5,7 @@ export const HELP_TEXT = [
   "- `/report weekly`",
   "- `/report monthly`",
   "- `/insight`",
+  "- `/advice <pertanyaan>`",
   "- `/budget set <kategori> <limit>`",
   "- `/goal set <target>`",
   "- `/goal status`",
