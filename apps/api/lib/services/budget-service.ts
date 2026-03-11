@@ -1,4 +1,7 @@
 import { prisma } from "../prisma";
+import { normalizeExpenseBucketCategory } from "./category-override-service";
+
+const BUDGET_WARNING_THRESHOLD = 0.8;
 
 const toNumber = (value: unknown): number => {
   if (typeof value === "number") return value;
@@ -9,7 +12,7 @@ const toNumber = (value: unknown): number => {
   return 0;
 };
 
-const normalizeCategory = (value: string) => value.trim().replace(/\s+/g, " ");
+const normalizeCategory = (value: string) => normalizeExpenseBucketCategory(value);
 
 const getMonthRange = (baseDate: Date) => {
   const start = new Date(Date.UTC(baseDate.getUTCFullYear(), baseDate.getUTCMonth(), 1, 0, 0, 0, 0));
@@ -25,22 +28,38 @@ const getMonthlyCategorySpent = async (params: {
   baseDate: Date;
 }): Promise<number> => {
   const range = getMonthRange(params.baseDate);
-  const monthlyTotal = await prisma.transaction.aggregate({
+  const transactions = await prisma.transaction.findMany({
     where: {
       userId: params.userId,
       type: "EXPENSE",
-      category: params.category,
       occurredAt: {
         gte: range.start,
         lte: range.end
       }
-    },
-    _sum: {
-      amount: true
     }
   });
 
-  return toNumber(monthlyTotal._sum.amount ?? 0);
+  return transactions.reduce((sum, transaction) => {
+    if (normalizeCategory(transaction.category) !== params.category) return sum;
+    return sum + toNumber(transaction.amount);
+  }, 0);
+};
+
+const pickMatchingBudget = async (params: { userId: string; category: string }) => {
+  const budgets = await prisma.budget.findMany({
+    where: {
+      userId: params.userId
+    }
+  });
+
+  const matchingBudgets = budgets.filter((budget) => normalizeCategory(budget.category) === params.category);
+  if (!matchingBudgets.length) return null;
+
+  return (
+    matchingBudgets.find((budget) => budget.category === params.category) ??
+    matchingBudgets.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())[0] ??
+    null
+  );
 };
 
 export const upsertCategoryBudget = async (params: {
@@ -49,15 +68,19 @@ export const upsertCategoryBudget = async (params: {
   monthlyLimit: number;
 }) => {
   const category = normalizeCategory(params.category);
-
+  const existingBudget = await pickMatchingBudget({
+    userId: params.userId,
+    category
+  });
   const budget = await prisma.budget.upsert({
     where: {
       userId_category: {
         userId: params.userId,
-        category
+        category: existingBudget?.category ?? category
       }
     },
     update: {
+      category,
       monthlyLimit: params.monthlyLimit
     },
     create: {
@@ -88,14 +111,7 @@ export const checkBudgetAlert = async (
   occurredAt: Date
 ): Promise<string | null> => {
   const normalizedCategory = normalizeCategory(category);
-  const budget = await prisma.budget.findUnique({
-    where: {
-      userId_category: {
-        userId,
-        category: normalizedCategory
-      }
-    }
-  });
+  const budget = await pickMatchingBudget({ userId, category: normalizedCategory });
 
   if (!budget) return null;
 
@@ -105,7 +121,19 @@ export const checkBudgetAlert = async (
     baseDate: occurredAt
   });
   const limit = toNumber(budget.monthlyLimit);
-  if (spent <= limit) return null;
+  if (limit <= 0) return null;
 
-  return `Alert: budget kategori ${normalizedCategory} terlampaui. Limit ${limit.toFixed(2)}, aktual ${spent.toFixed(2)}.`;
+  if (spent >= limit) {
+    return `Alert: budget kategori ${normalizedCategory} terlampaui. Limit ${limit.toFixed(2)}, aktual ${spent.toFixed(2)}.`;
+  }
+
+  const usageRatio = spent / limit;
+  if (usageRatio >= BUDGET_WARNING_THRESHOLD) {
+    const remaining = Math.max(0, limit - spent);
+    return `Warning: budget kategori ${normalizedCategory} hampir habis. Sisa ${remaining.toFixed(
+      2
+    )} dari limit ${limit.toFixed(2)}.`;
+  }
+
+  return null;
 };

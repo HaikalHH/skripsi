@@ -1,6 +1,11 @@
 import { prisma } from "../prisma";
+import { normalizeExpenseBucketCategory } from "./category-override-service";
 import { generateAIFinancialAdvice } from "./ai-service";
 import { getSavingsGoalStatus } from "./goal-service";
+import {
+  buildUserFinancialContextSummary,
+  loadUserFinancialContext
+} from "./user-financial-context-service";
 
 const toNumber = (value: unknown): number => {
   if (typeof value === "number") return value;
@@ -11,7 +16,7 @@ const toNumber = (value: unknown): number => {
   return 0;
 };
 
-const normalizeCategory = (value: string) => value.trim().replace(/\s+/g, " ");
+const normalizeCategory = (value: string) => normalizeExpenseBucketCategory(value);
 
 const getMonthRange = (baseDate: Date) => {
   const start = new Date(Date.UTC(baseDate.getUTCFullYear(), baseDate.getUTCMonth(), 1, 0, 0, 0, 0));
@@ -124,7 +129,7 @@ export const generateUserFinancialAdvice = async (
 ): Promise<string> => {
   const now = new Date();
   const range = getMonthRange(now);
-  const [txs, budgets, goalStatus] = await Promise.all([
+  const [txs, budgets, goalStatus, userContext] = await Promise.all([
     prisma.transaction.findMany({
       where: {
         userId,
@@ -135,35 +140,58 @@ export const generateUserFinancialAdvice = async (
       }
     }),
     prisma.budget.findMany({ where: { userId } }),
-    getSavingsGoalStatus(userId)
+    getSavingsGoalStatus(userId),
+    loadUserFinancialContext({ userId })
   ]);
-
-  if (!txs.length) {
-    return "Deskriptif: belum ada transaksi bulan ini. Diagnostik: data masih terlalu minim untuk analisis pola. Preskriptif: catat pemasukan dan pengeluaran rutin minimal 3-7 hari agar analisis lebih akurat.";
-  }
 
   let income = 0;
   let expense = 0;
   const expenseByCategory = new Map<string, number>();
-  for (const tx of txs) {
-    const amount = toNumber(tx.amount);
-    if (tx.type === "INCOME") {
-      income += amount;
-    } else {
-      expense += amount;
-      const normalized = normalizeCategory(tx.category);
-      expenseByCategory.set(normalized, (expenseByCategory.get(normalized) ?? 0) + amount);
+
+  if (txs.length) {
+    for (const tx of txs) {
+      const amount = toNumber(tx.amount);
+      if (tx.type === "INCOME") {
+        income += amount;
+      } else {
+        expense += amount;
+        const normalized = normalizeCategory(tx.category);
+        expenseByCategory.set(normalized, (expenseByCategory.get(normalized) ?? 0) + amount);
+      }
     }
+  } else {
+    income = userContext.monthlyIncomeTotal ?? 0;
+    expense = userContext.monthlyExpenseTotal ?? 0;
+    for (const bucket of userContext.expenseBuckets) {
+      if (bucket.amount <= 0) continue;
+      expenseByCategory.set(normalizeCategory(bucket.categoryKey), bucket.amount);
+    }
+  }
+
+  if (!txs.length && !income && !expense) {
+    return "Deskriptif: data transaksi dan profil keuangan masih terlalu minim. Diagnostik: saya belum punya cukup konteks untuk membaca pola pengeluaran atau kemampuan beli dengan aman. Preskriptif: lanjutkan onboarding atau catat transaksi rutin 3-7 hari dulu agar analisis lebih akurat.";
   }
 
   const balance = income - expense;
   const topExpense = Array.from(expenseByCategory.entries()).sort((a, b) => b[1] - a[1])[0];
-  const overspentCategories = budgets
+  const latestBudgetByCategory = new Map<string, { category: string; monthlyLimit: unknown; updatedAt: Date }>();
+  for (const budget of budgets) {
+    const category = normalizeCategory(budget.category);
+    const existing = latestBudgetByCategory.get(category);
+    if (!existing || existing.updatedAt.getTime() < budget.updatedAt.getTime()) {
+      latestBudgetByCategory.set(category, {
+        category,
+        monthlyLimit: budget.monthlyLimit,
+        updatedAt: budget.updatedAt
+      });
+    }
+  }
+
+  const overspentCategories = Array.from(latestBudgetByCategory.values())
     .map((budget) => {
-      const category = normalizeCategory(budget.category);
-      const spent = expenseByCategory.get(category) ?? 0;
+      const spent = expenseByCategory.get(budget.category) ?? 0;
       const limit = toNumber(budget.monthlyLimit);
-      return { category, overBy: spent - limit };
+      return { category: budget.category, overBy: spent - limit };
     })
     .filter((item) => item.overBy > 0)
     .sort((a, b) => b.overBy - a.overBy);
@@ -192,7 +220,8 @@ export const generateUserFinancialAdvice = async (
     `goalTarget=${goalStatus.targetAmount.toFixed(2)}`,
     `goalProgress=${goalStatus.currentProgress.toFixed(2)}`,
     `goalRemaining=${goalStatus.remainingAmount.toFixed(2)}`,
-    `goalProgressPercent=${goalStatus.progressPercent.toFixed(2)}`
+    `goalProgressPercent=${goalStatus.progressPercent.toFixed(2)}`,
+    buildUserFinancialContextSummary(userContext)
   ].join("; ");
 
   try {

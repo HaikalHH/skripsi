@@ -43,7 +43,8 @@ MVP chatbot keuangan pribadi berbasis WhatsApp dengan AI (Gemini + Vision OCR), 
 5. Simple budget/goals:
    - budget per category (`Budget.monthlyLimit`)
    - savings goal (`SavingsGoal`)
-   - budget exceed alert message
+   - budget near-limit/exceed alert message
+   - natural text support: `budget makan 2 juta/bulan`, `mau nabung 50 juta`
 6. Admin web:
    - env password login
    - Users list, Transactions table + filters, Subscriptions status update, System health
@@ -61,6 +62,11 @@ MVP chatbot keuangan pribadi berbasis WhatsApp dengan AI (Gemini + Vision OCR), 
    - bot sends dummy payment link (`/pay/{token}`)
    - payment confirmation activates subscription
    - bot sends activation notification automatically
+10. Proactive reminders:
+   - budget reminder (near limit / exceeded)
+   - weekly spending spike reminder
+   - goal reached reminder
+   - bot triggers reminder sweep periodically
 
 ## Prerequisites
 
@@ -69,7 +75,7 @@ MVP chatbot keuangan pribadi berbasis WhatsApp dengan AI (Gemini + Vision OCR), 
 - MySQL 8+
 - Python 3.11+
 - Google Gemini API key
-- Google Cloud Vision API key
+- Google Cloud Vision credential (API key **or** service account JSON)
 
 ## Environment Files
 
@@ -84,7 +90,8 @@ Important:
 
 - `apps/api/.env`
   - `GEMINI_API_KEY`
-  - `GCP_VISION_API_KEY`
+  - `GCP_VISION_API_KEY` (optional, for API key mode)
+  - `GCP_VISION_CREDENTIALS_PATH` (optional, for service-account JSON mode)
   - `ADMIN_API_TOKEN`
   - `BOT_INTERNAL_TOKEN`
   - `PAYMENT_WEB_BASE_URL`
@@ -199,6 +206,12 @@ pnpm --filter @finance/api test
    - expected: target tabungan tersimpan + progress saat ini
 11. `/goal status`
    - expected: status progress tabungan terbaru
+12. `budget makan 2 juta/bulan`
+   - expected: budget kategori tersimpan
+13. `mau nabung 50 juta`
+   - expected: target tabungan tersimpan + progress saat ini
+14. `summary minggu ini`
+   - expected: summary weekly + PNG chart
 
 ## New User Flow
 
@@ -213,6 +226,7 @@ pnpm --filter @finance/api test
 
 - Main bot ingress: `POST /api/bot/inbound`
 - Heartbeat: `POST /api/bot/heartbeat`
+- Reminder sweep trigger (internal): `POST /api/bot/reminders/run`
 - Bot outbound queue:
   - `GET /api/bot/outbound`
   - `POST /api/bot/outbound/ack`

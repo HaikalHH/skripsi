@@ -1,0 +1,238 @@
+-- Normalize legacy onboarding rows before enum expansion
+UPDATE `User`
+SET `onboardingStep` = 'WAIT_REGISTER'
+WHERE `onboardingStep` IN ('ASK_NAME', 'ASK_CURRENCY', 'ASK_MONTHLY_BUDGET', 'ASK_SAVINGS_TARGET');
+
+-- AlterTable User
+ALTER TABLE `User`
+ADD COLUMN `onboardingStatus` ENUM('NOT_STARTED', 'IN_PROGRESS', 'COMPLETED') NOT NULL DEFAULT 'NOT_STARTED',
+ADD COLUMN `primaryGoal` ENUM('MANAGE_EXPENSES', 'SAVE_DISCIPLINED', 'TRACK_INVESTMENTS', 'FINANCIAL_FREEDOM', 'ALL_OF_THE_ABOVE') NULL,
+ADD COLUMN `employmentType` ENUM('STUDENT', 'EMPLOYEE', 'FREELANCER', 'ENTREPRENEUR', 'OTHER', 'MIXED') NULL,
+ADD COLUMN `incomeStability` ENUM('STABLE', 'UNSTABLE', 'MIXED') NULL,
+ADD COLUMN `hasPassiveIncome` BOOLEAN NULL,
+ADD COLUMN `salaryDate` INTEGER NULL,
+ADD COLUMN `targetFinancialFreedomAge` INTEGER NULL,
+ADD COLUMN `budgetMode` ENUM('MANUAL_PLAN', 'GUIDED_PLAN', 'AUTO_FROM_TRANSACTIONS') NULL,
+ADD COLUMN `hasAssets` BOOLEAN NULL,
+ADD COLUMN `analysisReady` BOOLEAN NOT NULL DEFAULT false,
+MODIFY `onboardingStep` ENUM(
+  'WAIT_REGISTER',
+  'VERIFY_PHONE',
+  'ASK_PRIMARY_GOAL',
+  'ASK_EMPLOYMENT_TYPES',
+  'ASK_HAS_ACTIVE_INCOME',
+  'ASK_ACTIVE_INCOME',
+  'ASK_SALARY_DATE',
+  'ASK_HAS_PASSIVE_INCOME',
+  'ASK_PASSIVE_INCOME',
+  'ASK_ESTIMATED_MONTHLY_INCOME',
+  'ASK_BUDGET_MODE',
+  'ASK_MANUAL_EXPENSE_BREAKDOWN',
+  'ASK_GUIDED_EXPENSE_FOOD',
+  'ASK_GUIDED_EXPENSE_TRANSPORT',
+  'ASK_GUIDED_EXPENSE_BILLS',
+  'ASK_GUIDED_EXPENSE_ENTERTAINMENT',
+  'ASK_GUIDED_EXPENSE_OTHERS',
+  'ASK_GOAL_SELECTION',
+  'ASK_GOAL_CUSTOM_NAME',
+  'ASK_GOAL_TARGET_AMOUNT',
+  'ASK_GOAL_EXPENSE_STRATEGY',
+  'ASK_GOAL_EXPENSE_TOTAL',
+  'ASK_GOAL_FINANCIAL_FREEDOM_AGE',
+  'ASK_GOAL_ADD_MORE',
+  'ASK_ASSET_SELECTION',
+  'ASK_ASSET_GOLD_NAME',
+  'ASK_ASSET_GOLD_GRAMS',
+  'ASK_ASSET_NAME',
+  'ASK_ASSET_ESTIMATED_VALUE',
+  'ASK_ASSET_ADD_MORE',
+  'SHOW_ANALYSIS',
+  'COMPLETED'
+) NOT NULL DEFAULT 'WAIT_REGISTER';
+
+UPDATE `User`
+SET `onboardingStatus` = CASE
+  WHEN `registrationStatus` = 'COMPLETED' THEN 'COMPLETED'
+  WHEN `onboardingStep` = 'WAIT_REGISTER' THEN 'NOT_STARTED'
+  ELSE 'IN_PROGRESS'
+END;
+
+-- CreateTable FinancialProfile
+CREATE TABLE `FinancialProfile` (
+  `id` VARCHAR(191) NOT NULL,
+  `userId` VARCHAR(191) NOT NULL,
+  `activeIncomeMonthly` BIGINT NULL,
+  `passiveIncomeMonthly` BIGINT NULL,
+  `estimatedMonthlyIncome` BIGINT NULL,
+  `monthlyIncomeTotal` BIGINT NULL,
+  `monthlyExpenseTotal` BIGINT NULL,
+  `potentialMonthlySaving` BIGINT NULL,
+  `savingRate` DECIMAL(7, 2) NULL,
+  `emergencyFundTarget` BIGINT NULL,
+  `financialFreedomTarget` BIGINT NULL,
+  `annualExpense` BIGINT NULL,
+  `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updatedAt` DATETIME(3) NOT NULL,
+  UNIQUE INDEX `FinancialProfile_userId_key`(`userId`),
+  PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable ExpensePlan
+CREATE TABLE `ExpensePlan` (
+  `id` VARCHAR(191) NOT NULL,
+  `userId` VARCHAR(191) NOT NULL,
+  `source` ENUM('MANUAL_USER_PLAN', 'GUIDED_ONBOARDING_PLAN', 'AUTO_GENERATED_LATER') NOT NULL,
+  `totalMonthlyExpense` BIGINT NOT NULL,
+  `isActive` BOOLEAN NOT NULL DEFAULT true,
+  `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updatedAt` DATETIME(3) NOT NULL,
+  INDEX `ExpensePlan_userId_isActive_idx`(`userId`, `isActive`),
+  PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable ExpensePlanItem
+CREATE TABLE `ExpensePlanItem` (
+  `id` VARCHAR(191) NOT NULL,
+  `expensePlanId` VARCHAR(191) NOT NULL,
+  `categoryKey` VARCHAR(191) NOT NULL,
+  `amount` BIGINT NOT NULL,
+  `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updatedAt` DATETIME(3) NOT NULL,
+  INDEX `ExpensePlanItem_expensePlanId_categoryKey_idx`(`expensePlanId`, `categoryKey`),
+  PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable FinancialGoal
+CREATE TABLE `FinancialGoal` (
+  `id` VARCHAR(191) NOT NULL,
+  `userId` VARCHAR(191) NOT NULL,
+  `goalType` ENUM('EMERGENCY_FUND', 'HOUSE', 'VEHICLE', 'VACATION', 'FINANCIAL_FREEDOM', 'CUSTOM') NOT NULL,
+  `goalName` VARCHAR(191) NOT NULL,
+  `targetAmount` BIGINT NULL,
+  `targetAge` INTEGER NULL,
+  `calculationType` ENUM('MANUAL', 'AUTO_FROM_EXPENSE', 'FORMULA_BASED') NOT NULL,
+  `status` ENUM('ACTIVE', 'PENDING_CALCULATION', 'COMPLETED', 'ARCHIVED') NOT NULL DEFAULT 'ACTIVE',
+  `estimatedMonthsToGoal` DECIMAL(10, 2) NULL,
+  `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updatedAt` DATETIME(3) NOT NULL,
+  INDEX `FinancialGoal_userId_status_idx`(`userId`, `status`),
+  INDEX `FinancialGoal_userId_goalType_idx`(`userId`, `goalType`),
+  PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable Asset
+CREATE TABLE `Asset` (
+  `id` VARCHAR(191) NOT NULL,
+  `userId` VARCHAR(191) NOT NULL,
+  `assetType` ENUM('CASH', 'SAVINGS', 'GOLD', 'STOCK', 'CRYPTO', 'MUTUAL_FUND', 'PROPERTY', 'OTHER') NOT NULL,
+  `assetName` VARCHAR(191) NOT NULL,
+  `quantity` DECIMAL(24, 8) NULL,
+  `unit` VARCHAR(191) NULL,
+  `unitPrice` BIGINT NULL,
+  `estimatedValue` BIGINT NULL,
+  `notes` VARCHAR(191) NULL,
+  `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updatedAt` DATETIME(3) NOT NULL,
+  INDEX `Asset_userId_assetType_idx`(`userId`, `assetType`),
+  PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable OnboardingSession
+CREATE TABLE `OnboardingSession` (
+  `id` VARCHAR(191) NOT NULL,
+  `userId` VARCHAR(191) NOT NULL,
+  `stepKey` ENUM(
+    'WAIT_REGISTER',
+    'VERIFY_PHONE',
+    'ASK_PRIMARY_GOAL',
+    'ASK_EMPLOYMENT_TYPES',
+    'ASK_HAS_ACTIVE_INCOME',
+    'ASK_ACTIVE_INCOME',
+    'ASK_SALARY_DATE',
+    'ASK_HAS_PASSIVE_INCOME',
+    'ASK_PASSIVE_INCOME',
+    'ASK_ESTIMATED_MONTHLY_INCOME',
+    'ASK_BUDGET_MODE',
+    'ASK_MANUAL_EXPENSE_BREAKDOWN',
+    'ASK_GUIDED_EXPENSE_FOOD',
+    'ASK_GUIDED_EXPENSE_TRANSPORT',
+    'ASK_GUIDED_EXPENSE_BILLS',
+    'ASK_GUIDED_EXPENSE_ENTERTAINMENT',
+    'ASK_GUIDED_EXPENSE_OTHERS',
+    'ASK_GOAL_SELECTION',
+    'ASK_GOAL_CUSTOM_NAME',
+    'ASK_GOAL_TARGET_AMOUNT',
+    'ASK_GOAL_EXPENSE_STRATEGY',
+    'ASK_GOAL_EXPENSE_TOTAL',
+    'ASK_GOAL_FINANCIAL_FREEDOM_AGE',
+    'ASK_GOAL_ADD_MORE',
+    'ASK_ASSET_SELECTION',
+    'ASK_ASSET_GOLD_NAME',
+    'ASK_ASSET_GOLD_GRAMS',
+    'ASK_ASSET_NAME',
+    'ASK_ASSET_ESTIMATED_VALUE',
+    'ASK_ASSET_ADD_MORE',
+    'SHOW_ANALYSIS',
+    'COMPLETED'
+  ) NOT NULL,
+  `questionKey` ENUM(
+    'START_CONFIRMATION',
+    'PHONE_VERIFICATION',
+    'PRIMARY_GOAL',
+    'EMPLOYMENT_TYPES',
+    'HAS_ACTIVE_INCOME',
+    'ACTIVE_INCOME_MONTHLY',
+    'SALARY_DATE',
+    'HAS_PASSIVE_INCOME',
+    'PASSIVE_INCOME_MONTHLY',
+    'ESTIMATED_MONTHLY_INCOME',
+    'BUDGET_MODE',
+    'MANUAL_EXPENSE_BREAKDOWN',
+    'GUIDED_EXPENSE_FOOD',
+    'GUIDED_EXPENSE_TRANSPORT',
+    'GUIDED_EXPENSE_BILLS',
+    'GUIDED_EXPENSE_ENTERTAINMENT',
+    'GUIDED_EXPENSE_OTHERS',
+    'GOAL_SELECTION',
+    'GOAL_CUSTOM_NAME',
+    'GOAL_TARGET_AMOUNT',
+    'GOAL_EXPENSE_STRATEGY',
+    'GOAL_EXPENSE_TOTAL',
+    'GOAL_FINANCIAL_FREEDOM_AGE',
+    'GOAL_ADD_MORE',
+    'ASSET_SELECTION',
+    'ASSET_GOLD_NAME',
+    'ASSET_GOLD_GRAMS',
+    'ASSET_NAME',
+    'ASSET_ESTIMATED_VALUE',
+    'ASSET_ADD_MORE'
+  ) NOT NULL,
+  `rawAnswerJson` JSON NOT NULL,
+  `normalizedAnswerJson` JSON NULL,
+  `isCompleted` BOOLEAN NOT NULL DEFAULT true,
+  `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updatedAt` DATETIME(3) NOT NULL,
+  INDEX `OnboardingSession_userId_updatedAt_idx`(`userId`, `updatedAt`),
+  INDEX `OnboardingSession_userId_stepKey_idx`(`userId`, `stepKey`),
+  INDEX `OnboardingSession_userId_questionKey_idx`(`userId`, `questionKey`),
+  PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Foreign keys
+ALTER TABLE `FinancialProfile`
+ADD CONSTRAINT `FinancialProfile_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE `ExpensePlan`
+ADD CONSTRAINT `ExpensePlan_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE `ExpensePlanItem`
+ADD CONSTRAINT `ExpensePlanItem_expensePlanId_fkey` FOREIGN KEY (`expensePlanId`) REFERENCES `ExpensePlan`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE `FinancialGoal`
+ADD CONSTRAINT `FinancialGoal_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE `Asset`
+ADD CONSTRAINT `Asset_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE `OnboardingSession`
+ADD CONSTRAINT `OnboardingSession_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;

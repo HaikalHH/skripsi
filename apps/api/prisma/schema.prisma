@@ -39,12 +39,44 @@ enum RegistrationStatus {
   COMPLETED
 }
 
+enum OnboardingStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
 enum OnboardingStep {
   WAIT_REGISTER
-  ASK_NAME
-  ASK_CURRENCY
-  ASK_MONTHLY_BUDGET
-  ASK_SAVINGS_TARGET
+  VERIFY_PHONE
+  ASK_PRIMARY_GOAL
+  ASK_EMPLOYMENT_TYPES
+  ASK_HAS_ACTIVE_INCOME
+  ASK_ACTIVE_INCOME
+  ASK_SALARY_DATE
+  ASK_HAS_PASSIVE_INCOME
+  ASK_PASSIVE_INCOME
+  ASK_ESTIMATED_MONTHLY_INCOME
+  ASK_BUDGET_MODE
+  ASK_MANUAL_EXPENSE_BREAKDOWN
+  ASK_GUIDED_EXPENSE_FOOD
+  ASK_GUIDED_EXPENSE_TRANSPORT
+  ASK_GUIDED_EXPENSE_BILLS
+  ASK_GUIDED_EXPENSE_ENTERTAINMENT
+  ASK_GUIDED_EXPENSE_OTHERS
+  ASK_GOAL_SELECTION
+  ASK_GOAL_CUSTOM_NAME
+  ASK_GOAL_TARGET_AMOUNT
+  ASK_GOAL_EXPENSE_STRATEGY
+  ASK_GOAL_EXPENSE_TOTAL
+  ASK_GOAL_FINANCIAL_FREEDOM_AGE
+  ASK_GOAL_ADD_MORE
+  ASK_ASSET_SELECTION
+  ASK_ASSET_GOLD_NAME
+  ASK_ASSET_GOLD_GRAMS
+  ASK_ASSET_NAME
+  ASK_ASSET_ESTIMATED_VALUE
+  ASK_ASSET_ADD_MORE
+  SHOW_ANALYSIS
   COMPLETED
 }
 
@@ -61,25 +93,154 @@ enum OutboundMessageStatus {
   FAILED
 }
 
+enum PortfolioAssetType {
+  GOLD
+  STOCK
+  MUTUAL_FUND
+  CRYPTO
+  DEPOSIT
+  PROPERTY
+  BUSINESS
+  OTHER
+}
+
+enum PrimaryGoal {
+  MANAGE_EXPENSES
+  SAVE_DISCIPLINED
+  TRACK_INVESTMENTS
+  FINANCIAL_FREEDOM
+  ALL_OF_THE_ABOVE
+}
+
+enum EmploymentType {
+  STUDENT
+  EMPLOYEE
+  FREELANCER
+  ENTREPRENEUR
+  OTHER
+  MIXED
+}
+
+enum IncomeStability {
+  STABLE
+  UNSTABLE
+  MIXED
+}
+
+enum BudgetMode {
+  MANUAL_PLAN
+  GUIDED_PLAN
+  AUTO_FROM_TRANSACTIONS
+}
+
+enum ExpensePlanSource {
+  MANUAL_USER_PLAN
+  GUIDED_ONBOARDING_PLAN
+  AUTO_GENERATED_LATER
+}
+
+enum FinancialGoalType {
+  EMERGENCY_FUND
+  HOUSE
+  VEHICLE
+  VACATION
+  FINANCIAL_FREEDOM
+  CUSTOM
+}
+
+enum GoalCalculationType {
+  MANUAL
+  AUTO_FROM_EXPENSE
+  FORMULA_BASED
+}
+
+enum FinancialGoalStatus {
+  ACTIVE
+  PENDING_CALCULATION
+  COMPLETED
+  ARCHIVED
+}
+
+enum AssetType {
+  CASH
+  SAVINGS
+  GOLD
+  STOCK
+  CRYPTO
+  MUTUAL_FUND
+  PROPERTY
+  OTHER
+}
+
+enum OnboardingQuestionKey {
+  START_CONFIRMATION
+  PHONE_VERIFICATION
+  PRIMARY_GOAL
+  EMPLOYMENT_TYPES
+  HAS_ACTIVE_INCOME
+  ACTIVE_INCOME_MONTHLY
+  SALARY_DATE
+  HAS_PASSIVE_INCOME
+  PASSIVE_INCOME_MONTHLY
+  ESTIMATED_MONTHLY_INCOME
+  BUDGET_MODE
+  MANUAL_EXPENSE_BREAKDOWN
+  GUIDED_EXPENSE_FOOD
+  GUIDED_EXPENSE_TRANSPORT
+  GUIDED_EXPENSE_BILLS
+  GUIDED_EXPENSE_ENTERTAINMENT
+  GUIDED_EXPENSE_OTHERS
+  GOAL_SELECTION
+  GOAL_CUSTOM_NAME
+  GOAL_TARGET_AMOUNT
+  GOAL_EXPENSE_STRATEGY
+  GOAL_EXPENSE_TOTAL
+  GOAL_FINANCIAL_FREEDOM_AGE
+  GOAL_ADD_MORE
+  ASSET_SELECTION
+  ASSET_GOLD_NAME
+  ASSET_GOLD_GRAMS
+  ASSET_NAME
+  ASSET_ESTIMATED_VALUE
+  ASSET_ADD_MORE
+}
+
 model User {
-  id                  String              @id @default(cuid())
-  waNumber            String              @unique
-  name                String?
-  currency            String              @default("IDR")
-  monthlyBudget       Decimal?            @db.Decimal(12, 2)
-  registrationStatus  RegistrationStatus  @default(PENDING)
-  onboardingStep      OnboardingStep      @default(WAIT_REGISTER)
-  onboardingCompletedAt DateTime?
-  createdAt           DateTime            @default(now())
-  updatedAt           DateTime            @updatedAt
-  transactions        Transaction[]
-  messageLogs         MessageLog[]
-  aiAnalysisLogs      AIAnalysisLog[]
-  budgets             Budget[]
-  savingsGoal         SavingsGoal?
-  subscriptions       Subscription[]
-  paymentSessions     PaymentSession[]
-  outboundMessages    OutboundMessage[]
+  id                        String                  @id @default(cuid())
+  waNumber                  String                  @unique
+  name                      String?
+  currency                  String                  @default("IDR")
+  monthlyBudget             Decimal?                @db.Decimal(12, 2)
+  registrationStatus        RegistrationStatus      @default(PENDING)
+  onboardingStatus          OnboardingStatus        @default(NOT_STARTED)
+  onboardingStep            OnboardingStep          @default(WAIT_REGISTER)
+  primaryGoal               PrimaryGoal?
+  employmentType            EmploymentType?
+  incomeStability           IncomeStability?
+  hasPassiveIncome          Boolean?
+  salaryDate                Int?
+  targetFinancialFreedomAge Int?
+  budgetMode                BudgetMode?
+  hasAssets                 Boolean?
+  analysisReady             Boolean                 @default(false)
+  onboardingCompletedAt     DateTime?
+  createdAt                 DateTime                @default(now())
+  updatedAt                 DateTime                @updatedAt
+  transactions              Transaction[]
+  messageLogs               MessageLog[]
+  aiAnalysisLogs            AIAnalysisLog[]
+  budgets                   Budget[]
+  savingsGoal               SavingsGoal?
+  subscriptions             Subscription[]
+  paymentSessions           PaymentSession[]
+  outboundMessages          OutboundMessage[]
+  portfolioAssets           PortfolioAsset[]
+  financialFreedom          FinancialFreedomProfile?
+  financialProfile          FinancialProfile?
+  expensePlans              ExpensePlan[]
+  financialGoals            FinancialGoal[]
+  assets                    Asset[]
+  onboardingSessions        OnboardingSession[]
 }
 
 model Transaction {
@@ -189,8 +350,134 @@ model OutboundMessage {
   @@index([userId, createdAt])
 }
 
+model PortfolioAsset {
+  id              String             @id @default(cuid())
+  userId          String
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assetType       PortfolioAssetType
+  symbol          String
+  displayName     String
+  quantity        Decimal            @db.Decimal(24, 8)
+  unit            String
+  averageBuyPrice Decimal            @db.Decimal(18, 2)
+  currency        String             @default("IDR")
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@unique([userId, assetType, symbol])
+  @@index([userId, assetType])
+}
+
+model FinancialFreedomProfile {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  enabled            Boolean  @default(false)
+  monthlyExpense     Decimal  @default(0) @db.Decimal(12, 2)
+  targetYears        Int      @default(15)
+  safeWithdrawalRate Decimal  @default(0.04) @db.Decimal(5, 4)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model FinancialProfile {
+  id                     String   @id @default(cuid())
+  userId                 String   @unique
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activeIncomeMonthly    BigInt?
+  passiveIncomeMonthly   BigInt?
+  estimatedMonthlyIncome BigInt?
+  monthlyIncomeTotal     BigInt?
+  monthlyExpenseTotal    BigInt?
+  potentialMonthlySaving BigInt?
+  savingRate             Decimal? @db.Decimal(7, 2)
+  emergencyFundTarget    BigInt?
+  financialFreedomTarget BigInt?
+  annualExpense          BigInt?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+}
+
+model ExpensePlan {
+  id                  String            @id @default(cuid())
+  userId              String
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  source              ExpensePlanSource
+  totalMonthlyExpense BigInt
+  isActive            Boolean           @default(true)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  items               ExpensePlanItem[]
+
+  @@index([userId, isActive])
+}
+
+model ExpensePlanItem {
+  id            String      @id @default(cuid())
+  expensePlanId String
+  expensePlan   ExpensePlan @relation(fields: [expensePlanId], references: [id], onDelete: Cascade)
+  categoryKey   String
+  amount        BigInt
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([expensePlanId, categoryKey])
+}
+
+model FinancialGoal {
+  id                    String              @id @default(cuid())
+  userId                String
+  user                  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goalType              FinancialGoalType
+  goalName              String
+  targetAmount          BigInt?
+  targetAge             Int?
+  calculationType       GoalCalculationType
+  status                FinancialGoalStatus @default(ACTIVE)
+  estimatedMonthsToGoal Decimal?            @db.Decimal(10, 2)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  @@index([userId, status])
+  @@index([userId, goalType])
+}
+
+model Asset {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assetType      AssetType
+  assetName      String
+  quantity       Decimal?  @db.Decimal(24, 8)
+  unit           String?
+  unitPrice      BigInt?
+  estimatedValue BigInt?
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([userId, assetType])
+}
+
+model OnboardingSession {
+  id                   String                @id @default(cuid())
+  userId               String
+  user                 User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stepKey              OnboardingStep
+  questionKey          OnboardingQuestionKey
+  rawAnswerJson        Json
+  normalizedAnswerJson Json?
+  isCompleted          Boolean               @default(true)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+
+  @@index([userId, updatedAt])
+  @@index([userId, stepKey])
+  @@index([userId, questionKey])
+}
+
 model SystemHeartbeat {
-  id         String   @id @default(cuid())
-  serviceName String  @unique
-  lastSeenAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  serviceName String   @unique
+  lastSeenAt  DateTime @default(now())
 }

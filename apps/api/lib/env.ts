@@ -5,14 +5,19 @@ const envSchema = z.object({
   DATABASE_URL: z.string().min(1).default("mysql://finance:finance@localhost:3306/finance_bot"),
   GEMINI_API_KEY: z.string().min(1).default("replace_gemini_api_key"),
   GEMINI_MODEL: z.string().min(1).default("gemini-flash-latest"),
-  GCP_VISION_API_KEY: z.string().min(1).default("replace_vision_api_key"),
+  GCP_VISION_API_KEY: z.string().optional().default(""),
+  GCP_VISION_CREDENTIALS_PATH: z.string().optional().default(""),
   REPORTING_SERVICE_URL: z.string().url().default("http://localhost:8000"),
   PAYMENT_WEB_BASE_URL: z.string().url().default("http://localhost:3000"),
   ADMIN_API_TOKEN: z.string().min(8).default("change_this_admin_api_token"),
   BOT_INTERNAL_TOKEN: z.string().min(8).default("change_this_bot_internal_token"),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(30),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
-  BOT_HEARTBEAT_STALE_SECONDS: z.coerce.number().int().positive().default(120)
+  BOT_HEARTBEAT_STALE_SECONDS: z.coerce.number().int().positive().default(120),
+  EMERGENCY_FUND_STABLE_MULTIPLIER: z.coerce.number().positive().default(6),
+  EMERGENCY_FUND_UNSTABLE_MULTIPLIER: z.coerce.number().positive().default(9),
+  FINANCIAL_FREEDOM_EXPENSE_MULTIPLIER: z.coerce.number().positive().default(25)
 });
 
 export const env = envSchema.parse(process.env);
+

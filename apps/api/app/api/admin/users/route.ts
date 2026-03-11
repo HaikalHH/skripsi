@@ -45,3 +45,35 @@ export async function GET(request: NextRequest) {
     }))
   });
 }
+
+export async function DELETE(request: NextRequest) {
+  if (!isAdminAuthorized(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const body = await request.json().catch(() => null);
+  const userId = typeof body?.userId === "string" ? body.userId.trim() : "";
+
+  if (!userId) {
+    return NextResponse.json({ error: "userId is required" }, { status: 400 });
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, waNumber: true }
+  });
+
+  if (!user) {
+    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  }
+
+  await prisma.user.delete({ where: { id: userId } });
+
+  return NextResponse.json({
+    success: true,
+    deletedUser: {
+      id: user.id,
+      waNumber: user.waNumber
+    }
+  });
+}

@@ -1,4 +1,5 @@
 import type { ReportPeriod } from "@finance/shared";
+import { parsePositiveAmount } from "./amount-parser";
 import { parseReportPeriod } from "./report-service";
 
 export type ParsedCommand =
@@ -10,25 +11,6 @@ export type ParsedCommand =
   | { kind: "GOAL_SET"; targetAmount: number }
   | { kind: "GOAL_STATUS" }
   | { kind: "NONE" };
-
-const parsePositiveAmount = (raw: string): number | null => {
-  const compact = raw.trim().toLowerCase().replace(/\s+/g, "");
-  const unitMatch = compact.match(/^([\d.,]+)(jt|rb|k)$/);
-  if (unitMatch) {
-    const numericPart = unitMatch[1].replace(",", ".");
-    const numericValue = Number(numericPart);
-    if (!Number.isFinite(numericValue) || numericValue <= 0) return null;
-
-    const multiplier = unitMatch[2] === "jt" ? 1_000_000 : 1_000;
-    return Math.round(numericValue * multiplier);
-  }
-
-  const digitsOnly = compact.replace(/[^\d]/g, "");
-  if (!digitsOnly) return null;
-  const amount = Number(digitsOnly);
-  if (!Number.isFinite(amount) || amount <= 0) return null;
-  return amount;
-};
 
 const normalizeText = (value: string) => value.trim().replace(/\s+/g, " ");
 

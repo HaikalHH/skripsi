@@ -1,9 +1,18 @@
 import crypto from "node:crypto";
-import { PaymentSessionStatus, SubscriptionStatus } from "@prisma/client";
+import {
+  OutboundMessageStatus,
+  PaymentSessionStatus,
+  Prisma,
+  SubscriptionStatus
+} from "@prisma/client";
 import { env } from "../env";
 import { prisma } from "../prisma";
+import { toSafeOutboundMessageText } from "./outbound-message-service";
 
 const DEFAULT_DUMMY_PRICE = 49000;
+const ACTIVATION_NOTIFICATION_TEXT =
+  "Pembayaran berhasil dikonfirmasi. Subscription Anda sudah aktif, sekarang bot bisa dipakai.";
+const ACTIVATION_NOTIFICATION_PREFIX = "Pembayaran berhasil dikonfirmasi.";
 
 const generatePaymentToken = () => crypto.randomUUID().replaceAll("-", "");
 
@@ -41,6 +50,32 @@ export const getPaymentSessionByToken = async (token: string) =>
     include: { user: true }
   });
 
+const ensureActivationNotificationQueued = async (tx: Prisma.TransactionClient, params: {
+  userId: string;
+  waNumber: string;
+}) => {
+  const existing = await tx.outboundMessage.findFirst({
+    where: {
+      userId: params.userId,
+      messageText: { startsWith: ACTIVATION_NOTIFICATION_PREFIX },
+      status: {
+        in: [OutboundMessageStatus.PENDING, OutboundMessageStatus.PROCESSING, OutboundMessageStatus.SENT]
+      }
+    },
+    select: { id: true }
+  });
+
+  if (existing) return;
+
+  await tx.outboundMessage.create({
+    data: {
+      userId: params.userId,
+      waNumber: params.waNumber,
+      messageText: toSafeOutboundMessageText(ACTIVATION_NOTIFICATION_TEXT)
+    }
+  });
+};
+
 export const confirmPaymentByToken = async (token: string) =>
   prisma.$transaction(async (tx) => {
     const session = await tx.paymentSession.findUnique({
@@ -53,6 +88,10 @@ export const confirmPaymentByToken = async (token: string) =>
     }
 
     if (session.status === PaymentSessionStatus.PAID) {
+      await ensureActivationNotificationQueued(tx, {
+        userId: session.userId,
+        waNumber: session.user.waNumber
+      });
       return session;
     }
 
@@ -88,13 +127,9 @@ export const confirmPaymentByToken = async (token: string) =>
       });
     }
 
-    await tx.outboundMessage.create({
-      data: {
-        userId: session.userId,
-        waNumber: session.user.waNumber,
-        messageText:
-          "Pembayaran berhasil dikonfirmasi. Subscription Anda sudah aktif, sekarang bot bisa dipakai."
-      }
+    await ensureActivationNotificationQueued(tx, {
+      userId: session.userId,
+      waNumber: session.user.waNumber
     });
 
     return paidSession;

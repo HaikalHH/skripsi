@@ -1,5 +1,9 @@
 import { prisma } from "../prisma";
 import { generateAIInsight } from "./ai-service";
+import {
+  buildUserFinancialContextSummary,
+  loadUserFinancialContext
+} from "./user-financial-context-service";
 
 const toNumber = (value: unknown): number => {
   if (typeof value === "number") return value;
@@ -13,17 +17,20 @@ const toNumber = (value: unknown): number => {
 export const generateUserInsight = async (userId: string): Promise<string> => {
   const now = new Date();
   const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0));
-  const txs = await prisma.transaction.findMany({
-    where: {
-      userId,
-      occurredAt: {
-        gte: start,
-        lte: now
+  const [txs, userContext] = await Promise.all([
+    prisma.transaction.findMany({
+      where: {
+        userId,
+        occurredAt: {
+          gte: start,
+          lte: now
+        }
       }
-    }
-  });
+    }),
+    loadUserFinancialContext({ userId })
+  ]);
 
-  if (!txs.length) {
+  if (!txs.length && !userContext.monthlyIncomeTotal && !userContext.monthlyExpenseTotal) {
     return "Belum ada transaksi bulan ini. Mulai dengan mencatat transaksi harian Anda.";
   }
 
@@ -31,13 +38,22 @@ export const generateUserInsight = async (userId: string): Promise<string> => {
   let expense = 0;
   const categoryMap = new Map<string, number>();
 
-  for (const tx of txs) {
-    const amount = toNumber(tx.amount);
-    if (tx.type === "INCOME") {
-      income += amount;
-    } else {
-      expense += amount;
-      categoryMap.set(tx.category, (categoryMap.get(tx.category) ?? 0) + amount);
+  if (txs.length) {
+    for (const tx of txs) {
+      const amount = toNumber(tx.amount);
+      if (tx.type === "INCOME") {
+        income += amount;
+      } else {
+        expense += amount;
+        categoryMap.set(tx.category, (categoryMap.get(tx.category) ?? 0) + amount);
+      }
+    }
+  } else {
+    income = userContext.monthlyIncomeTotal ?? 0;
+    expense = userContext.monthlyExpenseTotal ?? 0;
+    for (const bucket of userContext.expenseBuckets) {
+      if (bucket.amount <= 0) continue;
+      categoryMap.set(bucket.categoryKey, bucket.amount);
     }
   }
 
@@ -62,7 +78,9 @@ export const generateUserInsight = async (userId: string): Promise<string> => {
 
   const summary = `income=${income.toFixed(2)}, expense=${expense.toFixed(
     2
-  )}, balance=${balance.toFixed(2)}, topCategory=${topCategory?.[0] ?? "N/A"}`;
+  )}, balance=${balance.toFixed(2)}, topCategory=${topCategory?.[0] ?? "N/A"}; ${buildUserFinancialContextSummary(
+    userContext
+  )}`;
 
   try {
     const aiText = await generateAIInsight(summary);

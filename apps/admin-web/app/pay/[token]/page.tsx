@@ -60,14 +60,14 @@ export default async function PaymentPage({ params, searchParams }: PaymentPageP
 
       {alreadyPaid ? (
         <p style={{ color: "#166534", fontWeight: 600 }}>
-          Pembayaran sudah terkonfirmasi. Bot akan kirim notifikasi bahwa subscription aktif.
+          Pembayaran sudah terkonfirmasi. Jika notifikasi bot belum masuk, klik tombol kirim ulang.
         </p>
-      ) : (
-        <form action={confirmPaymentAction}>
-          <input type="hidden" name="token" value={session.token} />
-          <button type="submit">Paid</button>
-        </form>
-      )}
+      ) : null}
+
+      <form action={confirmPaymentAction}>
+        <input type="hidden" name="token" value={session.token} />
+        <button type="submit">{alreadyPaid ? "Kirim Ulang Notifikasi Bot" : "Paid"}</button>
+      </form>
 
       {searchParams?.error === "1" ? (
         <p style={{ color: "#b91c1c" }}>Gagal konfirmasi pembayaran. Silakan coba lagi.</p>

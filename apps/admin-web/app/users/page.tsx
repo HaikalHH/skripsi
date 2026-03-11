@@ -1,4 +1,5 @@
 import { fetchAdminApi } from "@/lib/api";
+import { deleteUserAction } from "./actions";
 
 type UsersResponse = {
   users: Array<{
@@ -36,6 +37,7 @@ export default async function UsersPage() {
             <th>Messages</th>
             <th>Savings Goal</th>
             <th>Created</th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody>
@@ -56,6 +58,12 @@ export default async function UsersPage() {
                 {user.savingsGoalProgress ?? 0} / {user.savingsGoalTarget ?? 0}
               </td>
               <td>{new Date(user.createdAt).toLocaleString()}</td>
+              <td>
+                <form action={deleteUserAction} className="inline">
+                  <input type="hidden" name="userId" value={user.id} />
+                  <button type="submit">Delete</button>
+                </form>
+              </td>
             </tr>
           ))}
         </tbody>

@@ -11,3 +11,4 @@ coverage
 apps/bot/.baileys_auth
 __pycache__
 *.pyc
+gen-lang-client-*.json

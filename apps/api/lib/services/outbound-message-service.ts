@@ -1,6 +1,16 @@
 import { OutboundMessageStatus } from "@prisma/client";
 import { prisma } from "../prisma";
 
+const OUTBOUND_MESSAGE_MAX_LENGTH = 191;
+
+const normalizeMessageText = (value: string) => value.replace(/\s+/g, " ").trim();
+
+export const toSafeOutboundMessageText = (value: string) => {
+  const normalized = normalizeMessageText(value);
+  if (normalized.length <= OUTBOUND_MESSAGE_MAX_LENGTH) return normalized;
+  return `${normalized.slice(0, OUTBOUND_MESSAGE_MAX_LENGTH - 3)}...`;
+};
+
 export const queueOutboundMessage = async (params: {
   userId: string;
   waNumber: string;
@@ -10,7 +20,22 @@ export const queueOutboundMessage = async (params: {
     data: {
       userId: params.userId,
       waNumber: params.waNumber,
-      messageText: params.messageText
+      messageText: toSafeOutboundMessageText(params.messageText)
+    }
+  });
+
+export const logDirectAssistantReply = async (params: {
+  userId: string;
+  waNumber: string;
+  messageText: string;
+}) =>
+  prisma.outboundMessage.create({
+    data: {
+      userId: params.userId,
+      waNumber: params.waNumber,
+      messageText: toSafeOutboundMessageText(params.messageText),
+      status: OutboundMessageStatus.SENT,
+      sentAt: new Date()
     }
   });
 

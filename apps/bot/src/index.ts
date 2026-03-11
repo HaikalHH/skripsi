@@ -1,9 +1,15 @@
 import "dotenv/config";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import { Boom } from "@hapi/boom";
 import {
   DisconnectReason,
+  USyncQuery,
+  USyncUser,
   downloadMediaMessage,
   fetchLatestBaileysVersion,
+  jidDecode,
+  jidNormalizedUser,
   makeWASocket,
   useMultiFileAuthState
 } from "@whiskeysockets/baileys";
@@ -17,10 +23,12 @@ const envSchema = z.object({
   BAILEYS_AUTH_DIR: z.string().default(".baileys_auth"),
   HEARTBEAT_INTERVAL_MS: z.coerce.number().int().positive().default(30_000),
   OUTBOUND_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(5_000),
+  REMINDER_SWEEP_INTERVAL_MS: z.coerce.number().int().positive().default(3_600_000),
   BOT_INTERNAL_TOKEN: z.string().min(8)
 });
 
 const env = envSchema.parse(process.env);
+const lidMapFilePath = resolve(env.BAILEYS_AUTH_DIR, "lid-phone-map.json");
 
 const inboundResponseSchema = z.object({
   replyText: z.string(),
@@ -40,6 +48,47 @@ const outboundClaimSchema = z.object({
 
 let heartbeatTimer: NodeJS.Timeout | null = null;
 let outboundPollTimer: NodeJS.Timeout | null = null;
+let reminderSweepTimer: NodeJS.Timeout | null = null;
+const lidToPhoneMap = new Map<string, string>();
+const phoneToLidMap = new Map<string, string>();
+const lidLookupCooldownMap = new Map<string, number>();
+const LID_LOOKUP_COOLDOWN_MS = 60_000;
+const lidNoPhoneAttrLogged = new Set<string>();
+const waRegistrationCache = new Map<string, { exists: boolean; checkedAt: number }>();
+const WA_REGISTRATION_CACHE_TTL_MS = 10 * 60_000;
+
+const persistLidPhoneMap = async () => {
+  try {
+    await mkdir(env.BAILEYS_AUTH_DIR, { recursive: true });
+    const entries = Array.from(lidToPhoneMap.entries()).map(([lid, phone]) => ({ lid, phone }));
+    await writeFile(
+      lidMapFilePath,
+      JSON.stringify({ updatedAt: new Date().toISOString(), entries }, null, 2),
+      "utf-8"
+    );
+  } catch (error) {
+    logger.warn({ err: error }, "Failed to persist lid-phone map");
+  }
+};
+
+const loadPersistedLidPhoneMap = async () => {
+  try {
+    const raw = await readFile(lidMapFilePath, "utf-8");
+    const parsed = JSON.parse(raw) as { entries?: Array<{ lid?: string; phone?: string }> };
+    for (const entry of parsed.entries ?? []) {
+      const lid = (entry.lid ?? "").trim();
+      const phone = normalizeWaNumber(entry.phone ?? "");
+      if (!lid || !phone || !phone.startsWith("62")) continue;
+      lidToPhoneMap.set(lid, phone);
+      phoneToLidMap.set(phone, lid);
+    }
+    if (lidToPhoneMap.size > 0) {
+      logger.info({ mappings: lidToPhoneMap.size }, "Loaded persisted lid-phone map");
+    }
+  } catch {
+    // no-op if file not found or invalid
+  }
+};
 
 const sendHeartbeat = async () => {
   try {
@@ -78,6 +127,30 @@ const ackOutboundMessage = async (
   }
 };
 
+const trySendOutboundMessage = async (
+  sock: ReturnType<typeof makeWASocket>,
+  waNumber: string,
+  messageText: string
+) => {
+  const jids = buildOutboundJidCandidates(waNumber);
+  let lastError: unknown = null;
+
+  for (const jid of jids) {
+    try {
+      await sock.sendMessage(jid, { text: messageText });
+      return { sent: true as const, jid, errorMessage: undefined };
+    } catch (error) {
+      lastError = error;
+      logger.warn({ err: error, jid, waNumber }, "Outbound send failed on candidate jid");
+    }
+  }
+
+  const errorMessage =
+    lastError instanceof Error ? lastError.message.slice(0, 180) : "Unknown send failure";
+
+  return { sent: false as const, jid: jids[0] ?? null, errorMessage };
+};
+
 const pollOutboundMessages = async (sock: ReturnType<typeof makeWASocket>) => {
   try {
     const response = await fetch(`${env.API_BASE_URL}/api/bot/outbound?limit=5`, {
@@ -94,16 +167,11 @@ const pollOutboundMessages = async (sock: ReturnType<typeof makeWASocket>) => {
 
     const payload = outboundClaimSchema.parse(await response.json());
     for (const message of payload.messages) {
-      const jid = `${message.waNumber}@s.whatsapp.net`;
-      try {
-        await sock.sendMessage(jid, { text: message.messageText });
+      const sent = await trySendOutboundMessage(sock, message.waNumber, message.messageText);
+      if (sent.sent) {
         await ackOutboundMessage(message.id, "SENT");
-      } catch (error) {
-        await ackOutboundMessage(
-          message.id,
-          "FAILED",
-          error instanceof Error ? error.message.slice(0, 180) : "Unknown send failure"
-        );
+      } else {
+        await ackOutboundMessage(message.id, "FAILED", sent.errorMessage);
       }
     }
   } catch (error) {
@@ -119,8 +187,272 @@ const startOutboundPolling = (sock: ReturnType<typeof makeWASocket>) => {
   void pollOutboundMessages(sock);
 };
 
+const runReminderSweep = async () => {
+  try {
+    const response = await fetch(`${env.API_BASE_URL}/api/bot/reminders/run`, {
+      method: "POST",
+      headers: {
+        "x-bot-token": env.BOT_INTERNAL_TOKEN
+      }
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      logger.warn({ status: response.status, text }, "Reminder sweep failed");
+    }
+  } catch (error) {
+    logger.warn({ err: error }, "Failed to run reminder sweep");
+  }
+};
+
+const startReminderSweep = () => {
+  if (reminderSweepTimer) clearInterval(reminderSweepTimer);
+  reminderSweepTimer = setInterval(() => {
+    void runReminderSweep();
+  }, env.REMINDER_SWEEP_INTERVAL_MS);
+  void runReminderSweep();
+};
+
 const extractTextMessage = (message: any): string | undefined =>
   message?.conversation ?? message?.extendedTextMessage?.text;
+
+const parsePhoneCandidateFromText = (text: string): string | null => {
+  const trimmed = text.trim();
+  if (!/^\+?[\d\s\-().]{8,25}$/.test(trimmed)) return null;
+
+  const normalized = normalizeWaNumber(trimmed);
+  if (!normalized || !normalized.startsWith("62")) return null;
+  if (normalized.length < 10 || normalized.length > 16) return null;
+  return normalized;
+};
+
+const extractPhoneFromMessageMetadata = (msg: any): string | null => {
+  const candidates = [
+    msg?.key?.participant,
+    msg?.participant,
+    msg?.message?.protocolMessage?.key?.participant,
+    msg?.message?.protocolMessage?.key?.remoteJid,
+    msg?.message?.extendedTextMessage?.contextInfo?.participant,
+    msg?.message?.extendedTextMessage?.contextInfo?.remoteJid
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizeWaNumber(candidate ?? "");
+    if (normalized && normalized.startsWith("62")) {
+      return normalized;
+    }
+  }
+
+  return null;
+};
+
+const parseJidParts = (value: string | undefined | null) => {
+  if (!value) return null;
+  const normalizedJid = value.includes("@") ? jidNormalizedUser(value) : value.trim();
+  if (!normalizedJid) return null;
+
+  const decoded = jidDecode(normalizedJid);
+  if (decoded?.user && decoded?.server) {
+    return {
+      user: decoded.user.split(":")[0] ?? decoded.user,
+      server: decoded.server
+    };
+  }
+
+  const userPart = normalizedJid.split("@")[0] ?? normalizedJid;
+  return {
+    user: userPart.split(":")[0] ?? userPart,
+    server: "s.whatsapp.net"
+  };
+};
+
+const normalizeWaNumber = (value: string): string | null => {
+  const jid = parseJidParts(value);
+  const userPart = jid?.user ?? value.trim();
+  const withoutDevice = userPart.split(":")[0] ?? userPart;
+  const digits = withoutDevice.replace(/\D+/g, "");
+
+  if (digits.startsWith("0")) return `62${digits.slice(1)}`;
+  if (digits.startsWith("8")) return `62${digits}`;
+  if (digits) return digits;
+
+  const compact = withoutDevice.replace(/\s+/g, "");
+  return compact || null;
+};
+
+const rememberLidMapping = (lidValue: string | undefined, phoneJidValue: string | undefined) => {
+  const lid = parseJidParts(lidValue);
+  if (!lid || lid.server !== "lid") return;
+
+  const phone = normalizeWaNumber(phoneJidValue ?? "");
+  if (!phone || !phone.startsWith("62")) return;
+
+  const previous = lidToPhoneMap.get(lid.user);
+  if (previous === phone && phoneToLidMap.get(phone) === lid.user) return;
+
+  lidToPhoneMap.set(lid.user, phone);
+  phoneToLidMap.set(phone, lid.user);
+  void persistLidPhoneMap();
+};
+
+const rememberLidMappingFromRawNode = (node: any) => {
+  const attrs = node?.attrs as Record<string, string | undefined> | undefined;
+  if (!attrs) return;
+
+  const lidCandidateKeys = ["from", "participant", "recipient", "author"];
+  const phoneCandidateKeys = [
+    "sender_pn",
+    "participant_pn",
+    "recipient_pn",
+    "from_pn",
+    "author_pn"
+  ];
+
+  const lidRaw =
+    lidCandidateKeys
+      .map((key) => attrs[key])
+      .find((value) => typeof value === "string" && value.endsWith("@lid")) ?? undefined;
+
+  const phoneRaw =
+    phoneCandidateKeys
+      .map((key) => attrs[key])
+      .find((value) => {
+        const normalized = normalizeWaNumber(value ?? "");
+        return !!normalized && normalized.startsWith("62");
+      }) ?? undefined;
+
+  if (lidRaw && phoneRaw) {
+    rememberLidMapping(lidRaw, phoneRaw);
+    return;
+  }
+
+  const lid = parseJidParts(lidRaw);
+  if (lid && !lidNoPhoneAttrLogged.has(lid.user)) {
+    const pnKeys = Object.keys(attrs).filter((key) => key.includes("pn"));
+    lidNoPhoneAttrLogged.add(lid.user);
+    logger.warn({ lid: lid.user, pnKeys }, "Raw stanza has lid without phone attrs");
+  }
+};
+
+const resolvePhoneFromLid = async (
+  sock: ReturnType<typeof makeWASocket>,
+  lidUser: string
+): Promise<string | null> => {
+  const cached = lidToPhoneMap.get(lidUser);
+  if (cached) return cached;
+
+  const now = Date.now();
+  const lastTried = lidLookupCooldownMap.get(lidUser) ?? 0;
+  if (now - lastTried < LID_LOOKUP_COOLDOWN_MS) {
+    return null;
+  }
+  lidLookupCooldownMap.set(lidUser, now);
+
+  try {
+    const query = new USyncQuery()
+      .withContactProtocol()
+      .withUser(new USyncUser().withId(`${lidUser}@lid`));
+    const result = await sock.executeUSyncQuery(query);
+
+    for (const row of result?.list ?? []) {
+      const normalized = normalizeWaNumber(row.id ?? "");
+      if (!normalized || !normalized.startsWith("62")) continue;
+
+      lidToPhoneMap.set(lidUser, normalized);
+      phoneToLidMap.set(normalized, lidUser);
+      logger.info({ lid: lidUser, waNumber: normalized }, "Resolved lid to phone via usync");
+      return normalized;
+    }
+  } catch (error) {
+    logger.warn({ err: error, lid: lidUser }, "Failed to resolve lid via usync");
+  }
+
+  return null;
+};
+
+const checkWhatsAppRegistration = async (
+  sock: ReturnType<typeof makeWASocket>,
+  phoneNumber: string
+): Promise<boolean | undefined> => {
+  const cached = waRegistrationCache.get(phoneNumber);
+  const now = Date.now();
+  if (cached && now - cached.checkedAt < WA_REGISTRATION_CACHE_TTL_MS) {
+    return cached.exists;
+  }
+
+  try {
+    const result = await sock.onWhatsApp(phoneNumber);
+    const exists = Boolean(result?.[0]?.exists);
+    waRegistrationCache.set(phoneNumber, { exists, checkedAt: now });
+    return exists;
+  } catch (error) {
+    logger.warn({ err: error, phoneNumber }, "Failed to verify WhatsApp registration");
+    return undefined;
+  }
+};
+
+const resolveInboundIdentity = async (
+  sock: ReturnType<typeof makeWASocket>,
+  remoteJid: string
+) => {
+  const jid = parseJidParts(remoteJid);
+  if (!jid) return { waNumber: null as string | null, waLid: undefined as string | undefined };
+
+  if (jid.server === "lid") {
+    const resolved = await resolvePhoneFromLid(sock, jid.user);
+    if (resolved) {
+      return { waNumber: resolved, waLid: jid.user };
+    }
+
+    const mappedPhone = lidToPhoneMap.get(jid.user);
+    if (mappedPhone) {
+      return { waNumber: mappedPhone, waLid: jid.user };
+    }
+
+    logger.warn({ remoteJid, lid: jid.user }, "No lid->phone mapping yet, using lid fallback");
+    return {
+      waNumber: normalizeWaNumber(jid.user),
+      waLid: jid.user
+    };
+  }
+
+  return { waNumber: normalizeWaNumber(remoteJid), waLid: undefined };
+};
+
+const buildOutboundJidCandidates = (waNumber: string) => {
+  const parsed = waNumber.includes("@") ? parseJidParts(waNumber) : null;
+  if (parsed && (parsed.server === "s.whatsapp.net" || parsed.server === "lid")) {
+    return [`${parsed.user}@${parsed.server}`];
+  }
+
+  const normalized = normalizeWaNumber(waNumber);
+  if (!normalized) return [`${waNumber}@s.whatsapp.net`];
+
+  const candidates: string[] = [];
+  const push = (jid: string) => {
+    if (!jid || candidates.includes(jid)) return;
+    candidates.push(jid);
+  };
+
+  if (normalized.startsWith("62")) {
+    push(`${normalized}@s.whatsapp.net`);
+    const lid = phoneToLidMap.get(normalized);
+    if (lid) push(`${lid}@lid`);
+    return candidates;
+  }
+
+  const mappedPhone = lidToPhoneMap.get(normalized);
+  if (mappedPhone) {
+    push(`${mappedPhone}@s.whatsapp.net`);
+  }
+
+  if (normalized.length >= 15) {
+    push(`${normalized}@lid`);
+  }
+
+  push(`${normalized}@s.whatsapp.net`);
+  return candidates;
+};
 
 const processIncomingMessage = async (sock: ReturnType<typeof makeWASocket>, msg: any) => {
   const remoteJid = msg.key?.remoteJid as string | undefined;
@@ -128,9 +460,22 @@ const processIncomingMessage = async (sock: ReturnType<typeof makeWASocket>, msg
   if (remoteJid.endsWith("@g.us")) return;
   if (msg.key?.fromMe) return;
 
-  const waNumber = remoteJid.split("@")[0];
   const plainText = extractTextMessage(msg.message);
   const imageMessage = msg.message?.imageMessage;
+
+  const remote = parseJidParts(remoteJid);
+  const phoneFromText = plainText ? parsePhoneCandidateFromText(plainText) : null;
+  if (remote?.server === "lid" && phoneFromText?.startsWith("62")) {
+    rememberLidMapping(`${remote.user}@lid`, `${phoneFromText}@s.whatsapp.net`);
+  }
+  const fallbackPhone = extractPhoneFromMessageMetadata(msg);
+  if (remote?.server === "lid" && fallbackPhone) {
+    rememberLidMapping(`${remote.user}@lid`, `${fallbackPhone}@s.whatsapp.net`);
+  }
+
+  const identity = await resolveInboundIdentity(sock, remoteJid);
+  const waNumber = identity.waNumber;
+  if (!waNumber) return;
 
   if (!plainText && !imageMessage) return;
 
@@ -139,6 +484,16 @@ const processIncomingMessage = async (sock: ReturnType<typeof makeWASocket>, msg
       waNumber,
       sentAt: new Date().toISOString()
     };
+    if (identity.waLid) {
+      payload.waLid = identity.waLid;
+    }
+    if (phoneFromText) {
+      payload.phoneInput = phoneFromText;
+      const registered = await checkWhatsAppRegistration(sock, phoneFromText);
+      if (typeof registered === "boolean") {
+        payload.phoneInputRegistered = registered;
+      }
+    }
 
     if (plainText) {
       payload.messageType = "TEXT";
@@ -194,6 +549,7 @@ const processIncomingMessage = async (sock: ReturnType<typeof makeWASocket>, msg
 };
 
 const startBot = async () => {
+  await loadPersistedLidPhoneMap();
   const { state, saveCreds } = await useMultiFileAuthState(env.BAILEYS_AUTH_DIR);
   const { version } = await fetchLatestBaileysVersion();
 
@@ -204,6 +560,36 @@ const startBot = async () => {
   });
 
   sock.ev.on("creds.update", saveCreds);
+
+  sock.ev.on("chats.phoneNumberShare", ({ lid, jid }) => {
+    rememberLidMapping(lid, jid);
+  });
+
+  sock.ev.on("contacts.upsert", (contacts) => {
+    for (const contact of contacts) {
+      rememberLidMapping(contact.lid, contact.id);
+    }
+  });
+
+  sock.ev.on("contacts.update", (contacts) => {
+    for (const contact of contacts) {
+      rememberLidMapping(contact.lid, contact.id);
+    }
+  });
+
+  sock.ev.on("messaging-history.set", (payload) => {
+    for (const contact of payload.contacts ?? []) {
+      rememberLidMapping(contact.lid, contact.id);
+    }
+  });
+
+  sock.ws.on("CB:message", (node: any) => {
+    rememberLidMappingFromRawNode(node);
+  });
+
+  sock.ws.on("CB:notification", (node: any) => {
+    rememberLidMappingFromRawNode(node);
+  });
 
   sock.ev.on("connection.update", (update) => {
     const { connection, lastDisconnect, qr } = update;
@@ -216,6 +602,7 @@ const startBot = async () => {
       logger.info("WhatsApp bot connected");
       startHeartbeat();
       startOutboundPolling(sock);
+      startReminderSweep();
     }
 
     if (connection === "close") {
@@ -226,6 +613,10 @@ const startBot = async () => {
       if (outboundPollTimer) {
         clearInterval(outboundPollTimer);
         outboundPollTimer = null;
+      }
+      if (reminderSweepTimer) {
+        clearInterval(reminderSweepTimer);
+        reminderSweepTimer = null;
       }
       if (shouldReconnect) {
         setTimeout(() => {
