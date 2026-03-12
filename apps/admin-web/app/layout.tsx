@@ -1,8 +1,19 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { cookies } from "next/headers";
+import { Manrope, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { ADMIN_SESSION_COOKIE, ADMIN_SESSION_VALUE } from "@/lib/auth";
+import { AdminNav } from "@/components/admin-nav";
+
+const bodyFont = Manrope({
+  subsets: ["latin"],
+  variable: "--font-body"
+});
+
+const displayFont = Space_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-display"
+});
 
 export const metadata: Metadata = {
   title: "Finance Bot Admin",
@@ -15,21 +26,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="en">
-      <body>
+      <body className={`${bodyFont.variable} ${displayFont.variable}`}>
         {isLoggedIn ? (
-          <nav>
-            <Link href="/users">Users</Link>
-            <Link href="/transactions">Transactions</Link>
-            <Link href="/subscriptions">Subscriptions</Link>
-            <Link href="/health">System Health</Link>
-            <form action="/logout" method="post" style={{ marginLeft: "auto" }}>
-              <button type="submit" className="danger">
-                Logout
-              </button>
-            </form>
-          </nav>
+          <div className="app-shell">
+            <AdminNav />
+            <main className="app-main">{children}</main>
+          </div>
         ) : null}
-        <main>{children}</main>
+        {!isLoggedIn ? <main className="auth-main">{children}</main> : null}
       </body>
     </html>
   );

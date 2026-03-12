@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
-import { upsertHeartbeat } from "@/lib/services/system-service";
+import { upsertHeartbeat } from "@/lib/services/system/system-service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

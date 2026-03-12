@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { tryHandleGeneralChat } from "@/lib/services/general-chat-service";
+import { tryHandleGeneralChat } from "@/lib/services/assistant/general-chat-service";
 
 describe("general chat service", () => {
   it("handles greeting in quick mode", async () => {
@@ -41,3 +41,4 @@ describe("general chat service", () => {
     }
   });
 });
+

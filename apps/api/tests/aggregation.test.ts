@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aggregateTransactions, getPeriodRange } from "@/lib/services/aggregation";
+import { aggregateTransactions, getPeriodRange } from "@/lib/services/reporting/aggregation";
 
 describe("report aggregation", () => {
   it("calculates totals and category breakdown", () => {
@@ -21,3 +21,4 @@ describe("report aggregation", () => {
     expect(result.trend.length).toBeGreaterThan(0);
   });
 });
+

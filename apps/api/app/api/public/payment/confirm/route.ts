@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { confirmPaymentByToken } from "@/lib/services/payment-service";
+import { confirmPaymentByToken } from "@/lib/services/payments/payment-service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

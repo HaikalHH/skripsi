@@ -12,6 +12,8 @@ const hoisted = vi.hoisted(() => {
     messageLogs: [] as any[],
     aiLogs: [] as any[],
     outboundMessages: [] as any[],
+    reminderPreferences: [] as any[],
+    reminderEvents: [] as any[],
     semanticCanonicalizations: {} as Record<string, string | null>,
     extractionResult: {
       intent: "RECORD_TRANSACTION",
@@ -251,6 +253,24 @@ const hoisted = vi.hoisted(() => {
         return row;
       }
     },
+    reminderPreference: {
+      findUnique: async ({ where }: any) =>
+        store.reminderPreferences.find((item) => item.userId === where.userId) ?? null,
+      upsert: async ({ where, update, create }: any) => {
+        const existing = store.reminderPreferences.find((item) => item.userId === where.userId);
+        if (existing) {
+          Object.assign(existing, update);
+          return existing;
+        }
+
+        const row = {
+          id: `pref_${store.idCounter++}`,
+          ...create
+        };
+        store.reminderPreferences.push(row);
+        return row;
+      }
+    },
     savingsGoal: {
       upsert: async ({ where, update, create }: any) => {
         const existing = store.savingsGoals.find((item) => item.userId === where.userId);
@@ -275,6 +295,9 @@ const hoisted = vi.hoisted(() => {
         if (orderBy?.occurredAt === "asc") {
           rows = rows.sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime());
         }
+        if (Array.isArray(orderBy)) {
+          rows = rows.sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime());
+        }
         return rows;
       },
       aggregate: async ({ where }: any) => {
@@ -294,6 +317,18 @@ const hoisted = vi.hoisted(() => {
         };
         store.transactions.push(row);
         return row;
+      },
+      update: async ({ where, data }: any) => {
+        const row = store.transactions.find((item) => item.id === where.id);
+        if (!row) throw new Error("Transaction not found");
+        Object.assign(row, data);
+        return row;
+      },
+      delete: async ({ where }: any) => {
+        const index = store.transactions.findIndex((item) => item.id === where.id);
+        if (index === -1) throw new Error("Transaction not found");
+        const [deleted] = store.transactions.splice(index, 1);
+        return deleted;
       },
       groupBy: async ({ by, where }: any) => {
         if (!Array.isArray(by) || !by.includes("category")) {
@@ -395,6 +430,43 @@ const hoisted = vi.hoisted(() => {
         Object.assign(row, data, { updatedAt: new Date(store.now) });
         return row;
       }
+    },
+    reminderEvent: {
+      findFirst: async ({ where, select }: any) => {
+        const row =
+          store.reminderEvents.find((item) => {
+            if (where?.userId && item.userId !== where.userId) return false;
+            if (where?.sentAt?.gte && item.sentAt < where.sentAt.gte) return false;
+            if (where?.marker && item.marker !== where.marker) return false;
+            if (where?.reminderType && item.reminderType !== where.reminderType) return false;
+            return true;
+          }) ?? null;
+
+        if (!row || !select) return row;
+        const selected: Record<string, unknown> = {};
+        for (const key of Object.keys(select)) {
+          if (select[key]) selected[key] = row[key];
+        }
+        return selected;
+      },
+      count: async ({ where }: any) =>
+        store.reminderEvents.filter((item) => {
+          if (where?.userId && item.userId !== where.userId) return false;
+          if (where?.sentAt?.gte && item.sentAt < where.sentAt.gte) return false;
+          if (where?.sentAt?.lte && item.sentAt > where.sentAt.lte) return false;
+          if (where?.marker && item.marker !== where.marker) return false;
+          if (where?.reminderType && item.reminderType !== where.reminderType) return false;
+          return true;
+        }).length,
+      create: async ({ data }: any) => {
+        const row = {
+          id: `re_${store.idCounter++}`,
+          ...data,
+          createdAt: data.createdAt ?? new Date(store.now)
+        };
+        store.reminderEvents.push(row);
+        return row;
+      }
     }
   };
 
@@ -410,7 +482,7 @@ vi.mock("@/lib/prisma", () => ({
   prisma: hoisted.prismaMock
 }));
 
-vi.mock("@/lib/services/ai-service", () => ({
+vi.mock("@/lib/services/ai/ai-service", () => ({
   extractIntentAndTransaction: vi.fn(async () => hoisted.store.extractionResult),
   generateAIInsight: vi.fn(async () => "insight"),
   generateAIFinancialAdvice: vi.fn(async () => "advice"),
@@ -422,9 +494,9 @@ vi.mock("@/lib/services/ai-service", () => ({
   )
 }));
 
-import { claimPendingOutboundMessages } from "@/lib/services/outbound-message-service";
+import { claimPendingOutboundMessages } from "@/lib/services/messaging/outbound-message-service";
 import { processInboundBody } from "@/lib/features/inbound/process-inbound";
-import { runProactiveReminders } from "@/lib/services/reminder-service";
+import { runProactiveReminders } from "@/lib/services/reminders/reminder-service";
 
 const store = hoisted.store;
 
@@ -530,6 +602,8 @@ const seedData = () => {
   store.messageLogs = [];
   store.aiLogs = [];
   store.outboundMessages = [];
+  store.reminderPreferences = [];
+  store.reminderEvents = [];
   store.semanticCanonicalizations = {};
   store.idCounter = 100;
   store.now = new Date("2026-02-24T12:00:00.000Z");
@@ -548,6 +622,7 @@ const seedData = () => {
 
 describe("inbound + reminder e2e (mock DB)", () => {
   beforeEach(() => {
+    global.__waRateLimitBuckets?.clear();
     seedData();
   });
 
@@ -622,6 +697,44 @@ describe("inbound + reminder e2e (mock DB)", () => {
     expect(store.transactions.at(-1)?.merchant).toBe("Spotify");
   });
 
+  it("reuses learned merchant aliases from prior user transactions", async () => {
+    store.extractionResult = {
+      intent: "RECORD_TRANSACTION",
+      type: "EXPENSE",
+      amount: 350_000,
+      category: "internet",
+      merchant: null,
+      note: null,
+      occurredAt: "2026-02-24T12:00:00.000Z",
+      reportPeriod: null,
+      adviceQuery: null
+    };
+
+    store.transactions.push({
+      id: "tx_alias_seed",
+      userId: "user_1",
+      type: "EXPENSE",
+      amount: 300_000,
+      category: "Bills",
+      merchant: "Wifi Kost",
+      note: null,
+      occurredAt: new Date("2026-02-20T09:00:00.000Z"),
+      source: "TEXT",
+      rawText: "bayar wifi kost 300rb",
+      createdAt: new Date("2026-02-20T09:00:00.000Z")
+    });
+
+    const result = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "wifi kost 350rb",
+      sentAt: "2026-02-24T12:00:00.000Z"
+    });
+
+    expect(result.status).toBe(200);
+    expect(store.transactions.at(-1)?.merchant).toBe("Wifi Kost");
+  });
+
   it("resolves short report follow-up from recent conversation context", async () => {
     const now = Date.now();
     const txOccurredAt = new Date(now - 2 * 60 * 60 * 1000);
@@ -661,6 +774,103 @@ describe("inbound + reminder e2e (mock DB)", () => {
     expect(second.body.replyText).toContain("Report monthly:");
   });
 
+  it("clarifies ambiguous delete requests and resolves numbered follow-up", async () => {
+    store.transactions.push(
+      {
+        id: "tx_spotify_1",
+        userId: "user_1",
+        type: "EXPENSE",
+        amount: 50_000,
+        category: "Entertainment",
+        merchant: "Spotify",
+        note: null,
+        occurredAt: new Date("2026-03-10T09:00:00.000Z"),
+        source: "TEXT",
+        rawText: "bayar spotify premium 50rb",
+        createdAt: new Date("2026-03-10T09:00:00.000Z")
+      },
+      {
+        id: "tx_spotify_2",
+        userId: "user_1",
+        type: "EXPENSE",
+        amount: 75_000,
+        category: "Entertainment",
+        merchant: "Spotify",
+        note: null,
+        occurredAt: new Date("2026-03-08T09:00:00.000Z"),
+        source: "TEXT",
+        rawText: "bayar spotify family 75rb",
+        createdAt: new Date("2026-03-08T09:00:00.000Z")
+      }
+    );
+
+    const first = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "hapus transaksi spotify",
+      sentAt: "2026-03-11T12:00:00.000Z"
+    });
+
+    expect(first.status).toBe(200);
+    expect(first.body.replyText).toContain("beberapa transaksi yang mirip untuk dihapus");
+    expect(first.body.replyText).toContain("1. 10 Mar | Rp50.000 | Entertainment (Spotify)");
+    expect(first.body.replyText).toContain("2. 8 Mar | Rp75.000 | Entertainment (Spotify)");
+
+    const second = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "2",
+      sentAt: "2026-03-11T12:01:00.000Z"
+    });
+
+    expect(second.status).toBe(200);
+    expect(second.body.replyText).toContain("berhasil dihapus");
+    expect(store.transactions.some((transaction) => transaction.id === "tx_spotify_2")).toBe(false);
+  });
+
+  it("returns general report for an explicit month range", async () => {
+    store.transactions.push(
+      {
+        id: "tx_jan_income",
+        userId: "user_1",
+        type: "INCOME",
+        amount: 6_000_000,
+        category: "Salary",
+        merchant: null,
+        note: null,
+        occurredAt: new Date("2026-01-05T09:00:00.000Z"),
+        source: "TEXT",
+        rawText: "gaji januari",
+        createdAt: new Date("2026-01-05T09:00:00.000Z")
+      },
+      {
+        id: "tx_jan_expense",
+        userId: "user_1",
+        type: "EXPENSE",
+        amount: 1_250_000,
+        category: "Bills",
+        merchant: "PLN",
+        note: null,
+        occurredAt: new Date("2026-01-10T09:00:00.000Z"),
+        source: "TEXT",
+        rawText: "bayar listrik januari",
+        createdAt: new Date("2026-01-10T09:00:00.000Z")
+      }
+    );
+
+    const result = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "laporan januari 2026",
+      sentAt: "2026-03-11T12:00:00.000Z"
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.body.replyText).toContain("Ringkasan Januari 2026:");
+    expect(result.body.replyText).toContain("income 6000000.00");
+    expect(result.body.replyText).toContain("expense 1250000.00");
+  });
+
   it("returns detailed transactions for a requested bucket", async () => {
     const now = new Date();
     const currentMonthDate = new Date(
@@ -692,6 +902,19 @@ describe("inbound + reminder e2e (mock DB)", () => {
     expect(result.body.replyText).toContain("Rincian transaksi Entertainment untuk bulan ini:");
     expect(result.body.replyText).toContain("Spotify");
     expect(result.body.replyText).toContain("Rp75.000");
+  });
+
+  it("returns cashflow forecast with scenario spending", async () => {
+    const result = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "kalau bayar cicilan 1 juta besok masih aman gak",
+      sentAt: "2026-03-10T12:00:00.000Z"
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.body.replyText).toContain("sampai besok");
+    expect(result.body.replyText).toContain("Skenario tambahan: Rp1.000.000 untuk cicilan");
   });
 
   it("returns top transaction inside a bucket", async () => {
@@ -790,6 +1013,61 @@ describe("inbound + reminder e2e (mock DB)", () => {
     expect(result.body.replyText).toContain("2 transaksi");
   });
 
+  it("supports explicit month-year ranges for bucket details", async () => {
+    const now = new Date();
+    const year = now.getUTCFullYear();
+    const month = now.getUTCMonth();
+    const monthLabel = new Intl.DateTimeFormat("id-ID", { month: "long" }).format(now).toLowerCase();
+    const monthWithYearLabel = new Intl.DateTimeFormat("id-ID", {
+      month: "long",
+      year: "numeric"
+    }).format(now);
+    const inRangeDate = new Date(Date.UTC(year, month, 5, 10, 0, 0, 0));
+    const outOfRangeDate = new Date(Date.UTC(year, month - 1, 5, 10, 0, 0, 0));
+
+    store.transactions.push(
+      {
+        id: "tx_explicit_month_1",
+        userId: "user_1",
+        type: "EXPENSE",
+        amount: 80_000,
+        category: "Entertainment",
+        merchant: "Spotify",
+        note: null,
+        occurredAt: inRangeDate,
+        source: "TEXT",
+        rawText: "spotify premium",
+        createdAt: inRangeDate
+      },
+      {
+        id: "tx_explicit_month_2",
+        userId: "user_1",
+        type: "EXPENSE",
+        amount: 40_000,
+        category: "Entertainment",
+        merchant: "Spotify",
+        note: null,
+        occurredAt: outOfRangeDate,
+        source: "TEXT",
+        rawText: "spotify lama",
+        createdAt: outOfRangeDate
+      }
+    );
+
+    const result = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: `spotify ${monthLabel} ${year} total berapa`,
+      sentAt: new Date(inRangeDate.getTime() + 120_000).toISOString()
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.body.replyText).toContain(`untuk ${monthWithYearLabel}`);
+    expect(result.body.replyText).toContain("Rp80.000");
+    expect(result.body.replyText).toContain("1 transaksi");
+    expect(result.body.replyText).not.toContain("Rp120.000");
+  });
+
   it("returns filtered bucket details by label", async () => {
     const now = new Date();
     const baseDate = new Date(
@@ -837,6 +1115,60 @@ describe("inbound + reminder e2e (mock DB)", () => {
     expect(result.body.replyText).toContain("Biznet");
     expect(result.body.replyText).toContain("Rp350.000");
     expect(result.body.replyText).not.toContain("PLN");
+  });
+
+  it("supports explicit day ranges inside a month", async () => {
+    const now = new Date();
+    const year = now.getUTCFullYear();
+    const month = now.getUTCMonth();
+    const monthLabel = new Intl.DateTimeFormat("id-ID", { month: "long" }).format(now).toLowerCase();
+    const inRangeDate = new Date(Date.UTC(year, month, 10, 10, 0, 0, 0));
+    const outOfRangeDate = new Date(Date.UTC(year, month, 20, 10, 0, 0, 0));
+
+    store.transactions.push(
+      {
+        id: "tx_explicit_days_1",
+        userId: "user_1",
+        type: "EXPENSE",
+        amount: 150_000,
+        category: "Entertainment",
+        merchant: "Netflix",
+        note: null,
+        occurredAt: inRangeDate,
+        source: "TEXT",
+        rawText: "netflix family",
+        createdAt: inRangeDate
+      },
+      {
+        id: "tx_explicit_days_2",
+        userId: "user_1",
+        type: "EXPENSE",
+        amount: 75_000,
+        category: "Entertainment",
+        merchant: "Spotify",
+        note: null,
+        occurredAt: outOfRangeDate,
+        source: "TEXT",
+        rawText: "spotify premium",
+        createdAt: outOfRangeDate
+      }
+    );
+
+    const result = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: `entertainment 1-15 ${monthLabel} ${year} total berapa`,
+      sentAt: new Date(outOfRangeDate.getTime() + 120_000).toISOString()
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.body.replyText).toContain(`untuk 1-15 ${new Intl.DateTimeFormat("id-ID", {
+      month: "long",
+      year: "numeric"
+    }).format(now)}`);
+    expect(result.body.replyText).toContain("Rp150.000");
+    expect(result.body.replyText).toContain("1 transaksi");
+    expect(result.body.replyText).not.toContain("Rp225.000");
   });
 
   it("compares bucket spending against the previous week", async () => {
@@ -1512,6 +1844,97 @@ describe("inbound + reminder e2e (mock DB)", () => {
     expect(result.body.replyText).toContain("1. Entertainment | naik Rp300.000 (300.0%)");
   });
 
+  it("supports custom comparison windows for analytics", async () => {
+    const now = new Date();
+    const currentDates = [0, 1, 2].map((offset) =>
+      new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - offset, 5, 10, 0, 0, 0))
+    );
+    const previousDates = [3, 4, 5].map((offset) =>
+      new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - offset, 5, 10, 0, 0, 0))
+    );
+
+    store.transactions.push(
+      {
+        id: "tx_compare_window_1",
+        userId: "user_1",
+        type: "EXPENSE",
+        amount: 650_000,
+        category: "Entertainment",
+        merchant: "Netflix",
+        note: null,
+        occurredAt: currentDates[0],
+        source: "TEXT",
+        rawText: "netflix family",
+        createdAt: currentDates[0]
+      },
+      {
+        id: "tx_compare_window_2",
+        userId: "user_1",
+        type: "EXPENSE",
+        amount: 401_000,
+        category: "Entertainment",
+        merchant: "Spotify",
+        note: null,
+        occurredAt: currentDates[1],
+        source: "TEXT",
+        rawText: "spotify family",
+        createdAt: currentDates[1]
+      },
+      {
+        id: "tx_compare_window_3",
+        userId: "user_1",
+        type: "EXPENSE",
+        amount: 120_000,
+        category: "Bills",
+        merchant: "PLN",
+        note: null,
+        occurredAt: currentDates[2],
+        source: "TEXT",
+        rawText: "listrik",
+        createdAt: currentDates[2]
+      },
+      {
+        id: "tx_compare_window_4",
+        userId: "user_1",
+        type: "EXPENSE",
+        amount: 200_000,
+        category: "Entertainment",
+        merchant: "Netflix",
+        note: null,
+        occurredAt: previousDates[0],
+        source: "TEXT",
+        rawText: "netflix lama",
+        createdAt: previousDates[0]
+      },
+      {
+        id: "tx_compare_window_5",
+        userId: "user_1",
+        type: "EXPENSE",
+        amount: 100_000,
+        category: "Bills",
+        merchant: "PLN",
+        note: null,
+        occurredAt: previousDates[1],
+        source: "TEXT",
+        rawText: "listrik lama",
+        createdAt: previousDates[1]
+      }
+    );
+
+    const result = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "kategori mana yang paling naik 3 bulan terakhir vs 3 bulan sebelumnya",
+      sentAt: now.toISOString()
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.body.replyText).toContain("Kategori dengan kenaikan terbesar dibanding 3 bulan sebelumnya adalah Entertainment.");
+    expect(result.body.replyText).toContain("Periode sekarang (3 bulan terakhir): Rp1.051.000");
+    expect(result.body.replyText).toContain("Periode sebelumnya (3 bulan sebelumnya): Rp200.000");
+    expect(result.body.replyText).toContain("Kenaikan: Rp851.000");
+  });
+
   it("returns recurring expenses across categories for the current month", async () => {
     const now = new Date();
     const baseDate = new Date(
@@ -1993,6 +2416,8 @@ describe("inbound + reminder e2e (mock DB)", () => {
     store.messageLogs = [];
     store.aiLogs = [];
     store.outboundMessages = [];
+    store.reminderPreferences = [];
+    store.reminderEvents = [];
     store.idCounter = 1;
 
     const start = await processInboundBody({
@@ -2049,6 +2474,8 @@ describe("inbound + reminder e2e (mock DB)", () => {
     store.messageLogs = [];
     store.aiLogs = [];
     store.outboundMessages = [];
+    store.reminderPreferences = [];
+    store.reminderEvents = [];
     store.idCounter = 1;
 
     const result = await processInboundBody({
@@ -2076,5 +2503,329 @@ describe("inbound + reminder e2e (mock DB)", () => {
     const secondRun = await runProactiveReminders(new Date("2026-02-24T12:10:00.000Z"));
     expect(secondRun.queued).toBe(0);
   });
+
+  it("respects reminder daily cap and prioritizes higher-impact reminders first", async () => {
+    store.reminderPreferences = [
+      {
+        id: "pref_1",
+        userId: "user_1",
+        budgetEnabled: true,
+        weeklyEnabled: true,
+        weeklyReviewEnabled: true,
+        recurringEnabled: true,
+        cashflowEnabled: true,
+        goalEnabled: true,
+        monthlyClosingEnabled: true,
+        quietHoursStart: null,
+        quietHoursEnd: null,
+        minIntervalHours: 24,
+        maxPerDay: 1,
+        snoozedUntil: null
+      }
+    ];
+
+    const result = await runProactiveReminders(new Date("2026-02-24T12:00:00.000Z"));
+    expect(result.queued).toBe(1);
+    expect(result.queuedByType.goal).toBe(1);
+    expect(result.queuedByType.budget).toBe(0);
+    expect(result.queuedByType.weekly).toBe(0);
+  });
+
+  it("skips proactive reminders while snooze is active", async () => {
+    store.reminderPreferences = [
+      {
+        id: "pref_1",
+        userId: "user_1",
+        budgetEnabled: true,
+        weeklyEnabled: true,
+        weeklyReviewEnabled: true,
+        recurringEnabled: true,
+        cashflowEnabled: true,
+        goalEnabled: true,
+        monthlyClosingEnabled: true,
+        quietHoursStart: null,
+        quietHoursEnd: null,
+        minIntervalHours: 24,
+        maxPerDay: 3,
+        snoozedUntil: new Date("2026-02-25T12:00:00.000Z")
+      }
+    ];
+
+    const result = await runProactiveReminders(new Date("2026-02-24T12:00:00.000Z"));
+    expect(result.queued).toBe(0);
+  });
+
+  it("queues contextual recurring, cashflow, and goal pace reminders when relevant", async () => {
+    store.budgets = [];
+    store.savingsGoals = [
+      {
+        id: "goal_1",
+        userId: "user_1",
+        targetAmount: 12_000_000,
+        currentProgress: 100_000,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-02-24T00:00:00.000Z")
+      }
+    ];
+    store.transactions = [
+      {
+        id: "tx_ctx_1",
+        userId: "user_1",
+        type: "EXPENSE",
+        amount: 50_000,
+        category: "Entertainment",
+        merchant: "Spotify",
+        note: null,
+        occurredAt: new Date("2025-11-25T10:00:00.000Z"),
+        source: "TEXT",
+        rawText: "spotify premium",
+        createdAt: new Date("2025-11-25T10:00:00.000Z")
+      },
+      {
+        id: "tx_ctx_2",
+        userId: "user_1",
+        type: "EXPENSE",
+        amount: 55_000,
+        category: "Entertainment",
+        merchant: "Spotify",
+        note: null,
+        occurredAt: new Date("2025-12-25T10:00:00.000Z"),
+        source: "TEXT",
+        rawText: "spotify family",
+        createdAt: new Date("2025-12-25T10:00:00.000Z")
+      },
+      {
+        id: "tx_ctx_3",
+        userId: "user_1",
+        type: "EXPENSE",
+        amount: 53_000,
+        category: "Entertainment",
+        merchant: "Spotify",
+        note: null,
+        occurredAt: new Date("2026-01-25T10:00:00.000Z"),
+        source: "TEXT",
+        rawText: "spotify duo",
+        createdAt: new Date("2026-01-25T10:00:00.000Z")
+      },
+      {
+        id: "tx_ctx_4",
+        userId: "user_1",
+        type: "INCOME",
+        amount: 1_120_000,
+        category: "salary",
+        merchant: null,
+        note: null,
+        occurredAt: new Date("2026-01-26T09:00:00.000Z"),
+        source: "TEXT",
+        rawText: "gaji bulanan",
+        createdAt: new Date("2026-01-26T09:00:00.000Z")
+      },
+      {
+        id: "tx_ctx_5",
+        userId: "user_1",
+        type: "EXPENSE",
+        amount: 700_000,
+        category: "Bills",
+        merchant: "Kontrakan",
+        note: null,
+        occurredAt: new Date("2026-02-01T09:00:00.000Z"),
+        source: "TEXT",
+        rawText: "bayar kontrakan",
+        createdAt: new Date("2026-02-01T09:00:00.000Z")
+      },
+      {
+        id: "tx_ctx_6",
+        userId: "user_1",
+        type: "EXPENSE",
+        amount: 250_000,
+        category: "Transport",
+        merchant: "Bensin",
+        note: null,
+        occurredAt: new Date("2026-02-20T09:00:00.000Z"),
+        source: "TEXT",
+        rawText: "isi bensin",
+        createdAt: new Date("2026-02-20T09:00:00.000Z")
+      }
+    ];
+
+    const firstRun = await runProactiveReminders(new Date("2026-02-24T12:00:00.000Z"));
+    expect(firstRun.processedUsers).toBe(1);
+    expect(firstRun.queuedByType.recurring).toBe(1);
+    expect(firstRun.queuedByType.cashflow).toBe(1);
+    expect(firstRun.queuedByType.goalPace).toBe(1);
+
+    const claimed = await claimPendingOutboundMessages(10);
+    expect(claimed).toHaveLength(3);
+    const combinedText = claimed.map((item) => item.messageText).join("\n");
+    expect(combinedText).toContain("Reminder Langganan");
+    expect(combinedText).toContain("Spotify");
+    expect(combinedText).toContain("Reminder Cashflow");
+    expect(combinedText).toContain("buffer kamu");
+    expect(combinedText).toContain("Reminder Goal");
+    expect(combinedText).toContain("progress Target Tabungan");
+
+    const secondRun = await runProactiveReminders(new Date("2026-02-24T12:10:00.000Z"));
+    expect(secondRun.queued).toBe(0);
+  });
+
+  it("keeps reminder dedupe persistent through reminder events", async () => {
+    const firstRun = await runProactiveReminders(new Date("2026-02-24T12:00:00.000Z"));
+    expect(firstRun.queued).toBeGreaterThan(0);
+    expect(store.reminderEvents.length).toBe(firstRun.queued);
+
+    store.outboundMessages = [];
+
+    const secondRun = await runProactiveReminders(new Date("2026-02-24T12:10:00.000Z"));
+    expect(secondRun.queued).toBe(0);
+    expect(store.reminderEvents.length).toBe(firstRun.queued);
+  });
+
+  it("answers deeper habit analytics queries from natural language", async () => {
+    store.transactions = [
+      {
+        id: "tx_habit_1",
+        userId: "user_1",
+        type: "EXPENSE",
+        amount: 45_000,
+        category: "Food & Drink",
+        detailTag: "Coffee",
+        merchant: "Kopi Kenangan",
+        note: null,
+        occurredAt: new Date("2026-02-07T09:00:00.000Z"),
+        source: "TEXT",
+        rawText: "kopi sabtu",
+        createdAt: new Date("2026-02-07T09:00:00.000Z")
+      },
+      {
+        id: "tx_habit_2",
+        userId: "user_1",
+        type: "EXPENSE",
+        amount: 50_000,
+        category: "Food & Drink",
+        detailTag: "Coffee",
+        merchant: "Kopi Kenangan",
+        note: null,
+        occurredAt: new Date("2026-02-08T09:00:00.000Z"),
+        source: "TEXT",
+        rawText: "kopi minggu",
+        createdAt: new Date("2026-02-08T09:00:00.000Z")
+      },
+      {
+        id: "tx_habit_3",
+        userId: "user_1",
+        type: "EXPENSE",
+        amount: 48_000,
+        category: "Food & Drink",
+        detailTag: "Coffee",
+        merchant: "Kopi Kenangan",
+        note: null,
+        occurredAt: new Date("2026-02-14T09:00:00.000Z"),
+        source: "TEXT",
+        rawText: "kopi sabtu lagi",
+        createdAt: new Date("2026-02-14T09:00:00.000Z")
+      },
+      {
+        id: "tx_habit_4",
+        userId: "user_1",
+        type: "EXPENSE",
+        amount: 55_000,
+        category: "Entertainment",
+        detailTag: "Streaming",
+        merchant: "Spotify",
+        note: null,
+        occurredAt: new Date("2026-02-05T10:00:00.000Z"),
+        source: "TEXT",
+        rawText: "spotify",
+        createdAt: new Date("2026-02-05T10:00:00.000Z")
+      },
+      {
+        id: "tx_habit_5",
+        userId: "user_1",
+        type: "EXPENSE",
+        amount: 55_000,
+        category: "Entertainment",
+        detailTag: "Streaming",
+        merchant: "Spotify",
+        note: null,
+        occurredAt: new Date("2026-01-05T10:00:00.000Z"),
+        source: "TEXT",
+        rawText: "spotify jan",
+        createdAt: new Date("2026-01-05T10:00:00.000Z")
+      },
+      {
+        id: "tx_habit_6",
+        userId: "user_1",
+        type: "EXPENSE",
+        amount: 200_000,
+        category: "Bills",
+        detailTag: "Internet",
+        merchant: "Biznet",
+        note: null,
+        occurredAt: new Date("2026-01-10T10:00:00.000Z"),
+        source: "TEXT",
+        rawText: "biznet jan",
+        createdAt: new Date("2026-01-10T10:00:00.000Z")
+      },
+      {
+        id: "tx_habit_7",
+        userId: "user_1",
+        type: "EXPENSE",
+        amount: 180_000,
+        category: "Entertainment",
+        detailTag: "Dining Out",
+        merchant: "Sushi Hiro",
+        note: null,
+        occurredAt: new Date("2026-02-21T19:00:00.000Z"),
+        source: "TEXT",
+        rawText: "dinner sushi",
+        createdAt: new Date("2026-02-21T19:00:00.000Z")
+      },
+      {
+        id: "tx_habit_8",
+        userId: "user_1",
+        type: "EXPENSE",
+        amount: 90_000,
+        category: "Transport",
+        detailTag: "Ride Hailing",
+        merchant: "Gojek",
+        note: null,
+        occurredAt: new Date("2026-02-11T19:00:00.000Z"),
+        source: "TEXT",
+        rawText: "gojek pulang",
+        createdAt: new Date("2026-02-11T19:00:00.000Z")
+      }
+    ];
+
+    const newMerchant = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "merchant baru februari 2026 apa aja",
+      sentAt: "2026-03-12T12:00:00.000Z"
+    });
+    expect(newMerchant.status).toBe(200);
+    expect(newMerchant.body.replyText).toContain("Merchant/detail baru");
+    expect(newMerchant.body.replyText).toContain("Sushi Hiro");
+
+    const weekendVsWeekday = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "weekend lebih boros gak februari 2026",
+      sentAt: "2026-03-12T12:00:10.000Z"
+    });
+    expect(weekendVsWeekday.status).toBe(200);
+    expect(weekendVsWeekday.body.replyText).toContain("Weekend:");
+    expect(weekendVsWeekday.body.replyText).toContain("hari kerja");
+
+    const habitLeaks = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "kebiasaan bocor halus februari 2026 apa",
+      sentAt: "2026-03-12T12:00:20.000Z"
+    });
+    expect(habitLeaks.status).toBe(200);
+    expect(habitLeaks.body.replyText).toContain("bocor");
+    expect(habitLeaks.body.replyText).toContain("Kopi Kenangan");
+  });
 });
+
 

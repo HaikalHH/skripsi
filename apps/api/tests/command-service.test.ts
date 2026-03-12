@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseCommand } from "@/lib/services/command-service";
+import { parseCommand } from "@/lib/services/assistant/command-service";
 
 describe("command parser", () => {
   it("parses budget set command", () => {
@@ -15,7 +15,9 @@ describe("command parser", () => {
     const result = parseCommand("/goal set 1.5jt");
     expect(result).toEqual({
       kind: "GOAL_SET",
-      targetAmount: 1500000
+      targetAmount: 1500000,
+      goalName: null,
+      goalType: null
     });
   });
 
@@ -23,11 +25,35 @@ describe("command parser", () => {
     const setCommand = parseCommand("/goal set 5000000");
     expect(setCommand).toEqual({
       kind: "GOAL_SET",
-      targetAmount: 5000000
+      targetAmount: 5000000,
+      goalName: null,
+      goalType: null
     });
 
     const statusCommand = parseCommand("/goal status");
-    expect(statusCommand).toEqual({ kind: "GOAL_STATUS" });
+    expect(statusCommand).toEqual({ kind: "GOAL_STATUS", goalQuery: null, goalType: null });
+  });
+
+  it("parses named goal commands", () => {
+    expect(parseCommand("/goal set rumah 750jt")).toEqual({
+      kind: "GOAL_SET",
+      targetAmount: 750000000,
+      goalName: "Beli Rumah",
+      goalType: "HOUSE"
+    });
+
+    expect(parseCommand("/goal status rumah")).toEqual({
+      kind: "GOAL_STATUS",
+      goalQuery: "rumah",
+      goalType: "HOUSE"
+    });
+
+    expect(parseCommand("/goal add rumah 500rb")).toEqual({
+      kind: "GOAL_CONTRIBUTE",
+      amount: 500000,
+      goalQuery: "Beli Rumah",
+      goalType: "HOUSE"
+    });
   });
 
   it("parses advice command with and without question", () => {
@@ -46,3 +72,4 @@ describe("command parser", () => {
     expect(result).toEqual({ kind: "NONE" });
   });
 });
+

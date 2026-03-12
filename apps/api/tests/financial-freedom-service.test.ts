@@ -49,7 +49,7 @@ vi.mock("@/lib/prisma", () => ({
   }
 }));
 
-vi.mock("@/lib/services/portfolio-valuation-service", () => ({
+vi.mock("@/lib/services/market/portfolio-valuation-service", () => ({
   getUserPortfolioValuation: vi.fn(async () => ({
     items: [],
     totalBookValue: 300000000,
@@ -61,7 +61,7 @@ vi.mock("@/lib/services/portfolio-valuation-service", () => ({
   }))
 }));
 
-import { tryHandleFinancialFreedomCommand } from "@/lib/services/financial-freedom-service";
+import { tryHandleFinancialFreedomCommand } from "@/lib/services/planning/financial-freedom-service";
 
 describe("financial freedom service", () => {
   beforeEach(() => {
@@ -79,8 +79,13 @@ describe("financial freedom service", () => {
 
     expect(result.handled).toBe(true);
     expect(result.replyText).toContain("Financial Freedom Tracker:");
+    expect(result.replyText).toContain("Target lean");
     expect(result.replyText).toContain("Target dana bebas finansial: Rp2.400.000.000");
+    expect(result.replyText).toContain("Passive income aman yang dibutuhkan:");
+    expect(result.replyText).toContain("Coverage expense dari aset saat ini:");
+    expect(result.replyText).toContain("Gap setoran bulanan");
     expect(result.replyText).toContain("Estimasi waktu di ritme sekarang:");
     expect(result.replyText).toContain("Status:");
   });
 });
+

@@ -43,7 +43,17 @@ export async function GET(request: NextRequest) {
             }
           : undefined
     },
-    include: {
+    select: {
+      id: true,
+      userId: true,
+      type: true,
+      amount: true,
+      category: true,
+      merchant: true,
+      note: true,
+      occurredAt: true,
+      source: true,
+      createdAt: true,
       user: {
         select: {
           waNumber: true

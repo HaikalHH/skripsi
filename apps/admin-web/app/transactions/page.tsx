@@ -1,4 +1,14 @@
+import { PageHeader } from "@/components/page-header";
+import { SectionCard } from "@/components/section-card";
+import { StatCard } from "@/components/stat-card";
+import { StatusBadge } from "@/components/status-badge";
 import { fetchAdminApi } from "@/lib/api";
+import {
+  formatCompactNumber,
+  formatCurrency,
+  formatDateTime,
+  formatShortId
+} from "@/lib/format";
 
 type TransactionsPageProps = {
   searchParams?: {
@@ -38,51 +48,161 @@ const buildQueryString = (params: TransactionsPageProps["searchParams"]) => {
 export default async function TransactionsPage({ searchParams }: TransactionsPageProps) {
   const query = buildQueryString(searchParams);
   const data = await fetchAdminApi<TransactionsResponse>(`/api/admin/transactions${query}`);
+
+  const incomeTotal = data.transactions
+    .filter((transaction) => transaction.type === "INCOME")
+    .reduce((sum, transaction) => sum + transaction.amount, 0);
+  const expenseTotal = data.transactions
+    .filter((transaction) => transaction.type === "EXPENSE")
+    .reduce((sum, transaction) => sum + transaction.amount, 0);
+  const ocrCount = data.transactions.filter((transaction) => transaction.source === "OCR").length;
+
   return (
-    <section className="card">
-      <h1>Transactions</h1>
-      <form method="get" className="inline" style={{ marginBottom: 12 }}>
-        <input
-          type="text"
-          name="userId"
-          placeholder="User ID"
-          defaultValue={searchParams?.userId ?? ""}
+    <div className="page-stack">
+      <PageHeader
+        eyebrow="Cashflow Ledger"
+        title="Transactions"
+        description="Audit semua transaksi hasil chat dan OCR, lengkap dengan filter waktu, tipe, merchant, dan sumber input."
+      />
+
+      <div className="stats-grid">
+        <StatCard
+          label="Rows Loaded"
+          value={formatCompactNumber(data.transactions.length)}
+          hint="Maksimum 500 transaksi terbaru"
+          tone="accent"
         />
-        <select name="type" defaultValue={searchParams?.type ?? ""}>
-          <option value="">All Types</option>
-          <option value="INCOME">INCOME</option>
-          <option value="EXPENSE">EXPENSE</option>
-        </select>
-        <input type="date" name="startDate" defaultValue={searchParams?.startDate ?? ""} />
-        <input type="date" name="endDate" defaultValue={searchParams?.endDate ?? ""} />
-        <button type="submit">Apply</button>
-      </form>
-      <table>
-        <thead>
-          <tr>
-            <th>Occurred At</th>
-            <th>WhatsApp</th>
-            <th>Type</th>
-            <th>Amount</th>
-            <th>Category</th>
-            <th>Merchant</th>
-            <th>Source</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.transactions.map((tx) => (
-            <tr key={tx.id}>
-              <td>{new Date(tx.occurredAt).toLocaleString()}</td>
-              <td>{tx.waNumber}</td>
-              <td>{tx.type}</td>
-              <td>{tx.amount.toFixed(2)}</td>
-              <td>{tx.category}</td>
-              <td>{tx.merchant ?? "-"}</td>
-              <td>{tx.source}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </section>
+        <StatCard
+          label="Income"
+          value={formatCurrency(incomeTotal)}
+          hint="Total pemasukan pada hasil filter"
+          tone="success"
+        />
+        <StatCard
+          label="Expense"
+          value={formatCurrency(expenseTotal)}
+          hint="Total pengeluaran pada hasil filter"
+          tone="warning"
+        />
+        <StatCard
+          label="OCR Sources"
+          value={formatCompactNumber(ocrCount)}
+          hint="Transaksi dari image ingestion"
+        />
+      </div>
+
+      <SectionCard
+        title="Filter & Activity Feed"
+        description="Filter ini tidak mengubah data, hanya mempersempit audit transaksi yang ditampilkan."
+      >
+        <form method="get" className="filter-bar">
+          <div className="field-stack">
+            <label htmlFor="userId">User ID</label>
+            <input
+              id="userId"
+              type="text"
+              name="userId"
+              placeholder="Filter by user ID"
+              defaultValue={searchParams?.userId ?? ""}
+            />
+          </div>
+          <div className="field-stack">
+            <label htmlFor="type">Type</label>
+            <select id="type" name="type" defaultValue={searchParams?.type ?? ""}>
+              <option value="">All Types</option>
+              <option value="INCOME">INCOME</option>
+              <option value="EXPENSE">EXPENSE</option>
+            </select>
+          </div>
+          <div className="field-stack">
+            <label htmlFor="startDate">Start Date</label>
+            <input
+              id="startDate"
+              type="date"
+              name="startDate"
+              defaultValue={searchParams?.startDate ?? ""}
+            />
+          </div>
+          <div className="field-stack">
+            <label htmlFor="endDate">End Date</label>
+            <input
+              id="endDate"
+              type="date"
+              name="endDate"
+              defaultValue={searchParams?.endDate ?? ""}
+            />
+          </div>
+          <div className="field-stack">
+            <label>&nbsp;</label>
+            <button type="submit" className="button">
+              Apply Filters
+            </button>
+          </div>
+        </form>
+
+        <div className="table-shell">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>User</th>
+                <th>Type</th>
+                <th>Amount</th>
+                <th>Category</th>
+                <th>Merchant</th>
+                <th>Source</th>
+                <th>Note</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.transactions.length ? (
+                data.transactions.map((tx) => (
+                  <tr key={tx.id}>
+                    <td>
+                      <div className="stack">
+                        <strong>{formatDateTime(tx.occurredAt)}</strong>
+                        <span className="muted mono" title={tx.id}>
+                          {formatShortId(tx.id, 10)}
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="stack">
+                        <strong>{tx.waNumber}</strong>
+                        <span className="muted mono">{formatShortId(tx.userId, 10)}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <StatusBadge
+                        label={tx.type}
+                        tone={tx.type === "INCOME" ? "success" : "warning"}
+                      />
+                    </td>
+                    <td className={tx.type === "INCOME" ? "amount-positive" : "amount-negative"}>
+                      {formatCurrency(tx.amount)}
+                    </td>
+                    <td>{tx.category}</td>
+                    <td>{tx.merchant ?? "-"}</td>
+                    <td>
+                      <StatusBadge
+                        label={tx.source}
+                        tone={tx.source === "OCR" ? "accent" : "neutral"}
+                      />
+                    </td>
+                    <td>{tx.note ?? "-"}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={8} className="empty-state">
+                    Belum ada transaksi yang cocok dengan filter ini.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </SectionCard>
+    </div>
   );
 }

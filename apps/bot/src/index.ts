@@ -33,7 +33,10 @@ const lidMapFilePath = resolve(env.BAILEYS_AUTH_DIR, "lid-phone-map.json");
 const inboundResponseSchema = z.object({
   replyText: z.string(),
   imageBase64: z.string().optional(),
-  imageMimeType: z.string().optional()
+  imageMimeType: z.string().optional(),
+  documentBase64: z.string().optional(),
+  documentMimeType: z.string().optional(),
+  documentFileName: z.string().optional()
 });
 
 const outboundClaimSchema = z.object({
@@ -538,6 +541,14 @@ const processIncomingMessage = async (sock: ReturnType<typeof makeWASocket>, msg
         image: Buffer.from(parsed.imageBase64, "base64"),
         mimetype: parsed.imageMimeType ?? "image/png",
         caption: "Report chart"
+      });
+    }
+
+    if (parsed.documentBase64) {
+      await sock.sendMessage(remoteJid, {
+        document: Buffer.from(parsed.documentBase64, "base64"),
+        mimetype: parsed.documentMimeType ?? "application/pdf",
+        fileName: parsed.documentFileName ?? "report.pdf"
       });
     }
   } catch (error) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parsePlainTextCommand } from "@/lib/services/plain-command-service";
+import { parsePlainTextCommand } from "@/lib/services/assistant/plain-command-service";
 
 describe("plain text command parser", () => {
   it("parses natural report phrases", () => {
@@ -33,11 +33,21 @@ describe("plain text command parser", () => {
   it("parses natural goal set phrases", () => {
     expect(parsePlainTextCommand("mau nabung 50 juta")).toEqual({
       kind: "GOAL_SET",
-      targetAmount: 50000000
+      targetAmount: 50000000,
+      goalName: null,
+      goalType: null
     });
     expect(parsePlainTextCommand("target dp rumah 200 juta")).toEqual({
       kind: "GOAL_SET",
-      targetAmount: 200000000
+      targetAmount: 200000000,
+      goalName: "Beli Rumah",
+      goalType: "HOUSE"
+    });
+    expect(parsePlainTextCommand("target liburan jepang 30 juta")).toEqual({
+      kind: "GOAL_SET",
+      targetAmount: 30000000,
+      goalName: "Liburan Jepang",
+      goalType: "VACATION"
     });
   });
 
@@ -46,3 +56,4 @@ describe("plain text command parser", () => {
     expect(parsePlainTextCommand("nabung 500 ribu")).toEqual({ kind: "NONE" });
   });
 });
+

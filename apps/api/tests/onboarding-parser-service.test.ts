@@ -13,7 +13,7 @@ import {
   parseMoneyInput,
   parseOptionalAge,
   parsePrimaryGoal
-} from "@/lib/services/onboarding-parser-service";
+} from "@/lib/services/onboarding/onboarding-parser-service";
 
 describe("onboarding parser service", () => {
   it("accepts flexible ready confirmation", () => {
@@ -108,3 +108,4 @@ describe("onboarding parser service", () => {
     ]);
   });
 });
+

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveMarketSymbol } from "@/lib/services/market-price-service";
+import { resolveMarketSymbol } from "@/lib/services/market/market-price-service";
 
 describe("market symbol resolver", () => {
   it("resolves gold aliases", () => {
@@ -14,3 +14,4 @@ describe("market symbol resolver", () => {
     expect(resolveMarketSymbol("bbca")).toEqual({ kind: "stock", symbol: "BBCA" });
   });
 });
+

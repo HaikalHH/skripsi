@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { env } from "@/lib/env";
-import { ackOutboundMessage } from "@/lib/services/outbound-message-service";
+import { ackOutboundMessage } from "@/lib/services/messaging/outbound-message-service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

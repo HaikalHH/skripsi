@@ -1,8 +1,8 @@
 import { FinancialGoalStatus, FinancialGoalType, GoalCalculationType } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { buildInitialFinancialProfile, createOrUpdateFinancialGoal } from "@/lib/services/onboarding-calculation-service";
-import { goalCreateBodySchema, resolveUserIdentity, toJsonSafe, userIdentitySchema } from "@/lib/services/onboarding-route-helper";
+import { buildInitialFinancialProfile, createOrUpdateFinancialGoal } from "@/lib/services/onboarding/onboarding-calculation-service";
+import { goalCreateBodySchema, resolveUserIdentity, toJsonSafe, userIdentitySchema } from "@/lib/services/onboarding/onboarding-route-helper";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

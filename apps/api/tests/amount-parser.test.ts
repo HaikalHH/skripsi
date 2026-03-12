@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parsePositiveAmount } from "@/lib/services/amount-parser";
+import { parsePositiveAmount } from "@/lib/services/transactions/amount-parser";
 
 describe("amount parser", () => {
   it("parses shorthand units", () => {
@@ -23,3 +23,4 @@ describe("amount parser", () => {
     expect(parsePositiveAmount("0")).toBeNull();
   });
 });
+

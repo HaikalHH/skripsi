@@ -36,7 +36,7 @@ vi.mock("@/lib/prisma", () => ({
   prisma: hoisted.prismaMock
 }));
 
-vi.mock("@/lib/services/ai-service", () => ({
+vi.mock("@/lib/services/ai/ai-service", () => ({
   canonicalizeOnboardingAnswer: vi.fn(async ({ rawAnswer }: any) =>
     Object.prototype.hasOwnProperty.call(hoisted.store.onboardingCanonicalizations, rawAnswer)
       ? hoisted.store.onboardingCanonicalizations[rawAnswer]
@@ -44,7 +44,7 @@ vi.mock("@/lib/services/ai-service", () => ({
   )
 }));
 
-vi.mock("@/lib/services/onboarding-calculation-service", () => ({
+vi.mock("@/lib/services/onboarding/onboarding-calculation-service", () => ({
   buildInitialFinancialProfile: vi.fn(async () => null),
   createOnboardingAsset: vi.fn(async () => null),
   createOrUpdateFinancialGoal: vi.fn(async () => null),
@@ -59,12 +59,12 @@ vi.mock("@/lib/services/onboarding-calculation-service", () => ({
   upsertIncomeProfile: vi.fn(async () => null)
 }));
 
-vi.mock("@/lib/services/payment-service", () => ({
+vi.mock("@/lib/services/payments/payment-service", () => ({
   buildDummyPaymentLink: vi.fn((token: string) => `https://pay.test/${token}`),
   createOrGetPendingPaymentSession: vi.fn(async () => ({ token: "pay_token" }))
 }));
 
-import { submitOnboardingAnswer } from "@/lib/services/onboarding-service";
+import { submitOnboardingAnswer } from "@/lib/services/onboarding/onboarding-service";
 
 const seedUser = (overrides: Record<string, unknown>) => {
   hoisted.store.users = [
@@ -128,3 +128,4 @@ describe("onboarding service semantic fallback", () => {
     expect(hoisted.store.users[0].budgetMode).toBe(BudgetMode.GUIDED_PLAN);
   });
 });
+

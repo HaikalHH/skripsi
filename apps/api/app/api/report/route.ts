@@ -1,8 +1,8 @@
 import { reportPeriodSchema } from "@finance/shared";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { findOrCreateUserByWaNumber } from "@/lib/services/user-service";
-import { buildReportText, getReportChartBase64, getUserReportData } from "@/lib/services/report-service";
+import { findOrCreateUserByWaNumber } from "@/lib/services/user/user-service";
+import { buildReportText, getReportChartBase64, getUserReportData } from "@/lib/services/reporting/report-service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

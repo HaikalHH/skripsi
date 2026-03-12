@@ -1,0 +1,3 @@
+ALTER TABLE `ReminderPreference`
+  ADD COLUMN `maxPerDay` INTEGER NOT NULL DEFAULT 3,
+  ADD COLUMN `snoozedUntil` DATETIME(3) NULL;

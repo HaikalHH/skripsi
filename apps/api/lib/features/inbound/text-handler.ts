@@ -1,48 +1,30 @@
 import type { GeminiExtraction } from "@finance/shared";
-import { AnalysisType, TransactionSource } from "@prisma/client";
+import { AnalysisType } from "@prisma/client";
 import { HELP_TEXT } from "@/lib/constants";
 import { logger } from "@/lib/logger";
-import { createAIAnalysisLog } from "@/lib/services/ai-log-service";
+import { createAIAnalysisLog } from "@/lib/services/ai/ai-log-service";
 import {
   canonicalizeSupportedFinanceMessage,
   extractIntentAndTransaction,
   isGeminiRateLimitError
-} from "@/lib/services/ai-service";
-import { checkBudgetAlert, upsertCategoryBudget } from "@/lib/services/budget-service";
-import { buildCashflowForecastReply } from "@/lib/services/cashflow-forecast-service";
-import { extractForcedCategory } from "@/lib/services/category-override-service";
-import { tryHandleFinancialFreedomCommand } from "@/lib/services/financial-freedom-service";
-import { tryHandleFinanceNewsCommand } from "@/lib/services/finance-news-service";
-import { parseFallbackTransactionExtraction } from "@/lib/services/fallback-transaction-parser";
-import { tryHandleGeneralChat } from "@/lib/services/general-chat-service";
-import {
-  ALL_GLOBAL_CONTEXT_MODULES,
-  routeGlobalTextContext,
-  type GlobalContextModule
-} from "@/lib/services/global-context-router-service";
-import { tryHandleMarketCommand } from "@/lib/services/market-command-service";
-import { tryHandlePortfolioCommand } from "@/lib/services/portfolio-command-service";
-import { tryHandlePrivacyCommand } from "@/lib/services/privacy-command-service";
-import { buildSavingsProgressUpdateText } from "@/lib/services/savings-progress-service";
-import { tryHandleSmartAllocation } from "@/lib/services/smart-allocation-service";
-import { checkUnusualExpenseAlert } from "@/lib/services/spending-anomaly-service";
-import { tryHandleTransactionMutationCommand } from "@/lib/services/transaction-mutation-command-service";
-import { tryHandleWealthProjection } from "@/lib/services/wealth-projection-service";
-import { generateUserFinancialAdvice } from "@/lib/services/advice-service";
+} from "@/lib/services/ai/ai-service";
+import { extractForcedCategory } from "@/lib/services/transactions/category-override-service";
+import { parseFallbackTransactionExtraction } from "@/lib/services/transactions/fallback-transaction-parser";
+import { tryHandleGeneralChat } from "@/lib/services/assistant/general-chat-service";
+import { generateUserFinancialAdvice } from "@/lib/services/assistant/advice-service";
 import {
   loadRecentConversationTurns,
   resolveConversationMemory
-} from "@/lib/services/conversation-memory-service";
-import { getSavingsGoalStatus, refreshSavingsGoalProgress, setSavingsGoalTarget } from "@/lib/services/goal-service";
-import { generateUserInsight } from "@/lib/services/insight-service";
-import {
-  buildCategoryDetailReport,
-  buildGeneralAnalyticsReport,
-  parseReportPeriod
-} from "@/lib/services/report-service";
-import { createTransactionFromExtraction, isTransactionExtractable } from "@/lib/services/transaction-service";
-import { buildBudgetSetText, buildGoalStatusText, confirmTransactionText } from "./formatters";
+} from "@/lib/services/assistant/conversation-memory-service";
+import { routeGlobalTextContext } from "@/lib/services/assistant/global-context-router-service";
+import { recordIntentObservation } from "@/lib/services/observability/observability-service";
+import { getSavingsGoalStatus } from "@/lib/services/planning/goal-service";
+import { generateUserInsight } from "@/lib/services/reporting/insight-service";
+import { parseReportPeriod } from "@/lib/services/reporting/report-service";
+import { createTransactionFromExtraction, isTransactionExtractable } from "@/lib/services/transactions/transaction-service";
+import { saveTransactionAndBuildReply } from "./transaction-reply";
 import { buildReportResponse, toReportReplyBody } from "./report";
+import { tryHandleStructuredText } from "./structured-text-handler";
 import { ok, type InboundHandlerResult } from "./result";
 import type { MessageContext } from "./types";
 
@@ -50,268 +32,11 @@ type HandleTextMessageInput = MessageContext & {
   text: string | undefined;
 };
 
-const saveTransactionAndBuildReply = async (params: {
-  userId: string;
-  messageId: string;
-  extraction: GeminiExtraction;
-  rawText: string;
-  analysisPayload?: unknown;
-  forcedCategory?: string | null;
-}) => {
-  const transaction = await createTransactionFromExtraction({
-    userId: params.userId,
-    extraction: params.extraction,
-    source: TransactionSource.TEXT,
-    rawText: params.rawText
-  });
-  const goalStatus = await refreshSavingsGoalProgress(params.userId);
-
-  await createAIAnalysisLog({
-    userId: params.userId,
-    messageId: params.messageId,
-    analysisType: AnalysisType.EXTRACTION,
-    payload: params.analysisPayload ?? params.extraction
-  });
-
-  const amountNumber = Number(transaction.amount);
-  const alertText = await checkBudgetAlert(params.userId, transaction.category, transaction.occurredAt);
-  const goalProgressText = await buildSavingsProgressUpdateText({
-    userId: params.userId,
-    goalStatus
-  });
-  const anomalyText =
-    transaction.type === "EXPENSE"
-      ? await checkUnusualExpenseAlert({
-          userId: params.userId,
-          amount: amountNumber,
-          occurredAt: transaction.occurredAt
-        })
-      : null;
-  const categoryOverrideText =
-    params.forcedCategory && transaction.category === params.forcedCategory
-      ? `Kategori dipaksa sesuai input: ${params.forcedCategory}.`
-      : null;
-  const replyText = [
-    confirmTransactionText({
-      type: transaction.type,
-      amount: amountNumber,
-      category: transaction.category,
-      occurredAt: transaction.occurredAt,
-      merchant: transaction.merchant
-    }),
-    categoryOverrideText,
-    alertText,
-    anomalyText,
-    goalProgressText
-  ]
-    .filter(Boolean)
-    .join("\n");
-
-  return ok({ replyText });
-};
-
-const tryHandleStructuredText = async (params: {
-  userId: string;
-  messageId: string;
-  text: string;
-}): Promise<InboundHandlerResult | null> => {
-  const routedContext = routeGlobalTextContext(params.text);
-
-  if (routedContext.command.kind === "HELP") {
-    return ok({ replyText: HELP_TEXT });
-  }
-
-  if (routedContext.command.kind === "REPORT") {
-    const report = await buildReportResponse(params.userId, routedContext.command.period);
-    return ok(toReportReplyBody(report));
-  }
-
-  if (routedContext.command.kind === "CATEGORY_DETAIL_REPORT") {
-    const replyText = await buildCategoryDetailReport({
-      userId: params.userId,
-      period: routedContext.command.period,
-      category: routedContext.command.category,
-      filterText: routedContext.command.filterText,
-      mode: routedContext.command.mode,
-      limit: routedContext.command.limit,
-      rangeWindow: routedContext.command.rangeWindow
-    });
-    return ok({ replyText });
-  }
-
-  if (routedContext.command.kind === "GENERAL_ANALYTICS_REPORT") {
-    const replyText = await buildGeneralAnalyticsReport({
-      userId: params.userId,
-      mode: routedContext.command.mode,
-      period: routedContext.command.period,
-      limit: routedContext.command.limit,
-      rangeWindow: routedContext.command.rangeWindow
-    });
-    return ok({ replyText });
-  }
-
-  if (routedContext.command.kind === "CASHFLOW_FORECAST") {
-    const replyText = await buildCashflowForecastReply({
-      userId: params.userId,
-      query: {
-        horizon: routedContext.command.horizon,
-        mode: routedContext.command.mode
-      }
-    });
-    return ok({ replyText });
-  }
-
-  if (routedContext.command.kind === "INSIGHT") {
-    const insightText = await generateUserInsight(params.userId);
-    await createAIAnalysisLog({
-      userId: params.userId,
-      messageId: params.messageId,
-      analysisType: AnalysisType.INSIGHT,
-      payload: { insightText, source: "command" }
-    });
-    return ok({ replyText: insightText });
-  }
-
-  if (routedContext.command.kind === "ADVICE") {
-    const userQuestion =
-      routedContext.command.question ??
-      "Keuangan aku sehat gak? Kasih saran yang paling penting bulan ini.";
-    const insightText = await generateUserFinancialAdvice(params.userId, userQuestion);
-    await createAIAnalysisLog({
-      userId: params.userId,
-      messageId: params.messageId,
-      analysisType: AnalysisType.INSIGHT,
-      payload: { insightText, source: "command_advice", userQuestion }
-    });
-    return ok({ replyText: insightText });
-  }
-
-  if (routedContext.command.kind === "BUDGET_SET") {
-    const budget = await upsertCategoryBudget({
-      userId: params.userId,
-      category: routedContext.command.category,
-      monthlyLimit: routedContext.command.monthlyLimit
-    });
-    return ok({ replyText: buildBudgetSetText(budget) });
-  }
-
-  if (routedContext.command.kind === "GOAL_SET") {
-    const goalStatus = await setSavingsGoalTarget(params.userId, routedContext.command.targetAmount);
-    return ok({ replyText: buildGoalStatusText(goalStatus) });
-  }
-
-  if (routedContext.command.kind === "GOAL_STATUS") {
-    const goalStatus = await getSavingsGoalStatus(params.userId);
-    return ok({ replyText: buildGoalStatusText(goalStatus) });
-  }
-
-  const triedModules = new Set<GlobalContextModule>();
-  const modulesToTry = [
-    ...routedContext.moduleOrder,
-    ...ALL_GLOBAL_CONTEXT_MODULES.filter((module) => !routedContext.moduleOrder.includes(module))
-  ];
-
-  for (const module of modulesToTry) {
-    if (triedModules.has(module)) continue;
-    triedModules.add(module);
-
-    if (module === "TRANSACTION") {
-      continue;
-    }
-
-    if (module === "TRANSACTION_MUTATION") {
-      const transactionMutation = await tryHandleTransactionMutationCommand({
-        userId: params.userId,
-        text: params.text
-      });
-      if (transactionMutation.handled) {
-        return ok({ replyText: transactionMutation.replyText });
-      }
-      continue;
-    }
-
-    if (module === "PORTFOLIO") {
-      const portfolioCommand = await tryHandlePortfolioCommand({
-        userId: params.userId,
-        text: params.text
-      });
-      if (portfolioCommand.handled) {
-        return ok({ replyText: portfolioCommand.replyText });
-      }
-      continue;
-    }
-
-    if (module === "MARKET") {
-      const marketCommand = await tryHandleMarketCommand(params.text);
-      if (marketCommand.handled) {
-        return ok({ replyText: marketCommand.replyText });
-      }
-      continue;
-    }
-
-    if (module === "NEWS") {
-      try {
-        const newsCommand = await tryHandleFinanceNewsCommand({
-          userId: params.userId,
-          text: params.text
-        });
-        if (newsCommand.handled) {
-          return ok({ replyText: newsCommand.replyText });
-        }
-      } catch (error) {
-        logger.warn({ err: error }, "Finance news retrieval failed");
-        return ok({
-          replyText: "Berita finance belum tersedia sementara. Coba lagi beberapa menit lagi."
-        });
-      }
-      continue;
-    }
-
-    if (module === "SMART_ALLOCATION") {
-      const allocationCommand = await tryHandleSmartAllocation({
-        userId: params.userId,
-        text: params.text
-      });
-      if (allocationCommand.handled) {
-        return ok({ replyText: allocationCommand.replyText });
-      }
-      continue;
-    }
-
-    if (module === "FINANCIAL_FREEDOM") {
-      const freedomCommand = await tryHandleFinancialFreedomCommand({
-        userId: params.userId,
-        text: params.text
-      });
-      if (freedomCommand.handled) {
-        return ok({ replyText: freedomCommand.replyText });
-      }
-      continue;
-    }
-
-    if (module === "WEALTH_PROJECTION") {
-      const projectionCommand = tryHandleWealthProjection(params.text);
-      if (projectionCommand.handled) {
-        return ok({ replyText: projectionCommand.replyText });
-      }
-      continue;
-    }
-
-    if (module === "PRIVACY") {
-      const privacyCommand = await tryHandlePrivacyCommand(params.userId, params.text);
-      if (privacyCommand.handled) {
-        return ok({ replyText: privacyCommand.replyText });
-      }
-    }
-  }
-
-  return null;
-};
-
 export const handleTextMessage = async (
   params: HandleTextMessageInput
 ): Promise<InboundHandlerResult> => {
   const textInput = params.text ?? "";
+  const rawRoute = routeGlobalTextContext(textInput);
   const memoryResolution = await resolveConversationMemory({
     userId: params.userId,
     currentMessageId: params.messageId,
@@ -319,6 +44,20 @@ export const handleTextMessage = async (
   });
 
   if (memoryResolution.kind === "reply") {
+    await recordIntentObservation({
+      userId: params.userId,
+      messageId: params.messageId,
+      rawText: textInput,
+      effectiveText: textInput,
+      commandKind: rawRoute.command.kind,
+      topModule: rawRoute.moduleOrder[0] ?? null,
+      moduleOrder: rawRoute.moduleOrder,
+      resolutionKind: memoryResolution.kind,
+      resolutionSource: memoryResolution.source,
+      handledBy: "clarification_reply",
+      fallbackStage: "conversation_memory_reply",
+      ambiguityFlag: true
+    });
     await createAIAnalysisLog({
       userId: params.userId,
       messageId: params.messageId,
@@ -330,14 +69,50 @@ export const handleTextMessage = async (
 
   const effectiveText =
     memoryResolution.kind === "rewrite" ? memoryResolution.effectiveText : textInput;
-  const initialModuleOrder = routeGlobalTextContext(effectiveText).moduleOrder;
+  const effectiveRoute = routeGlobalTextContext(effectiveText);
+  const initialModuleOrder = effectiveRoute.moduleOrder;
+  const observeAndReturn = async (
+    result: InboundHandlerResult,
+    overrides: Partial<{
+      effectiveText: string;
+      commandKind: string;
+      topModule: string | null;
+      moduleOrder: string[];
+      semanticNormalizedText: string | null;
+      handledBy: string;
+      fallbackStage: string | null;
+      ambiguityFlag: boolean;
+    }>
+  ) => {
+    await recordIntentObservation({
+      userId: params.userId,
+      messageId: params.messageId,
+      rawText: textInput,
+      effectiveText: overrides.effectiveText ?? effectiveText,
+      commandKind: overrides.commandKind ?? effectiveRoute.command.kind,
+      topModule: overrides.topModule ?? effectiveRoute.moduleOrder[0] ?? null,
+      moduleOrder: overrides.moduleOrder ?? effectiveRoute.moduleOrder,
+      resolutionKind: memoryResolution.kind === "rewrite" ? "rewrite" : "none",
+      resolutionSource: memoryResolution.kind === "rewrite" ? memoryResolution.source : null,
+      semanticNormalizedText: overrides.semanticNormalizedText ?? null,
+      handledBy: overrides.handledBy ?? "unknown",
+      fallbackStage: overrides.fallbackStage ?? null,
+      ambiguityFlag: overrides.ambiguityFlag ?? false
+    });
+    return result;
+  };
   const structuredResult = await tryHandleStructuredText({
     userId: params.userId,
     messageId: params.messageId,
     text: effectiveText
   });
   if (structuredResult) {
-    return structuredResult;
+    return observeAndReturn(structuredResult, {
+      handledBy:
+        effectiveRoute.command.kind !== "NONE"
+          ? `structured:${effectiveRoute.command.kind}`
+          : `structured:${effectiveRoute.moduleOrder[0] ?? "module"}`
+    });
   }
 
   try {
@@ -367,7 +142,17 @@ export const handleTextMessage = async (
             normalizedText
           }
         });
-        return normalizedResult;
+        const normalizedRoute = routeGlobalTextContext(normalizedText);
+        return observeAndReturn(normalizedResult, {
+          commandKind: normalizedRoute.command.kind,
+          topModule: normalizedRoute.moduleOrder[0] ?? null,
+          moduleOrder: normalizedRoute.moduleOrder,
+          semanticNormalizedText: normalizedText,
+          handledBy:
+            normalizedRoute.command.kind !== "NONE"
+              ? `semantic:${normalizedRoute.command.kind}`
+              : `semantic:${normalizedRoute.moduleOrder[0] ?? "module"}`
+        });
       }
     }
   } catch (error) {
@@ -386,7 +171,10 @@ export const handleTextMessage = async (
       analysisType: AnalysisType.INSIGHT,
       payload: { source: "general_chat_quick", replyText: quickGeneralChat.replyText }
     });
-    return ok({ replyText: quickGeneralChat.replyText });
+    return observeAndReturn(ok({ replyText: quickGeneralChat.replyText }), {
+      handledBy: "general_chat_quick",
+      fallbackStage: "quick_general_chat"
+    });
   }
 
   const { cleanedText, forcedCategory } = extractForcedCategory(effectiveText);
@@ -409,7 +197,12 @@ export const handleTextMessage = async (
         rawText: textInput,
         analysisPayload: { source: "fallback_after_ai_error", fallbackExtraction: extractionWithCategory },
         forcedCategory
-      });
+      }).then((result) =>
+        observeAndReturn(result, {
+          handledBy: "transaction_recorded",
+          fallbackStage: "fallback_after_ai_error"
+        })
+      );
     }
 
     if (initialModuleOrder[0] !== "TRANSACTION") {
@@ -425,20 +218,29 @@ export const handleTextMessage = async (
           analysisType: AnalysisType.INSIGHT,
           payload: { source: "general_chat_after_intent_error", replyText: generalChat.replyText }
         });
-        return ok({ replyText: generalChat.replyText });
+        return observeAndReturn(ok({ replyText: generalChat.replyText }), {
+          handledBy: "general_chat_full",
+          fallbackStage: "general_chat_after_intent_error"
+        });
       }
     }
 
     if (isGeminiRateLimitError(error)) {
-      return ok({
+      return observeAndReturn(ok({
         replyText:
           "Layanan AI sedang penuh sementara. Coba lagi 1-2 menit lagi atau gunakan format langsung seperti `makan 45000`."
+      }), {
+        handledBy: "rate_limit_reply",
+        fallbackStage: "gemini_rate_limit"
       });
     }
 
-    return ok({
+    return observeAndReturn(ok({
       replyText:
         "Layanan analisis AI sedang gangguan sementara. Coba lagi sebentar atau catat transaksi dengan format sederhana seperti `makan 45000`."
+    }), {
+      handledBy: "ai_error_reply",
+      fallbackStage: "intent_extraction_error"
     });
   }
 
@@ -450,13 +252,17 @@ export const handleTextMessage = async (
   });
 
   if (extraction.intent === "HELP") {
-    return ok({ replyText: HELP_TEXT });
+    return observeAndReturn(ok({ replyText: HELP_TEXT }), {
+      handledBy: "ai_intent_help"
+    });
   }
 
   if (extraction.intent === "REQUEST_REPORT") {
     const period = parseReportPeriod(extraction.reportPeriod ?? undefined);
-    const report = await buildReportResponse(params.userId, period);
-    return ok(toReportReplyBody(report));
+    const report = await buildReportResponse(params.userId, { period });
+    return observeAndReturn(ok(toReportReplyBody(report)), {
+      handledBy: "ai_intent_report"
+    });
   }
 
   if (extraction.intent === "REQUEST_INSIGHT") {
@@ -467,7 +273,9 @@ export const handleTextMessage = async (
       analysisType: AnalysisType.INSIGHT,
       payload: { insightText, source: "intent" }
     });
-    return ok({ replyText: insightText });
+    return observeAndReturn(ok({ replyText: insightText }), {
+      handledBy: "ai_intent_insight"
+    });
   }
 
   if (extraction.intent === "REQUEST_FINANCIAL_ADVICE") {
@@ -479,7 +287,9 @@ export const handleTextMessage = async (
       analysisType: AnalysisType.INSIGHT,
       payload: { insightText, source: "intent_advice", userQuestion }
     });
-    return ok({ replyText: insightText });
+    return observeAndReturn(ok({ replyText: insightText }), {
+      handledBy: "ai_intent_advice"
+    });
   }
 
   if (extraction.intent === "UNKNOWN") {
@@ -499,7 +309,12 @@ export const handleTextMessage = async (
           fallbackExtraction: fallbackWithCategory
         },
         forcedCategory
-      });
+      }).then((result) =>
+        observeAndReturn(result, {
+          handledBy: "transaction_recorded",
+          fallbackStage: "fallback_after_unknown_intent"
+        })
+      );
     }
 
     const generalChat = await tryHandleGeneralChat({
@@ -514,7 +329,10 @@ export const handleTextMessage = async (
         analysisType: AnalysisType.INSIGHT,
         payload: { source: "general_chat_after_unknown_intent", replyText: generalChat.replyText }
       });
-      return ok({ replyText: generalChat.replyText });
+      return observeAndReturn(ok({ replyText: generalChat.replyText }), {
+        handledBy: "general_chat_full",
+        fallbackStage: "general_chat_after_unknown_intent"
+      });
     }
   }
 
@@ -538,11 +356,18 @@ export const handleTextMessage = async (
           analysisType: AnalysisType.INSIGHT,
           payload: { source: "general_chat_after_unextractable", replyText: generalChat.replyText }
         });
-        return ok({ replyText: generalChat.replyText });
+        return observeAndReturn(ok({ replyText: generalChat.replyText }), {
+          handledBy: "general_chat_full",
+          fallbackStage: "general_chat_after_unextractable"
+        });
       }
 
-      return ok({
+      return observeAndReturn(ok({
         replyText: "Saya belum cukup paham konteksnya, jadi saya belum mau jawab ngawur. Kalau maksudnya transaksi, coba tulis contoh seperti `makan siang 45000` atau `gaji masuk 5 juta`."
+      }), {
+        handledBy: "safe_unknown_reply",
+        fallbackStage: "non_transaction_unextractable",
+        ambiguityFlag: true
       });
     }
 
@@ -561,7 +386,12 @@ export const handleTextMessage = async (
         fallbackExtraction: fallbackWithCategory
       },
       forcedCategory
-    });
+    }).then((result) =>
+      observeAndReturn(result, {
+        handledBy: "transaction_recorded",
+        fallbackStage: "fallback_after_non_transaction_intent"
+      })
+    );
   }
 
   return saveTransactionAndBuildReply({
@@ -570,5 +400,9 @@ export const handleTextMessage = async (
     extraction: extractionWithCategory,
     rawText: textInput,
     forcedCategory
-  });
+  }).then((result) =>
+    observeAndReturn(result, {
+      handledBy: "transaction_recorded"
+    })
+  );
 };

@@ -4,7 +4,7 @@ import {
   formatPromptForChat,
   getPromptForStep,
   type OnboardingPromptContext
-} from "@/lib/services/onboarding-flow-service";
+} from "@/lib/services/onboarding/onboarding-flow-service";
 
 const baseContext: OnboardingPromptContext = {
   needsPhoneVerification: false,
@@ -51,3 +51,4 @@ describe("onboarding flow service", () => {
     expect(text.toLowerCase()).toContain("contoh kalau mau");
   });
 });
+

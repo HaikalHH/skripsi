@@ -50,7 +50,7 @@ vi.mock("@/lib/prisma", () => ({
   }
 }));
 
-vi.mock("@/lib/services/market-price-service", () => ({
+vi.mock("@/lib/services/market/market-price-service", () => ({
   getMarketQuoteBySymbol: vi.fn(async (symbol: string) => {
     if (symbol === "BBCA") {
       return {
@@ -61,12 +61,21 @@ vi.mock("@/lib/services/market-price-service", () => ({
         source: "Yahoo Finance"
       };
     }
+    if (symbol === "TLKM") {
+      return {
+        symbol: "TLKM",
+        label: "Saham TLKM",
+        price: 2800,
+        currency: "IDR",
+        source: "Yahoo Finance"
+      };
+    }
 
     throw new Error("unsupported");
   })
 }));
 
-import { tryHandlePortfolioCommand } from "@/lib/services/portfolio-command-service";
+import { tryHandlePortfolioCommand } from "@/lib/services/market/portfolio-command-service";
 
 describe("portfolio command service", () => {
   beforeEach(() => {
@@ -125,8 +134,127 @@ describe("portfolio command service", () => {
       expect(result.replyText).toContain("Ringkasan portfolio:");
       expect(result.replyText).toContain("Nilai saat ini: Rp5.950.000");
       expect(result.replyText).toContain("Unrealized P/L: +Rp50.000");
+      expect(result.replyText).toContain("Top holding:");
+      expect(result.replyText).toContain("Tipe aset dominan:");
+      expect(result.replyText).toContain("Sinyal rebalance:");
+      expect(result.replyText).toContain("Rasio aset likuid:");
+      expect(result.replyText).toContain("Skor diversifikasi");
       expect(result.replyText).toContain("BBCA");
       expect(result.replyText).toContain("Tabungan");
     }
   });
+
+  it("answers rebalance and concentration analysis queries", async () => {
+    hoisted.assets = [
+      {
+        id: "asset_1",
+        userId: "user_1",
+        assetType: "STOCK",
+        symbol: "BBCA",
+        displayName: "BBCA",
+        quantity: 700,
+        unit: "share",
+        averageBuyPrice: 9000,
+        currency: "IDR"
+      },
+      {
+        id: "asset_2",
+        userId: "user_1",
+        assetType: "OTHER",
+        symbol: "TABUNGAN",
+        displayName: "Tabungan",
+        quantity: 1,
+        unit: "unit",
+        averageBuyPrice: 1000000,
+        currency: "IDR"
+      }
+    ];
+
+    const riskResult = await tryHandlePortfolioCommand({
+      userId: "user_1",
+      text: "perlu rebalance gak"
+    });
+
+    expect(riskResult.handled).toBe(true);
+    if (riskResult.handled) {
+      expect(riskResult.replyText).toContain("Analisa risiko portfolio:");
+      expect(riskResult.replyText).toContain("Status rebalance:");
+      expect(riskResult.replyText).toContain("BBCA");
+    }
+
+    const dominantResult = await tryHandlePortfolioCommand({
+      userId: "user_1",
+      text: "aset paling dominan apa"
+    });
+
+    expect(dominantResult.handled).toBe(true);
+    if (dominantResult.handled) {
+      expect(dominantResult.replyText).toContain("Aset dominan portfolio kamu:");
+      expect(dominantResult.replyText).toContain("Holding terbesar: BBCA");
+      expect(dominantResult.replyText).toContain("Status rebalance:");
+    }
+  });
+
+  it("answers performance and diversification queries", async () => {
+    hoisted.assets = [
+      {
+        id: "asset_1",
+        userId: "user_1",
+        assetType: "STOCK",
+        symbol: "BBCA",
+        displayName: "BBCA",
+        quantity: 100,
+        unit: "share",
+        averageBuyPrice: 9000,
+        currency: "IDR"
+      },
+      {
+        id: "asset_2",
+        userId: "user_1",
+        assetType: "STOCK",
+        symbol: "TLKM",
+        displayName: "TLKM",
+        quantity: 200,
+        unit: "share",
+        averageBuyPrice: 3200,
+        currency: "IDR"
+      },
+      {
+        id: "asset_3",
+        userId: "user_1",
+        assetType: "OTHER",
+        symbol: "TABUNGAN",
+        displayName: "Tabungan",
+        quantity: 1,
+        unit: "unit",
+        averageBuyPrice: 2000000,
+        currency: "IDR"
+      }
+    ];
+
+    const performanceResult = await tryHandlePortfolioCommand({
+      userId: "user_1",
+      text: "aset paling cuan apa"
+    });
+
+    expect(performanceResult.handled).toBe(true);
+    if (performanceResult.handled) {
+      expect(performanceResult.replyText).toContain("Analisa performa portfolio:");
+      expect(performanceResult.replyText).toContain("Aset paling cuan:");
+      expect(performanceResult.replyText).toContain("Aset paling rugi:");
+    }
+
+    const diversificationResult = await tryHandlePortfolioCommand({
+      userId: "user_1",
+      text: "diversifikasi portfolio aku gimana"
+    });
+
+    expect(diversificationResult.handled).toBe(true);
+    if (diversificationResult.handled) {
+      expect(diversificationResult.replyText).toContain("Analisa diversifikasi portfolio:");
+      expect(diversificationResult.replyText).toContain("Skor diversifikasi:");
+      expect(diversificationResult.replyText).toContain("Komposisi tipe aset:");
+    }
+  });
 });
+

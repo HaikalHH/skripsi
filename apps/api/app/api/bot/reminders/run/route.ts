@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { env } from "@/lib/env";
-import { runProactiveReminders } from "@/lib/services/reminder-service";
+import { runProactiveReminders } from "@/lib/services/reminders/reminder-service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

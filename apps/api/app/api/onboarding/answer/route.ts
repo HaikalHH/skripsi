@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { submitOnboardingAnswer } from "@/lib/services/onboarding-service";
-import { onboardingAnswerBodySchema, resolveUserIdentity, toJsonSafe } from "@/lib/services/onboarding-route-helper";
+import { submitOnboardingAnswer } from "@/lib/services/onboarding/onboarding-service";
+import { onboardingAnswerBodySchema, resolveUserIdentity, toJsonSafe } from "@/lib/services/onboarding/onboarding-route-helper";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

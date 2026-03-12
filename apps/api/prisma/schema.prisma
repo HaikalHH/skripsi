@@ -231,6 +231,7 @@ model User {
   aiAnalysisLogs            AIAnalysisLog[]
   budgets                   Budget[]
   savingsGoal               SavingsGoal?
+  reminderPreference        ReminderPreference?
   subscriptions             Subscription[]
   paymentSessions           PaymentSession[]
   outboundMessages          OutboundMessage[]
@@ -239,8 +240,11 @@ model User {
   financialProfile          FinancialProfile?
   expensePlans              ExpensePlan[]
   financialGoals            FinancialGoal[]
+  goalContributions         GoalContribution[]
   assets                    Asset[]
   onboardingSessions        OnboardingSession[]
+  intentObservations        IntentObservation[]
+  reminderEvents            ReminderEvent[]
 }
 
 model Transaction {
@@ -250,6 +254,7 @@ model Transaction {
   type       TransactionType
   amount     Decimal           @db.Decimal(12, 2)
   category   String
+  detailTag  String?
   merchant   String?
   note       String?
   occurredAt DateTime
@@ -318,6 +323,26 @@ model Subscription {
   updatedAt DateTime           @updatedAt
 
   @@index([userId, status])
+}
+
+model ReminderPreference {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  budgetEnabled    Boolean  @default(true)
+  weeklyEnabled    Boolean  @default(true)
+  weeklyReviewEnabled  Boolean  @default(true)
+  recurringEnabled Boolean  @default(true)
+  cashflowEnabled  Boolean  @default(true)
+  goalEnabled      Boolean  @default(true)
+  monthlyClosingEnabled Boolean @default(true)
+  quietHoursStart  Int?
+  quietHoursEnd    Int?
+  minIntervalHours Int      @default(24)
+  maxPerDay        Int      @default(3)
+  snoozedUntil     DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
 
 model PaymentSession {
@@ -437,9 +462,25 @@ model FinancialGoal {
   estimatedMonthsToGoal Decimal?            @db.Decimal(10, 2)
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt
+  contributions         GoalContribution[]
 
   @@index([userId, status])
   @@index([userId, goalType])
+}
+
+model GoalContribution {
+  id         String        @id @default(cuid())
+  userId     String
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goalId     String
+  goal       FinancialGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  amount     BigInt
+  note       String?
+  occurredAt DateTime      @default(now())
+  createdAt  DateTime      @default(now())
+
+  @@index([userId, occurredAt])
+  @@index([goalId, occurredAt])
 }
 
 model Asset {
@@ -480,4 +521,42 @@ model SystemHeartbeat {
   id          String   @id @default(cuid())
   serviceName String   @unique
   lastSeenAt  DateTime @default(now())
+}
+
+model IntentObservation {
+  id                   String   @id @default(cuid())
+  userId               String
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messageId            String?
+  rawText              String
+  effectiveText        String
+  commandKind          String
+  topModule            String?
+  moduleOrderJson      Json?
+  resolutionKind       String
+  resolutionSource     String?
+  semanticNormalizedText String?
+  handledBy            String
+  fallbackStage        String?
+  ambiguityFlag        Boolean  @default(false)
+  createdAt            DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([handledBy, createdAt])
+  @@index([ambiguityFlag, createdAt])
+}
+
+model ReminderEvent {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reminderType String
+  marker       String
+  messageText  String
+  sentAt       DateTime @default(now())
+  createdAt    DateTime @default(now())
+
+  @@index([userId, sentAt])
+  @@index([userId, reminderType, sentAt])
+  @@index([userId, marker, sentAt])
 }

@@ -18,6 +18,13 @@ const hoisted = vi.hoisted(() => ({
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
+    user: {
+      findUnique: vi.fn(async () => ({
+        employmentType: "EMPLOYEE",
+        incomeStability: "STABLE",
+        hasAssets: true
+      }))
+    },
     financialProfile: {
       findUnique: vi.fn(async () => hoisted.profile)
     },
@@ -34,28 +41,47 @@ vi.mock("@/lib/prisma", () => ({
   }
 }));
 
-vi.mock("@/lib/services/goal-service", () => ({
+vi.mock("@/lib/services/planning/goal-service", () => ({
   getSavingsGoalStatus: vi.fn(async () => ({
     targetAmount: 300000000,
     currentProgress: 50000000,
     remainingAmount: 250000000,
-    progressPercent: 16.7
+    progressPercent: 16.7,
+    recommendedPlan: [
+      {
+        goalName: "Beli Rumah",
+        recommendedMonthlyContribution: 2500000,
+        sharePercent: 62.5
+      }
+    ]
   }))
 }));
 
-vi.mock("@/lib/services/portfolio-valuation-service", () => ({
+vi.mock("@/lib/services/market/portfolio-valuation-service", () => ({
   getUserPortfolioValuation: vi.fn(async () => ({
     items: [],
     totalBookValue: 2000000,
     totalCurrentValue: 2000000,
     totalUnrealizedGain: 0,
     totalLiquidValue: 2000000,
+    liquidSharePercent: 100,
     marketValuedCount: 0,
-    bookFallbackCount: 0
+    bookFallbackCount: 0,
+    marketCoveragePercent: 0,
+    topHoldingName: "Tabungan",
+    concentrationRisk: "LOW",
+    dominantType: "OTHER",
+    dominantTypeShare: 100,
+    rebalanceStatus: "WATCH",
+    rebalanceReasons: ["aset likuid terlalu besar dibanding aset bertumbuh"],
+    profitableAssetCount: 0,
+    losingAssetCount: 0,
+    typeBreakdown: [],
+    diversificationScore: 45
   }))
 }));
 
-import { tryHandleSmartAllocation } from "@/lib/services/smart-allocation-service";
+import { tryHandleSmartAllocation } from "@/lib/services/planning/smart-allocation-service";
 
 describe("smart allocation service", () => {
   beforeEach(() => {
@@ -82,7 +108,11 @@ describe("smart allocation service", () => {
 
     expect(result.handled).toBe(true);
     expect(result.replyText).toContain("Income bulanan: Rp10.000.000");
+    expect(result.replyText).toContain("Profil alokasi:");
     expect(result.replyText).toContain("Goal prioritas (Beli Rumah)");
     expect(result.replyText).toContain("Gap dana darurat saat ini: Rp10.000.000");
+    expect(result.replyText).toContain("Referensi setoran goal: Beli Rumah Rp2.500.000/bulan");
+    expect(result.replyText).toContain("Fokus investasi:");
   });
 });
+

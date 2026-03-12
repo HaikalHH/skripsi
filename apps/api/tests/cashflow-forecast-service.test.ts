@@ -77,7 +77,7 @@ vi.mock("@/lib/prisma", () => ({
 import {
   buildCashflowForecastReply,
   parseCashflowForecastQuery
-} from "@/lib/services/cashflow-forecast-service";
+} from "@/lib/services/planning/cashflow-forecast-service";
 
 describe("cashflow forecast service", () => {
   beforeEach(() => {
@@ -138,6 +138,16 @@ describe("cashflow forecast service", () => {
       horizon: "MONTH_END",
       mode: "REMAINING"
     });
+    expect(parseCashflowForecastQuery("weekend ini masih aman gak")).toEqual({
+      horizon: "WEEKEND",
+      mode: "SAFETY"
+    });
+    expect(parseCashflowForecastQuery("kalau bayar cicilan 1 juta besok masih aman gak")).toEqual({
+      horizon: "TOMORROW",
+      mode: "SAFETY",
+      scenarioExpenseAmount: 1000000,
+      scenarioExpenseLabel: "cicilan"
+    });
   });
 
   it("builds a payday safety estimate", async () => {
@@ -173,4 +183,22 @@ describe("cashflow forecast service", () => {
 
     expect(reply).toContain("tanggal gajian kamu belum ada");
   });
+
+  it("includes scenario spending for tomorrow forecast", async () => {
+    const reply = await buildCashflowForecastReply({
+      userId: "user_1",
+      query: {
+        horizon: "TOMORROW",
+        mode: "SAFETY",
+        scenarioExpenseAmount: 1000000,
+        scenarioExpenseLabel: "cicilan"
+      },
+      now: new Date("2026-03-10T12:00:00.000Z")
+    });
+
+    expect(reply).toContain("sampai besok");
+    expect(reply).toContain("Skenario tambahan: Rp1.000.000 untuk cicilan");
+    expect(reply).toContain("Estimasi posisi di");
+  });
 });
+

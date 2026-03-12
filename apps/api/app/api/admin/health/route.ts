@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthorized } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
-import { getHeartbeatStatus } from "@/lib/services/system-service";
+import { getHeartbeatStatus } from "@/lib/services/system/system-service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

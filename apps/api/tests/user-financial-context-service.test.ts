@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildUserFinancialContextSummary } from "@/lib/services/user-financial-context-service";
+import { buildUserFinancialContextSummary } from "@/lib/services/user/user-financial-context-service";
 
 describe("user financial context service", () => {
   it("includes onboarding expense details in the AI context summary", () => {
@@ -25,7 +25,10 @@ describe("user financial context service", () => {
           goalName: "Dana Darurat",
           targetAmount: 24000000,
           status: "ACTIVE",
-          estimatedMonthsToGoal: 4
+          estimatedMonthsToGoal: 4,
+          currentProgress: 6000000,
+          remainingAmount: 18000000,
+          progressPercent: 25
         }
       ],
       assets: [
@@ -35,6 +38,7 @@ describe("user financial context service", () => {
           estimatedValue: 10000000
         }
       ],
+      recentExpenseDetailTags: ["Spotify", "Groceries"],
       recentMessages: []
     });
 
@@ -45,3 +49,4 @@ describe("user financial context service", () => {
     expect(summary).toContain("goals=");
   });
 });
+

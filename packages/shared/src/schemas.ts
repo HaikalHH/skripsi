@@ -61,3 +61,16 @@ export const reportingChartRequestSchema = z.object({
     })
   )
 });
+
+export const reportingMonthlyPdfSectionSchema = z.object({
+  title: z.string().min(1).max(120),
+  lines: z.array(z.string().min(1).max(500)).max(40)
+});
+
+export const reportingMonthlyPdfRequestSchema = z.object({
+  title: z.string().min(1).max(160),
+  subtitle: z.string().min(1).max(200).optional(),
+  periodLabel: z.string().min(1).max(120),
+  summaryLines: z.array(z.string().min(1).max(300)).max(20),
+  sections: z.array(reportingMonthlyPdfSectionSchema).max(12)
+});

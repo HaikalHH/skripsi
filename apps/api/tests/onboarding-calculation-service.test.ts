@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildExpenseBreakdownSummaryLines } from "@/lib/services/onboarding-calculation-service";
+import { buildExpenseBreakdownSummaryLines } from "@/lib/services/onboarding/onboarding-calculation-service";
 
 describe("onboarding calculation service", () => {
   it("builds detailed expense breakdown summary lines for the final onboarding message", () => {
@@ -31,3 +31,4 @@ describe("onboarding calculation service", () => {
     ).toEqual([]);
   });
 });
+

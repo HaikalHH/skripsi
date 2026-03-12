@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseFallbackTransactionExtraction } from "@/lib/services/fallback-transaction-parser";
+import { parseFallbackTransactionExtraction } from "@/lib/services/transactions/fallback-transaction-parser";
 
 describe("fallback transaction parser", () => {
   it("parses salary income phrase", () => {
@@ -74,3 +74,4 @@ describe("fallback transaction parser", () => {
     });
   });
 });
+

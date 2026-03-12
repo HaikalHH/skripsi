@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   extractForcedCategory,
   normalizeTransactionCategory
-} from "@/lib/services/category-override-service";
+} from "@/lib/services/transactions/category-override-service";
 
 describe("category override parser", () => {
   it("extracts explicit category suffix", () => {
@@ -57,3 +57,4 @@ describe("category override parser", () => {
     ).toBe("Salary");
   });
 });
+

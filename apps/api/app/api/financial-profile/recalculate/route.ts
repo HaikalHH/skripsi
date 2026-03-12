@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { buildInitialFinancialProfile } from "@/lib/services/onboarding-calculation-service";
-import { resolveUserIdentity, toJsonSafe, userIdentitySchema } from "@/lib/services/onboarding-route-helper";
+import { buildInitialFinancialProfile } from "@/lib/services/onboarding/onboarding-calculation-service";
+import { resolveUserIdentity, toJsonSafe, userIdentitySchema } from "@/lib/services/onboarding/onboarding-route-helper";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

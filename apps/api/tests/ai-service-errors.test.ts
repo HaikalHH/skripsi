@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GeminiRateLimitError, isGeminiRateLimitError } from "@/lib/services/ai-service";
+import { GeminiRateLimitError, isGeminiRateLimitError } from "@/lib/services/ai/ai-service";
 
 describe("ai service errors", () => {
   it("detects GeminiRateLimitError type", () => {
@@ -8,3 +8,4 @@ describe("ai service errors", () => {
     expect(isGeminiRateLimitError(new Error("generic"))).toBe(false);
   });
 });
+

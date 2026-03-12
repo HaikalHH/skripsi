@@ -68,7 +68,7 @@ vi.mock("@/lib/prisma", () => ({
   }
 }));
 
-import { resolveConversationMemory } from "@/lib/services/conversation-memory-service";
+import { resolveConversationMemory } from "@/lib/services/assistant/conversation-memory-service";
 
 describe("conversation memory service", () => {
   beforeEach(() => {
@@ -92,6 +92,34 @@ describe("conversation memory service", () => {
     expect(result).toMatchObject({
       kind: "rewrite",
       effectiveText: "Nabung lebih disiplin"
+    });
+  });
+
+  it("rebuilds transaction mutation intent when selecting an ambiguous transaction option", async () => {
+    hoisted.inboundMessages = [
+      {
+        id: "msg_prev_mutation",
+        userId: "user_1",
+        messageType: "TEXT",
+        contentOrCaption: "hapus transaksi spotify",
+        sentAt: new Date(Date.now() - 2 * 60 * 60 * 1000)
+      }
+    ];
+
+    const result = await resolveConversationMemory({
+      userId: "user_1",
+      text: "2",
+      fallbackAssistantText: [
+        "Saya ketemu beberapa transaksi yang mirip untuk dihapus:",
+        "1. 10 Mar | Rp50.000 | Entertainment (Spotify)",
+        "2. 08 Mar | Rp75.000 | Entertainment (Spotify)",
+        "Balas nomor transaksi yang dimaksud ya Boss."
+      ].join("\n")
+    });
+
+    expect(result).toMatchObject({
+      kind: "rewrite",
+      effectiveText: "hapus transaksi 08 Mar | Rp75.000 | Entertainment (Spotify)"
     });
   });
 
@@ -177,4 +205,74 @@ describe("conversation memory service", () => {
       effectiveText: "yang monthly juga"
     });
   });
+
+  it("rewrites category report follow-up using previous bucket context", async () => {
+    hoisted.inboundMessages = [
+      {
+        id: "msg_prev_category",
+        userId: "user_1",
+        messageType: "TEXT",
+        contentOrCaption: "detail entertainment bulan ini apa saja",
+        sentAt: new Date(Date.now() - 60 * 60 * 1000)
+      }
+    ];
+
+    const result = await resolveConversationMemory({
+      userId: "user_1",
+      currentMessageId: "msg_current",
+      text: "yang spotify doang"
+    });
+
+    expect(result).toMatchObject({
+      kind: "rewrite",
+      effectiveText: "detail Entertainment yang spotify bulan ini"
+    });
+  });
+
+  it("rewrites goal planner follow-up to priority mode", async () => {
+    hoisted.inboundMessages = [
+      {
+        id: "msg_prev_goal_plan",
+        userId: "user_1",
+        messageType: "TEXT",
+        contentOrCaption: "kalau fokus rumah dulu gimana",
+        sentAt: new Date(Date.now() - 60 * 60 * 1000)
+      }
+    ];
+
+    const result = await resolveConversationMemory({
+      userId: "user_1",
+      currentMessageId: "msg_current",
+      text: "yang paling realistis aja"
+    });
+
+    expect(result).toMatchObject({
+      kind: "rewrite",
+      effectiveText: "target mana yang paling realistis dulu"
+    });
+  });
+
+  it("rewrites cashflow follow-up while keeping the previous horizon", async () => {
+    hoisted.inboundMessages = [
+      {
+        id: "msg_prev_cashflow",
+        userId: "user_1",
+        messageType: "TEXT",
+        contentOrCaption: "aman sampai gajian gak",
+        sentAt: new Date(Date.now() - 60 * 60 * 1000)
+      }
+    ];
+
+    const result = await resolveConversationMemory({
+      userId: "user_1",
+      currentMessageId: "msg_current",
+      text: "kalau bayar cicilan 1 juta?"
+    });
+
+    expect(result).toMatchObject({
+      kind: "rewrite",
+      effectiveText: "kalau bayar cicilan 1 juta aman sampai gajian gak"
+    });
+  });
 });
+
