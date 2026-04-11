@@ -11,7 +11,7 @@ export const confirmTransactionText = (params: {
   [
     "Transaksi berhasil dicatat:",
     `- Tipe: ${params.type}`,
-    `- Amount: ${params.amount.toFixed(2)}`,
+    `- Amount: ${formatMoney(params.amount)}`,
     `- Category: ${params.category}${params.detailTag ? ` / ${params.detailTag}` : ""}`,
     params.merchant ? `- Merchant: ${params.merchant}` : null,
     `- Tanggal: ${params.occurredAt.toISOString()}`
@@ -28,9 +28,9 @@ export const buildBudgetSetText = (params: {
   [
     "Budget kategori berhasil disimpan:",
     `- Category: ${params.category}`,
-    `- Limit bulanan: ${params.monthlyLimit.toFixed(2)}`,
-    `- Terpakai bulan ini: ${params.spentThisMonth.toFixed(2)}`,
-    `- Sisa bulan ini: ${params.remainingThisMonth.toFixed(2)}`
+    `- Limit bulanan: ${formatMoney(params.monthlyLimit)}`,
+    `- Terpakai bulan ini: ${formatMoney(params.spentThisMonth)}`,
+    `- Sisa bulan ini: ${formatMoney(params.remainingThisMonth)}`
   ].join("\n");
 
 export const buildGoalStatusText = (params: {

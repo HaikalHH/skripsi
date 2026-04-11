@@ -1,4 +1,4 @@
-import { buildReportSummaryText, reportPeriodSchema, reportingChartRequestSchema } from "@finance/shared";
+import { reportPeriodSchema, reportingChartRequestSchema } from "@finance/shared";
 import type { ReportPeriod } from "@finance/shared";
 import { prisma } from "@/lib/prisma";
 import { env } from "@/lib/env";
@@ -135,17 +135,20 @@ export const buildReportText = (
 ) => {
   const topCategory = categoryBreakdown[0];
   const topCategoryText = topCategory
-    ? `Top expense category: ${topCategory.category} (${topCategory.total.toFixed(2)}).`
+    ? `Top expense category: ${topCategory.category} (${formatMoney(topCategory.total)}).`
     : "No expense category data.";
+  const balance = incomeTotal - expenseTotal;
+  const summary = `Report ${period}: income ${formatMoney(incomeTotal)}, expense ${formatMoney(
+    expenseTotal
+  )}, balance ${formatMoney(balance)}.`;
 
   if (periodLabel && periodLabel !== PERIOD_LABELS[period]) {
-    const balance = incomeTotal - expenseTotal;
-    return `Ringkasan ${periodLabel}: income ${incomeTotal.toFixed(2)}, expense ${expenseTotal.toFixed(
-      2
-    )}, balance ${balance.toFixed(2)}. ${topCategoryText}`;
+    return `Ringkasan ${periodLabel}: income ${formatMoney(incomeTotal)}, expense ${formatMoney(
+      expenseTotal
+    )}, balance ${formatMoney(balance)}. ${topCategoryText}`;
   }
 
-  return `${buildReportSummaryText(period, incomeTotal, expenseTotal)} ${topCategoryText}`;
+  return `${summary} ${topCategoryText}`;
 };
 
 const PERIOD_LABELS: Record<ReportPeriod, string> = {

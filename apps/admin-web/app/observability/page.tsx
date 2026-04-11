@@ -3,7 +3,11 @@ import { SectionCard } from "@/components/section-card";
 import { StatCard } from "@/components/stat-card";
 import { StatusBadge } from "@/components/status-badge";
 import { fetchAdminApi } from "@/lib/api";
-import { formatCompactNumber, formatDateTime, formatPercent } from "@/lib/format";
+import {
+  formatCompactNumber,
+  formatDateTime,
+  formatPercent,
+} from "@/lib/format";
 
 type ObservabilityResponse = {
   days: number;
@@ -30,11 +34,17 @@ type ObservabilityResponse = {
 };
 
 export default async function ObservabilityPage() {
-  const data = await fetchAdminApi<ObservabilityResponse>("/api/admin/observability");
+  const data = await fetchAdminApi<ObservabilityResponse>(
+    "/api/admin/observability",
+  );
   const ambiguityRate =
-    data.totalObserved > 0 ? (data.ambiguityCount / data.totalObserved) * 100 : 0;
+    data.totalObserved > 0
+      ? (data.ambiguityCount / data.totalObserved) * 100
+      : 0;
   const fallbackRate =
-    data.totalObserved > 0 ? (data.fallbackCount / data.totalObserved) * 100 : 0;
+    data.totalObserved > 0
+      ? (data.fallbackCount / data.totalObserved) * 100
+      : 0;
 
   return (
     <div className="page-stack">
@@ -45,7 +55,11 @@ export default async function ObservabilityPage() {
       />
 
       <div className="stats-grid">
-        <StatCard label="Observed Messages" value={formatCompactNumber(data.totalObserved)} tone="accent" />
+        <StatCard
+          label="Observed Messages"
+          value={formatCompactNumber(data.totalObserved)}
+          tone="accent"
+        />
         <StatCard
           label="Ambiguity"
           value={formatCompactNumber(data.ambiguityCount)}
@@ -99,7 +113,10 @@ export default async function ObservabilityPage() {
         </div>
       </SectionCard>
 
-      <SectionCard title="Top Commands" description="Intent yang paling sering masuk ke routing layer.">
+      <SectionCard
+        title="Top Commands"
+        description="Intent yang paling sering masuk ke routing layer."
+      >
         <div className="table-shell">
           <table className="data-table">
             <thead>
@@ -128,7 +145,10 @@ export default async function ObservabilityPage() {
         </div>
       </SectionCard>
 
-      <SectionCard title="Top Handlers" description="Handler akhir yang paling sering mengeksekusi request user.">
+      <SectionCard
+        title="Top Handlers"
+        description="Handler akhir yang paling sering mengeksekusi request user."
+      >
         <div className="table-shell">
           <table className="data-table">
             <thead>
@@ -157,7 +177,10 @@ export default async function ObservabilityPage() {
         </div>
       </SectionCard>
 
-      <SectionCard title="Fallback Stages" description="Tahap fallback yang paling sering aktif saat route utama tidak cukup yakin.">
+      <SectionCard
+        title="Fallback Stages"
+        description="Tahap fallback yang paling sering aktif saat route utama tidak cukup yakin."
+      >
         <div className="table-shell">
           <table className="data-table">
             <thead>
@@ -186,7 +209,10 @@ export default async function ObservabilityPage() {
         </div>
       </SectionCard>
 
-      <SectionCard title="Latest Ambiguous Queries" description="Sampel query yang memerlukan rewrite, memory resolution, atau fallback clarification.">
+      <SectionCard
+        title="Latest Ambiguous Queries"
+        description="Sampel query yang memerlukan rewrite, memory resolution, atau fallback clarification."
+      >
         <div className="table-shell">
           <table className="data-table">
             <thead>
@@ -216,7 +242,9 @@ export default async function ObservabilityPage() {
                     </td>
                     <td>
                       {item.resolutionKind}
-                      {item.resolutionSource ? ` (${item.resolutionSource})` : ""}
+                      {item.resolutionSource
+                        ? ` (${item.resolutionSource})`
+                        : ""}
                     </td>
                     <td>
                       {item.handledBy}

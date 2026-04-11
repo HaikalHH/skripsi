@@ -32,7 +32,7 @@ describe("wealth projection", () => {
     expect(result.handled).toBe(true);
     if (result.handled) {
       expect(result.replyText).toContain("Modal awal");
-      expect(result.replyText).toContain("Rp50.000.000");
+      expect(result.replyText).toContain("Rp. 50.000.000,00");
     }
   });
 

@@ -665,7 +665,7 @@ describe("inbound + reminder e2e (mock DB)", () => {
     expect(result.status).toBe(200);
     expect(result.body.replyText).toContain("Transaksi berhasil dicatat");
     expect(result.body.replyText).toContain("- Tipe: INCOME");
-    expect(result.body.replyText).toContain("- Amount: 5000000.00");
+    expect(result.body.replyText).toContain("- Amount: Rp. 5.000.000,00");
     expect(store.transactions.at(-1)?.type).toBe("INCOME");
     expect(store.transactions.at(-1)?.amount).toBe(5_000_000);
     expect(store.transactions.at(-1)?.category).toBe("Salary");
@@ -813,8 +813,8 @@ describe("inbound + reminder e2e (mock DB)", () => {
 
     expect(first.status).toBe(200);
     expect(first.body.replyText).toContain("beberapa transaksi yang mirip untuk dihapus");
-    expect(first.body.replyText).toContain("1. 10 Mar | Rp50.000 | Entertainment (Spotify)");
-    expect(first.body.replyText).toContain("2. 8 Mar | Rp75.000 | Entertainment (Spotify)");
+    expect(first.body.replyText).toContain("1. 10 Mar | Rp. 50.000,00 | Entertainment (Spotify)");
+    expect(first.body.replyText).toContain("2. 8 Mar | Rp. 75.000,00 | Entertainment (Spotify)");
 
     const second = await processInboundBody({
       waNumber: "6281110001",
@@ -867,8 +867,8 @@ describe("inbound + reminder e2e (mock DB)", () => {
 
     expect(result.status).toBe(200);
     expect(result.body.replyText).toContain("Ringkasan Januari 2026:");
-    expect(result.body.replyText).toContain("income 6000000.00");
-    expect(result.body.replyText).toContain("expense 1250000.00");
+    expect(result.body.replyText).toContain("income Rp. 6.000.000,00");
+    expect(result.body.replyText).toContain("expense Rp. 1.250.000,00");
   });
 
   it("returns detailed transactions for a requested bucket", async () => {
@@ -901,7 +901,7 @@ describe("inbound + reminder e2e (mock DB)", () => {
     expect(result.status).toBe(200);
     expect(result.body.replyText).toContain("Rincian transaksi Entertainment untuk bulan ini:");
     expect(result.body.replyText).toContain("Spotify");
-    expect(result.body.replyText).toContain("Rp75.000");
+    expect(result.body.replyText).toContain("Rp. 75.000,00");
   });
 
   it("returns cashflow forecast with scenario spending", async () => {
@@ -914,7 +914,7 @@ describe("inbound + reminder e2e (mock DB)", () => {
 
     expect(result.status).toBe(200);
     expect(result.body.replyText).toContain("sampai besok");
-    expect(result.body.replyText).toContain("Skenario tambahan: Rp1.000.000 untuk cicilan");
+    expect(result.body.replyText).toContain("Skenario tambahan: Rp. 1.000.000,00 untuk cicilan");
   });
 
   it("returns top transaction inside a bucket", async () => {
@@ -962,7 +962,7 @@ describe("inbound + reminder e2e (mock DB)", () => {
     expect(result.status).toBe(200);
     expect(result.body.replyText).toContain("Transaksi terbesar di bucket Entertainment untuk bulan ini:");
     expect(result.body.replyText).toContain("Netflix");
-    expect(result.body.replyText).toContain("Rp120.000");
+    expect(result.body.replyText).toContain("Rp. 120.000,00");
   });
 
   it("returns total for a specific label inside a bucket", async () => {
@@ -1009,7 +1009,7 @@ describe("inbound + reminder e2e (mock DB)", () => {
 
     expect(result.status).toBe(200);
     expect(result.body.replyText).toContain('Total pengeluaran Entertainment yang cocok dengan "spotify"');
-    expect(result.body.replyText).toContain("Rp100.000");
+    expect(result.body.replyText).toContain("Rp. 100.000,00");
     expect(result.body.replyText).toContain("2 transaksi");
   });
 
@@ -1063,9 +1063,9 @@ describe("inbound + reminder e2e (mock DB)", () => {
 
     expect(result.status).toBe(200);
     expect(result.body.replyText).toContain(`untuk ${monthWithYearLabel}`);
-    expect(result.body.replyText).toContain("Rp80.000");
+    expect(result.body.replyText).toContain("Rp. 80.000,00");
     expect(result.body.replyText).toContain("1 transaksi");
-    expect(result.body.replyText).not.toContain("Rp120.000");
+    expect(result.body.replyText).not.toContain("Rp. 120.000,00");
   });
 
   it("returns filtered bucket details by label", async () => {
@@ -1113,7 +1113,7 @@ describe("inbound + reminder e2e (mock DB)", () => {
     expect(result.status).toBe(200);
     expect(result.body.replyText).toContain('Rincian transaksi Bills yang cocok dengan "internet"');
     expect(result.body.replyText).toContain("Biznet");
-    expect(result.body.replyText).toContain("Rp350.000");
+    expect(result.body.replyText).toContain("Rp. 350.000,00");
     expect(result.body.replyText).not.toContain("PLN");
   });
 
@@ -1166,9 +1166,9 @@ describe("inbound + reminder e2e (mock DB)", () => {
       month: "long",
       year: "numeric"
     }).format(now)}`);
-    expect(result.body.replyText).toContain("Rp150.000");
+    expect(result.body.replyText).toContain("Rp. 150.000,00");
     expect(result.body.replyText).toContain("1 transaksi");
-    expect(result.body.replyText).not.toContain("Rp225.000");
+    expect(result.body.replyText).not.toContain("Rp. 225.000,00");
   });
 
   it("compares bucket spending against the previous week", async () => {
@@ -1229,8 +1229,8 @@ describe("inbound + reminder e2e (mock DB)", () => {
 
     expect(result.status).toBe(200);
     expect(result.body.replyText).toContain("Pengeluaran Entertainment naik dibanding periode sebelumnya.");
-    expect(result.body.replyText).toContain("Periode sekarang: Rp250.000");
-    expect(result.body.replyText).toContain("Periode sebelumnya: Rp80.000");
+    expect(result.body.replyText).toContain("Periode sekarang: Rp. 250.000,00");
+    expect(result.body.replyText).toContain("Periode sebelumnya: Rp. 80.000,00");
   });
 
   it("returns percentage change against the previous month for a filtered label", async () => {
@@ -1276,8 +1276,8 @@ describe("inbound + reminder e2e (mock DB)", () => {
 
     expect(result.status).toBe(200);
     expect(result.body.replyText).toContain('Pengeluaran Entertainment yang cocok dengan "spotify" naik dibanding periode sebelumnya.');
-    expect(result.body.replyText).toContain("Periode sekarang: Rp200.000");
-    expect(result.body.replyText).toContain("Periode sebelumnya: Rp100.000");
+    expect(result.body.replyText).toContain("Periode sekarang: Rp. 200.000,00");
+    expect(result.body.replyText).toContain("Periode sebelumnya: Rp. 100.000,00");
     expect(result.body.replyText).toContain("(100.0%)");
   });
 
@@ -1340,9 +1340,9 @@ describe("inbound + reminder e2e (mock DB)", () => {
     });
 
     expect(result.status).toBe(200);
-    expect(result.body.replyText).toContain('Rata-rata pengeluaran Entertainment yang cocok dengan "spotify" per bulan: Rp50.000.');
+    expect(result.body.replyText).toContain('Rata-rata pengeluaran Entertainment yang cocok dengan "spotify" per bulan: Rp. 50.000,00');
     expect(result.body.replyText).toContain("Basis perhitungan: 3 bulan data");
-    expect(result.body.replyText).toContain("Total tercatat: Rp150.000");
+    expect(result.body.replyText).toContain("Total tercatat: Rp. 150.000,00");
   });
 
   it("returns average weekly spending for a bucket", async () => {
@@ -1403,9 +1403,9 @@ describe("inbound + reminder e2e (mock DB)", () => {
     });
 
     expect(result.status).toBe(200);
-    expect(result.body.replyText).toContain("Rata-rata pengeluaran Bills per minggu: Rp140.000.");
+    expect(result.body.replyText).toContain("Rata-rata pengeluaran Bills per minggu: Rp. 140.000,00");
     expect(result.body.replyText).toContain("Basis perhitungan: 3 minggu data");
-    expect(result.body.replyText).toContain("Total tercatat: Rp420.000");
+    expect(result.body.replyText).toContain("Total tercatat: Rp. 420.000,00");
   });
 
   it("returns contribution share of a detailed label inside a bucket", async () => {
@@ -1452,8 +1452,8 @@ describe("inbound + reminder e2e (mock DB)", () => {
 
     expect(result.status).toBe(200);
     expect(result.body.replyText).toContain("spotify berkontribusi 75.0% dari bucket Entertainment untuk bulan ini.");
-    expect(result.body.replyText).toContain("Total spotify: Rp150.000");
-    expect(result.body.replyText).toContain("Total bucket Entertainment: Rp200.000");
+    expect(result.body.replyText).toContain("Total spotify: Rp. 150.000,00");
+    expect(result.body.replyText).toContain("Total bucket Entertainment: Rp. 200.000,00");
   });
 
   it("returns top merchants inside a bucket for the current month", async () => {
@@ -1513,9 +1513,9 @@ describe("inbound + reminder e2e (mock DB)", () => {
 
     expect(result.status).toBe(200);
     expect(result.body.replyText).toContain("Top 3 merchant di bucket Entertainment untuk bulan ini:");
-    expect(result.body.replyText).toContain("1. Spotify | Rp150.000 | 1 transaksi");
-    expect(result.body.replyText).toContain("2. Netflix | Rp120.000 | 1 transaksi");
-    expect(result.body.replyText).toContain("3. Steam | Rp90.000 | 1 transaksi");
+    expect(result.body.replyText).toContain("1. Spotify | Rp. 150.000,00 | 1 transaksi");
+    expect(result.body.replyText).toContain("2. Netflix | Rp. 120.000,00 | 1 transaksi");
+    expect(result.body.replyText).toContain("3. Steam | Rp. 90.000,00 | 1 transaksi");
   });
 
   it("returns most frequent merchants inside a bucket", async () => {
@@ -1575,8 +1575,8 @@ describe("inbound + reminder e2e (mock DB)", () => {
 
     expect(result.status).toBe(200);
     expect(result.body.replyText).toContain("Merchant paling sering di bucket Entertainment untuk bulan ini:");
-    expect(result.body.replyText).toContain("1. Spotify | Rp110.000 | 2 transaksi");
-    expect(result.body.replyText).toContain("2. Netflix | Rp70.000 | 1 transaksi");
+    expect(result.body.replyText).toContain("1. Spotify | Rp. 110.000,00 | 2 transaksi");
+    expect(result.body.replyText).toContain("2. Netflix | Rp. 70.000,00 | 1 transaksi");
   });
 
   it("returns most frequent bill merchants for the last six months", async () => {
@@ -1663,8 +1663,8 @@ describe("inbound + reminder e2e (mock DB)", () => {
 
     expect(result.status).toBe(200);
     expect(result.body.replyText).toContain("Merchant paling sering di bucket Bills untuk 6 bulan terakhir:");
-    expect(result.body.replyText).toContain("1. Biznet | Rp610.000 | 2 transaksi");
-    expect(result.body.replyText).toContain("2. PLN | Rp405.000 | 2 transaksi");
+    expect(result.body.replyText).toContain("1. Biznet | Rp. 610.000,00 | 2 transaksi");
+    expect(result.body.replyText).toContain("2. PLN | Rp. 405.000,00 | 2 transaksi");
   });
 
   it("returns top bill merchants for the last three months", async () => {
@@ -1765,9 +1765,9 @@ describe("inbound + reminder e2e (mock DB)", () => {
 
     expect(result.status).toBe(200);
     expect(result.body.replyText).toContain("Top 5 merchant di bucket Bills untuk 3 bulan terakhir:");
-    expect(result.body.replyText).toContain("1. Biznet | Rp300.000 | 1 transaksi");
-    expect(result.body.replyText).toContain("2. PLN | Rp250.000 | 1 transaksi");
-    expect(result.body.replyText).toContain("5. XL | Rp120.000 | 1 transaksi");
+    expect(result.body.replyText).toContain("1. Biznet | Rp. 300.000,00 | 1 transaksi");
+    expect(result.body.replyText).toContain("2. PLN | Rp. 250.000,00 | 1 transaksi");
+    expect(result.body.replyText).toContain("5. XL | Rp. 120.000,00 | 1 transaksi");
     expect(result.body.replyText).not.toContain("ShouldBeIgnored");
   });
 
@@ -1840,8 +1840,8 @@ describe("inbound + reminder e2e (mock DB)", () => {
 
     expect(result.status).toBe(200);
     expect(result.body.replyText).toContain("Kategori dengan kenaikan terbesar dibanding periode sebelumnya adalah Entertainment.");
-    expect(result.body.replyText).toContain("Kenaikan: Rp300.000");
-    expect(result.body.replyText).toContain("1. Entertainment | naik Rp300.000 (300.0%)");
+    expect(result.body.replyText).toContain("Kenaikan: Rp. 300.000,00");
+    expect(result.body.replyText).toContain("1. Entertainment | naik Rp. 300.000,00 (300.0%)");
   });
 
   it("supports custom comparison windows for analytics", async () => {
@@ -1930,9 +1930,9 @@ describe("inbound + reminder e2e (mock DB)", () => {
 
     expect(result.status).toBe(200);
     expect(result.body.replyText).toContain("Kategori dengan kenaikan terbesar dibanding 3 bulan sebelumnya adalah Entertainment.");
-    expect(result.body.replyText).toContain("Periode sekarang (3 bulan terakhir): Rp1.051.000");
-    expect(result.body.replyText).toContain("Periode sebelumnya (3 bulan sebelumnya): Rp200.000");
-    expect(result.body.replyText).toContain("Kenaikan: Rp851.000");
+    expect(result.body.replyText).toContain("Periode sekarang (3 bulan terakhir): Rp. 1.051.000,00");
+    expect(result.body.replyText).toContain("Periode sebelumnya (3 bulan sebelumnya): Rp. 200.000,00");
+    expect(result.body.replyText).toContain("Kenaikan: Rp. 851.000,00");
   });
 
   it("returns recurring expenses across categories for the current month", async () => {
@@ -2005,8 +2005,8 @@ describe("inbound + reminder e2e (mock DB)", () => {
 
     expect(result.status).toBe(200);
     expect(result.body.replyText).toContain("Top recurring expense untuk bulan ini:");
-    expect(result.body.replyText).toContain("1. PLN | Bills | Rp210.000 | 2 transaksi");
-    expect(result.body.replyText).toContain("2. Spotify | Entertainment | Rp105.000 | 2 transaksi | kemungkinan langganan");
+    expect(result.body.replyText).toContain("1. PLN | Bills | Rp. 210.000,00 | 2 transaksi");
+    expect(result.body.replyText).toContain("2. Spotify | Entertainment | Rp. 105.000,00 | 2 transaksi | kemungkinan langganan");
   });
 
   it("answers flexible cashflow safety questions until payday", async () => {
@@ -2308,8 +2308,8 @@ describe("inbound + reminder e2e (mock DB)", () => {
 
     expect(result.status).toBe(200);
     expect(result.body.replyText).toContain("Pengeluaran Entertainment naik terutama karena merchant ini:");
-    expect(result.body.replyText).toContain("1. Spotify | naik Rp150.000");
-    expect(result.body.replyText).toContain("2. Netflix | naik Rp120.000");
+    expect(result.body.replyText).toContain("1. Spotify | naik Rp. 150.000,00");
+    expect(result.body.replyText).toContain("2. Netflix | naik Rp. 120.000,00");
   });
 
   it("explains which merchant has the biggest delta across expenses", async () => {
@@ -2369,7 +2369,7 @@ describe("inbound + reminder e2e (mock DB)", () => {
 
     expect(result.status).toBe(200);
     expect(result.body.replyText).toContain("Selisih terbesar datang dari Biznet di bucket Bills.");
-    expect(result.body.replyText).toContain("1. Biznet | Bills | naik Rp200.000");
+    expect(result.body.replyText).toContain("1. Biznet | Bills | naik Rp. 200.000,00");
   });
 
   it("keeps existing user when inbound wa format changes", async () => {
@@ -2827,5 +2827,4 @@ describe("inbound + reminder e2e (mock DB)", () => {
     expect(habitLeaks.body.replyText).toContain("Kopi Kenangan");
   });
 });
-
 

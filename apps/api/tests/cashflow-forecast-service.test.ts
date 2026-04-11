@@ -162,8 +162,8 @@ describe("cashflow forecast service", () => {
 
     expect(reply).toContain("masih aman sampai gajian berikutnya");
     expect(reply).toContain("25 Maret 2026");
-    expect(reply).toContain("Income berjalan: Rp6.000.000");
-    expect(reply).toContain("Aset likuid tercatat: Rp500.000");
+    expect(reply).toContain("Income berjalan: Rp. 6.000.000,00");
+    expect(reply).toContain("Aset likuid tercatat: Rp. 500.000,00");
   });
 
   it("falls back safely when salary date is missing", async () => {
@@ -197,7 +197,7 @@ describe("cashflow forecast service", () => {
     });
 
     expect(reply).toContain("sampai besok");
-    expect(reply).toContain("Skenario tambahan: Rp1.000.000 untuk cicilan");
+    expect(reply).toContain("Skenario tambahan: Rp. 1.000.000,00 untuk cicilan");
     expect(reply).toContain("Estimasi posisi di");
   });
 });

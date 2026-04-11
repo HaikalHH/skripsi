@@ -5,10 +5,26 @@ import { usePathname } from "next/navigation";
 
 const navItems = [
   { href: "/users", label: "Users", description: "User base & onboarding" },
-  { href: "/transactions", label: "Transactions", description: "Cashflow activity" },
-  { href: "/subscriptions", label: "Subscriptions", description: "Plan & access control" },
-  { href: "/observability", label: "Observability", description: "Intent routing quality" },
-  { href: "/health", label: "System Health", description: "Infra & bot status" }
+  {
+    href: "/transactions",
+    label: "Transactions",
+    description: "Cashflow activity",
+  },
+  {
+    href: "/subscriptions",
+    label: "Subscriptions",
+    description: "Plan & access control",
+  },
+  {
+    href: "/observability",
+    label: "Observability",
+    description: "Intent routing quality",
+  },
+  // {
+  //   href: "/health",
+  //   label: "System Health",
+  //   description: "Infra & bot status",
+  // },
 ];
 
 export function AdminNav() {
@@ -25,7 +41,8 @@ export function AdminNav() {
       </div>
 
       <p className="sidebar-copy">
-        Internal workspace untuk monitor user, cashflow, reminder, dan kualitas routing AI.
+        Internal workspace untuk monitor user, cashflow, reminder, dan kualitas
+        routing AI.
       </p>
 
       <nav className="sidebar-nav" aria-label="Admin navigation">

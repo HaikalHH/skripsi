@@ -503,10 +503,10 @@ export const getWeeklySpendingAlert = async (
 
   const marker = `Reminder Mingguan ${ranges.currentStart.toISOString().slice(0, 10)}`;
   const message =
-    `Reminder Mingguan: pengeluaran 7 hari terakhir Anda meningkat ke ${currentExpense.toFixed(
-      2
-    )} dari periode sebelumnya ${previousExpense.toFixed(
-      2
+    `Reminder Mingguan: pengeluaran 7 hari terakhir Anda meningkat ke ${formatMoney(
+      currentExpense
+    )} dari periode sebelumnya ${formatMoney(
+      previousExpense
     )}. Cek kategori pengeluaran terbesar minggu ini agar tidak kebablasan.`;
 
   return { marker, message };
@@ -523,9 +523,7 @@ export const buildGoalReachedAlertText = (goalStatus: {
 }) => {
   if (goalStatus.targetAmount <= 0) return null;
   if (goalStatus.currentProgress < goalStatus.targetAmount) return null;
-  return `Target tabungan tercapai: ${goalStatus.currentProgress.toFixed(
-    2
-  )} dari target ${goalStatus.targetAmount.toFixed(2)}.`;
+  return `Target tabungan tercapai: ${formatMoney(goalStatus.currentProgress)} dari target ${formatMoney(goalStatus.targetAmount)}.`;
 };
 
 const getReminderEventModel = () =>
@@ -853,12 +851,10 @@ export const runProactiveReminders = async (baseDate = new Date()) => {
         const overLimit = spent >= limit;
         const marker = `Reminder Budget ${budget.category}`;
         const message = overLimit
-          ? `Kategori ${budget.category} sudah melewati budget bulanan. Limit ${limit.toFixed(
-              2
-            )}, aktual ${spent.toFixed(2)}.`
-          : `Kategori ${budget.category} hampir habis. Terpakai ${spent.toFixed(
-              2
-            )} dari limit ${limit.toFixed(2)}.`;
+          ? `Kategori ${budget.category} sudah melewati budget bulanan. Limit ${formatMoney(
+              limit
+            )}, aktual ${formatMoney(spent)}.`
+          : `Kategori ${budget.category} hampir habis. Terpakai ${formatMoney(spent)} dari limit ${formatMoney(limit)}.`;
         candidates.push({
           reminderType: "budget",
           marker,

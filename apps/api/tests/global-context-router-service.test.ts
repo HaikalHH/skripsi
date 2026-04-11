@@ -470,6 +470,7 @@ describe("global context router service", () => {
     expect(routeGlobalTextContext("tambah saham bbca 10 lot harga 9000").moduleOrder[0]).toBe(
       "PORTFOLIO"
     );
+    expect(routeGlobalTextContext("beli emas 2 gram harga 1800000").moduleOrder[0]).toBe("PORTFOLIO");
     expect(routeGlobalTextContext("tambah tabungan 5 juta").moduleOrder[0]).toBe("PORTFOLIO");
     expect(routeGlobalTextContext("perlu rebalance gak").moduleOrder[0]).toBe("PORTFOLIO");
   });

@@ -6,13 +6,19 @@ import { upsertCategoryBudget } from "@/lib/services/transactions/budget-service
 import { buildCashflowForecastReply } from "@/lib/services/planning/cashflow-forecast-service";
 import { buildFinancialHealthReply } from "@/lib/services/planning/financial-health-service";
 import { tryHandleFinancialFreedomCommand } from "@/lib/services/planning/financial-freedom-service";
-import { tryHandleFinanceNewsCommand } from "@/lib/services/market/finance-news-service";
+import {
+  buildFinanceNewsFailureReply,
+  tryHandleFinanceNewsCommand
+} from "@/lib/services/market/finance-news-service";
 import {
   ALL_GLOBAL_CONTEXT_MODULES,
   routeGlobalTextContext,
   type GlobalContextModule
 } from "@/lib/services/assistant/global-context-router-service";
-import { tryHandleMarketCommand } from "@/lib/services/market/market-command-service";
+import {
+  buildMarketCommandFailureReply,
+  tryHandleMarketCommand
+} from "@/lib/services/market/market-command-service";
 import { tryHandlePortfolioCommand } from "@/lib/services/market/portfolio-command-service";
 import { tryHandlePrivacyCommand } from "@/lib/services/assistant/privacy-command-service";
 import { buildGoalPlannerReply } from "@/lib/services/planning/goal-planner-service";
@@ -81,7 +87,8 @@ const tryHandleContextModules = async (
     if (contextModule === "PORTFOLIO") {
       const portfolioCommand = await tryHandlePortfolioCommand({
         userId: params.userId,
-        text: params.text
+        text: params.text,
+        currentMessageId: params.messageId
       });
       if (portfolioCommand.handled) {
         return ok({ replyText: portfolioCommand.replyText });
@@ -90,9 +97,16 @@ const tryHandleContextModules = async (
     }
 
     if (contextModule === "MARKET") {
-      const marketCommand = await tryHandleMarketCommand(params.text);
-      if (marketCommand.handled) {
-        return ok({ replyText: marketCommand.replyText });
+      try {
+        const marketCommand = await tryHandleMarketCommand(params.text);
+        if (marketCommand.handled) {
+          return ok({ replyText: marketCommand.replyText });
+        }
+      } catch (error) {
+        logger.warn({ err: error }, "Market quote retrieval failed");
+        return ok({
+          replyText: buildMarketCommandFailureReply(error)
+        });
       }
       continue;
     }
@@ -109,7 +123,7 @@ const tryHandleContextModules = async (
       } catch (error) {
         logger.warn({ err: error }, "Finance news retrieval failed");
         return ok({
-          replyText: "Berita finance belum tersedia sementara. Coba lagi beberapa menit lagi."
+          replyText: buildFinanceNewsFailureReply(error)
         });
       }
       continue;
@@ -311,6 +325,15 @@ export const tryHandleStructuredText = async (
       goalType: routedContext.command.goalType
     });
     return ok({ replyText: buildGoalContributionText(contribution) });
+  }
+
+  const directPortfolioCommand = await tryHandlePortfolioCommand({
+    userId: params.userId,
+    text: params.text,
+    currentMessageId: params.messageId
+  });
+  if (directPortfolioCommand.handled) {
+    return ok({ replyText: directPortfolioCommand.replyText });
   }
 
   return tryHandleContextModules(params, routedContext.moduleOrder);

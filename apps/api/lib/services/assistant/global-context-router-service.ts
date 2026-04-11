@@ -459,7 +459,7 @@ const looksLikeTransactionMutation = (text: string) =>
   /\b(hapus|delete|ubah|edit|ganti|koreksi)\b/i.test(text);
 
 const looksLikePortfolio = (text: string) =>
-  /\b(portfolio|portofolio|aset investasi|nilai aset|komposisi aset|risiko portfolio|risiko portofolio|rebalance|rebalancing|aset paling dominan|holding terbesar|aset terbesar|portfolio terlalu numpuk|portofolio terlalu numpuk|aset paling cuan|aset paling rugi|performa portfolio|performa portofolio|profit portfolio|rugi portfolio|diversifikasi portfolio|diversifikasi portofolio|portfolio terdiversifikasi|portofolio terdiversifikasi|tambah emas|tambah saham|tambah crypto|tambah kripto|tambah reksa dana|tambah reksadana|tambah properti|tambah deposito|tambah bisnis|tambah tabungan|tambah cash|tambah kas|catat emas|catat saham|catat crypto|catat kripto|catat tabungan)\b/i.test(
+  /\b(portfolio|portofolio|aset investasi|nilai aset|komposisi aset|risiko portfolio|risiko portofolio|rebalance|rebalancing|aset paling dominan|holding terbesar|aset terbesar|portfolio terlalu numpuk|portofolio terlalu numpuk|aset paling cuan|aset paling rugi|performa portfolio|performa portofolio|profit portfolio|rugi portfolio|diversifikasi portfolio|diversifikasi portofolio|portfolio terdiversifikasi|portofolio terdiversifikasi|tambah emas|beli emas|tambah saham|tambah crypto|tambah kripto|tambah reksa dana|tambah reksadana|tambah properti|tambah deposito|tambah bisnis|tambah tabungan|tambah cash|tambah kas|catat emas|catat saham|catat crypto|catat kripto|catat tabungan)\b/i.test(
     text
   );
 

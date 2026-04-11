@@ -107,11 +107,11 @@ describe("smart allocation service", () => {
     });
 
     expect(result.handled).toBe(true);
-    expect(result.replyText).toContain("Income bulanan: Rp10.000.000");
+    expect(result.replyText).toContain("Income bulanan: Rp. 10.000.000,00");
     expect(result.replyText).toContain("Profil alokasi:");
     expect(result.replyText).toContain("Goal prioritas (Beli Rumah)");
-    expect(result.replyText).toContain("Gap dana darurat saat ini: Rp10.000.000");
-    expect(result.replyText).toContain("Referensi setoran goal: Beli Rumah Rp2.500.000/bulan");
+    expect(result.replyText).toContain("Gap dana darurat saat ini: Rp. 10.000.000,00");
+    expect(result.replyText).toContain("Referensi setoran goal: Beli Rumah Rp. 2.500.000,00/bulan");
     expect(result.replyText).toContain("Fokus investasi:");
   });
 });

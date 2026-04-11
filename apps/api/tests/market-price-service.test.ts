@@ -13,5 +13,9 @@ describe("market symbol resolver", () => {
   it("resolves stock symbol", () => {
     expect(resolveMarketSymbol("bbca")).toEqual({ kind: "stock", symbol: "BBCA" });
   });
+
+  it("normalizes common stock aliases", () => {
+    expect(resolveMarketSymbol("goog")).toEqual({ kind: "stock", symbol: "GOOGL" });
+  });
 });
 

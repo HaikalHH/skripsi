@@ -111,15 +111,15 @@ describe("conversation memory service", () => {
       text: "2",
       fallbackAssistantText: [
         "Saya ketemu beberapa transaksi yang mirip untuk dihapus:",
-        "1. 10 Mar | Rp50.000 | Entertainment (Spotify)",
-        "2. 08 Mar | Rp75.000 | Entertainment (Spotify)",
+        "1. 10 Mar | Rp. 50.000,00 | Entertainment (Spotify)",
+        "2. 08 Mar | Rp. 75.000,00 | Entertainment (Spotify)",
         "Balas nomor transaksi yang dimaksud ya Boss."
       ].join("\n")
     });
 
     expect(result).toMatchObject({
       kind: "rewrite",
-      effectiveText: "hapus transaksi 08 Mar | Rp75.000 | Entertainment (Spotify)"
+      effectiveText: "hapus transaksi 08 Mar | Rp. 75.000,00 | Entertainment (Spotify)"
     });
   });
 
@@ -174,7 +174,7 @@ describe("conversation memory service", () => {
       userId: "user_1",
       currentMessageId: "msg_current",
       text: "yang tadi",
-      fallbackAssistantText: "Transaksi berhasil dicatat - Tipe: EXPENSE - Amount: 25000.00"
+      fallbackAssistantText: "Transaksi berhasil dicatat - Tipe: EXPENSE - Amount: Rp. 25.000,00"
     });
 
     expect(result.kind).toBe("reply");
@@ -272,6 +272,20 @@ describe("conversation memory service", () => {
     expect(result).toMatchObject({
       kind: "rewrite",
       effectiveText: "kalau bayar cicilan 1 juta aman sampai gajian gak"
+    });
+  });
+
+  it("does not clarify explicit finance news requests just because there is prior assistant context", async () => {
+    const result = await resolveConversationMemory({
+      userId: "user_1",
+      text: "berita finance hari ini",
+      fallbackAssistantText:
+        "Saya belum yakin konteks `yang tadi` itu yang mana, jadi saya belum mau asumsi."
+    });
+
+    expect(result).toMatchObject({
+      kind: "none",
+      effectiveText: "berita finance hari ini"
     });
   });
 });

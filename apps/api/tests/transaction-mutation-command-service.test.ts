@@ -94,8 +94,8 @@ describe("transaction mutation command service", () => {
     expect(result.handled).toBe(true);
     if (result.handled) {
       expect(result.replyText).toContain("beberapa transaksi yang mirip");
-      expect(result.replyText).toContain("1. 10 Mar | Rp50.000 | Entertainment (Spotify)");
-      expect(result.replyText).toContain("2. 8 Mar | Rp75.000 | Entertainment (Spotify)");
+      expect(result.replyText).toContain("1. 10 Mar | Rp. 50.000,00 | Entertainment (Spotify)");
+      expect(result.replyText).toContain("2. 8 Mar | Rp. 75.000,00 | Entertainment (Spotify)");
       expect(result.replyText).toContain("Balas nomor transaksi yang dimaksud");
     }
   });
@@ -103,7 +103,7 @@ describe("transaction mutation command service", () => {
   it("resolves a specific candidate when the hint carries amount and date context", async () => {
     const result = await tryHandleTransactionMutationCommand({
       userId: "user_1",
-      text: "hapus transaksi 8 Mar | Rp75.000 | Entertainment (Spotify)"
+      text: "hapus transaksi 8 Mar | Rp. 75.000,00 | Entertainment (Spotify)"
     });
 
     expect(result.handled).toBe(true);

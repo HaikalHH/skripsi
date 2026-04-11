@@ -1,6 +1,7 @@
 import { PortfolioAssetType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getMarketQuoteBySymbol } from "@/lib/services/market/market-price-service";
+import { normalizeMarketSymbolForKind } from "@/lib/services/market/market-symbol-normalization";
 
 export type ValuedPortfolioItem = {
   assetType: PortfolioAssetType;
@@ -61,9 +62,18 @@ const resolveMarketSymbolForAsset = (asset: {
   assetType: PortfolioAssetType;
   symbol: string;
 }) => {
-  if (asset.assetType === PortfolioAssetType.GOLD) return "XAU";
-  if (asset.assetType === PortfolioAssetType.CRYPTO) return asset.symbol;
-  if (asset.assetType === PortfolioAssetType.STOCK) return asset.symbol;
+  if (asset.assetType === PortfolioAssetType.GOLD) {
+    return normalizeMarketSymbolForKind(asset.symbol || "XAU", "gold")?.canonicalSymbol ?? "XAU";
+  }
+
+  if (asset.assetType === PortfolioAssetType.CRYPTO) {
+    return normalizeMarketSymbolForKind(asset.symbol, "crypto")?.canonicalSymbol ?? asset.symbol;
+  }
+
+  if (asset.assetType === PortfolioAssetType.STOCK) {
+    return normalizeMarketSymbolForKind(asset.symbol, "stock")?.canonicalSymbol ?? asset.symbol;
+  }
+
   return null;
 };
 
@@ -190,7 +200,10 @@ export const getUserPortfolioValuation = async (
             const quote = await getMarketQuoteBySymbol(marketSymbol);
             currentPrice = quote.price;
             pricingMode = "market";
-            priceSource = quote.source;
+            priceSource =
+              quote.status === "stale"
+                ? `${quote.source} [cache ${quote.cachedAt}]`
+                : quote.source;
           } catch {
             pricingMode = "book";
           }

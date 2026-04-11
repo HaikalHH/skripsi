@@ -386,11 +386,30 @@ const isSafeReplayRoute = (route: GlobalContextRoute) => {
   return SAFE_REPLAY_MODULES.has(route.moduleOrder[0] ?? "TRANSACTION");
 };
 
+const EXPLICIT_CONTEXT_MODULES = new Set<GlobalContextModule>([
+  "PORTFOLIO",
+  "MARKET",
+  "NEWS",
+  "SMART_ALLOCATION",
+  "FINANCIAL_FREEDOM",
+  "WEALTH_PROJECTION",
+  "PRIVACY"
+]);
+
 const isContextDependentText = (text: string) => {
   const normalized = normalizeText(text);
   if (!normalized) return false;
   if (CONTEXT_REFERENCE_PATTERN.test(normalized)) return true;
   if (ACK_ONLY_PATTERN.test(normalized)) return true;
+
+  const route = routeGlobalTextContext(normalized);
+  if (route.command.kind !== "NONE") return false;
+
+  const topModule = route.moduleOrder[0];
+  if (topModule && EXPLICIT_CONTEXT_MODULES.has(topModule) && normalized.split(" ").length >= 2) {
+    return false;
+  }
+
   return detectRequestedReportPeriod(normalized) !== null && normalized.split(" ").length <= 4;
 };
 

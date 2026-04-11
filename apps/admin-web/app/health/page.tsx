@@ -48,10 +48,18 @@ export default async function HealthPage() {
         <StatCard
           label="Bot Heartbeat"
           value={data.botHeartbeat.status}
-          hint={data.botHeartbeat.lastSeenAt ? formatDateTime(data.botHeartbeat.lastSeenAt) : "Belum ada heartbeat"}
+          hint={
+            data.botHeartbeat.lastSeenAt
+              ? formatDateTime(data.botHeartbeat.lastSeenAt)
+              : "Belum ada heartbeat"
+          }
           tone={data.botHeartbeat.status === "healthy" ? "success" : "warning"}
         />
-        <StatCard label="Last Check" value={formatDateTime(data.checkedAt)} hint="Snapshot health terakhir" />
+        <StatCard
+          label="Last Check"
+          value={formatDateTime(data.checkedAt)}
+          hint="Snapshot health terakhir"
+        />
       </div>
 
       <SectionCard
@@ -71,7 +79,10 @@ export default async function HealthPage() {
               <tr>
                 <td>Database</td>
                 <td>
-                  <StatusBadge label={data.dbStatus} tone={getHealthTone(data.dbStatus)} />
+                  <StatusBadge
+                    label={data.dbStatus}
+                    tone={getHealthTone(data.dbStatus)}
+                  />
                 </td>
                 <td>-</td>
               </tr>
