@@ -1,16 +1,16 @@
 import { prisma } from "@/lib/prisma";
 import { normalizeExpenseBucketCategory } from "@/lib/services/transactions/category-override-service";
-import { generateAIFinancialAdvice } from "@/lib/services/ai/ai-service";
-import { getSavingsGoalStatus } from "@/lib/services/planning/goal-service";
-import { analyzeRecurringExpenses } from "@/lib/services/transactions/recurring-expense-service";
-import { buildTransactionDetailLabel, inferTransactionDetailTag } from "@/lib/services/transactions/detail-tag-service";
-import {
-  buildUserFinancialContextSummary,
-  loadUserFinancialContext
-} from "@/lib/services/user/user-financial-context-service";
+import { formatMoneyWhole } from "@/lib/services/shared/money-format";
+
+const ESSENTIAL_CATEGORIES = ["Bills", "Food & Drink", "Transport"] as const;
+const MONTHLY_PERCENT_FORMATTER = new Intl.NumberFormat("id-ID", {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1
+});
 
 const toNumber = (value: unknown): number => {
   if (typeof value === "number") return value;
+  if (typeof value === "bigint") return Number(value);
   if (typeof value === "string") return Number(value);
   if (value && typeof value === "object" && "toString" in value) {
     return Number((value as { toString: () => string }).toString());
@@ -20,11 +20,10 @@ const toNumber = (value: unknown): number => {
 
 const normalizeCategory = (value: string) => normalizeExpenseBucketCategory(value);
 
-const getMonthRange = (baseDate: Date) => {
-  const start = new Date(Date.UTC(baseDate.getUTCFullYear(), baseDate.getUTCMonth(), 1, 0, 0, 0, 0));
-  const end = baseDate;
-  return { start, end };
-};
+const getMonthRange = (baseDate: Date) => ({
+  start: new Date(Date.UTC(baseDate.getUTCFullYear(), baseDate.getUTCMonth(), 1, 0, 0, 0, 0)),
+  end: baseDate
+});
 
 const parseAmountFromQuestion = (question: string): number | null => {
   const lower = question.toLowerCase();
@@ -42,103 +41,165 @@ const parseAmountFromQuestion = (question: string): number | null => {
 };
 
 const isPurchaseQuestion = (question: string) =>
-  /(boleh beli|beli|buy|afford|mampu|aman beli)/i.test(question);
+  /(boleh beli|beli|buy|afford|mampu|aman beli|checkout|check out)/i.test(question);
 
-const buildRuleBasedAdvice = (params: {
+const formatPercentId = (value: number) => `${MONTHLY_PERCENT_FORMATTER.format(value)}%`;
+
+const getMonthKey = (value: Date) =>
+  `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, "0")}`;
+
+const joinCategoryLabels = (categories: string[]) => {
+  if (!categories.length) return "";
+  if (categories.length === 1) return categories[0];
+  if (categories.length === 2) return `${categories[0]} dan ${categories[1]}`;
+  return `${categories.slice(0, -1).join(", ")}, dan ${categories[categories.length - 1]}`;
+};
+
+type MandatoryNeedsEstimate = {
+  amount: number;
+  categories: string[];
+  source: "CURRENT_MONTH" | "ROLLING_AVERAGE";
+  monthsCovered: number;
+};
+
+const calculateMandatoryNeedsEstimate = (params: {
+  currentExpenseByCategory: Map<string, number>;
+  rollingExpenseTxs: Array<{
+    amount: unknown;
+    category: string;
+    occurredAt: Date;
+  }>;
+}): MandatoryNeedsEstimate | null => {
+  const currentCategories = ESSENTIAL_CATEGORIES.filter(
+    (category) => (params.currentExpenseByCategory.get(category) ?? 0) > 0
+  );
+  const currentAmount = currentCategories.reduce(
+    (sum, category) => sum + (params.currentExpenseByCategory.get(category) ?? 0),
+    0
+  );
+
+  if (currentAmount > 0) {
+    return {
+      amount: currentAmount,
+      categories: currentCategories,
+      source: "CURRENT_MONTH",
+      monthsCovered: 1
+    };
+  }
+
+  const monthlyEssentialTotals = new Map<string, number>();
+  const rollingCategories = new Set<string>();
+
+  for (const tx of params.rollingExpenseTxs) {
+    const normalizedCategory = normalizeCategory(tx.category);
+    if (!ESSENTIAL_CATEGORIES.includes(normalizedCategory as (typeof ESSENTIAL_CATEGORIES)[number])) {
+      continue;
+    }
+
+    const amount = Math.max(0, toNumber(tx.amount));
+    if (amount <= 0) continue;
+
+    const monthKey = getMonthKey(tx.occurredAt);
+    monthlyEssentialTotals.set(monthKey, (monthlyEssentialTotals.get(monthKey) ?? 0) + amount);
+    rollingCategories.add(normalizedCategory);
+  }
+
+  if (!monthlyEssentialTotals.size) return null;
+
+  const total = Array.from(monthlyEssentialTotals.values()).reduce((sum, amount) => sum + amount, 0);
+  const monthsCovered = monthlyEssentialTotals.size;
+  const average = Math.round(total / monthsCovered);
+  if (average <= 0) return null;
+
+  return {
+    amount: average,
+    categories: Array.from(rollingCategories.values()).sort(),
+    source: "ROLLING_AVERAGE",
+    monthsCovered
+  };
+};
+
+const buildMandatoryNeedsSourceText = (estimate: MandatoryNeedsEstimate) => {
+  const categoriesText = joinCategoryLabels(estimate.categories);
+  if (estimate.source === "CURRENT_MONTH") {
+    return categoriesText
+      ? `transaksi aktual kategori ${categoriesText} bulan ini`
+      : "transaksi aktual kebutuhan wajib bulan ini";
+  }
+
+  return categoriesText
+    ? `rata-rata transaksi aktual kategori ${categoriesText} selama ${estimate.monthsCovered} bulan terakhir`
+    : `rata-rata transaksi aktual kebutuhan wajib selama ${estimate.monthsCovered} bulan terakhir`;
+};
+
+const buildDataReadinessReply = (params: {
+  hasCurrentMonthTransactions: boolean;
+  income: number;
+  expense: number;
+  mandatoryNeedsEstimate: MandatoryNeedsEstimate | null;
+}) => {
+  if (!params.hasCurrentMonthTransactions) {
+    return "Data transaksi bulan ini belum ada, jadi /advice belum bisa dihitung akurat. Catat dulu pemasukan dan pengeluaran bulan ini ya.";
+  }
+  if (params.income <= 0) {
+    return "Pemasukan bulan ini belum tercatat, jadi /advice belum bisa menghitung sisa saldo dan ruang belanja aman dengan akurat.";
+  }
+  if (params.expense <= 0) {
+    return "Pengeluaran bulan ini belum tercatat, jadi /advice belum bisa membaca alokasi aktual per kategori.";
+  }
+  if (!params.mandatoryNeedsEstimate) {
+    return "Transaksi kebutuhan wajib seperti Bills, Food & Drink, atau Transport belum cukup, jadi ruang belanja aman belum bisa dihitung akurat.";
+  }
+
+  return "Data transaksi bulan ini belum cukup untuk menghitung /advice dengan akurat.";
+};
+
+const buildAdviceReply = (params: {
   income: number;
   expense: number;
   balance: number;
-  topExpenseCategory: string | null;
+  topExpenseCategory: string;
   topExpenseAmount: number;
-  topMerchantLabel: string | null;
-  topMerchantAmount: number;
-  recurringLeakLabel: string | null;
-  recurringLeakAverage: number;
-  overspentCategories: Array<{ category: string; overBy: number }>;
-  goalStatus: {
-    targetAmount: number;
-    currentProgress: number;
-    remainingAmount: number;
-    progressPercent: number;
-  };
+  mandatoryNeedsEstimate: MandatoryNeedsEstimate;
   userQuestion: string;
 }) => {
-  const descriptive = `Deskriptif: bulan ini pemasukan ${params.income.toFixed(
-    2
-  )}, pengeluaran ${params.expense.toFixed(2)}, saldo ${params.balance.toFixed(2)}.`;
-
-  const diagnosticParts: string[] = [];
-  if (params.topExpenseCategory) {
-    diagnosticParts.push(
-      `pengeluaran terbesar ada di kategori ${params.topExpenseCategory} (${params.topExpenseAmount.toFixed(
-        2
-      )}).`
-    );
-  } else {
-    diagnosticParts.push("belum ada pola kategori pengeluaran yang dominan.");
-  }
-  if (params.topMerchantLabel) {
-    diagnosticParts.push(
-      `kebocoran terbesar dari merchant/detail ${params.topMerchantLabel} (${params.topMerchantAmount.toFixed(2)}).`
-    );
-  }
-  if (params.recurringLeakLabel) {
-    diagnosticParts.push(
-      `ada pengeluaran berulang yang menonjol di ${params.recurringLeakLabel} (rerata ${params.recurringLeakAverage.toFixed(
-        2
-      )}).`
-    );
-  }
-  if (params.overspentCategories.length) {
-    const topOver = params.overspentCategories[0];
-    diagnosticParts.push(
-      `budget kategori ${topOver.category} melewati limit sebesar ${topOver.overBy.toFixed(2)}.`
-    );
-  }
-  const diagnostic = `Diagnostik: ${diagnosticParts.join(" ")}`;
-
-  let prescriptive = "";
+  const topExpenseShare = params.expense > 0 ? (params.topExpenseAmount / params.expense) * 100 : 0;
+  const safeSpendingRoom = Math.max(0, params.balance - params.mandatoryNeedsEstimate.amount);
+  const mandatorySourceText = buildMandatoryNeedsSourceText(params.mandatoryNeedsEstimate);
   const purchaseAmount = parseAmountFromQuestion(params.userQuestion);
-  if (isPurchaseQuestion(params.userQuestion)) {
-    const reserveForGoal =
-      params.goalStatus.remainingAmount > 0 ? Math.min(params.balance * 0.5, params.goalStatus.remainingAmount) : params.balance * 0.2;
-    const discretionaryBudget = Math.max(0, params.balance - Math.max(0, reserveForGoal));
 
-    if (purchaseAmount) {
-      if (purchaseAmount <= discretionaryBudget) {
-        prescriptive = `Preskriptif: pembelian ${purchaseAmount.toFixed(
-          2
-        )} masih relatif aman, tapi tetap sisakan dana darurat dan dana goal.`;
-      } else {
-        prescriptive = `Preskriptif: pembelian ${purchaseAmount.toFixed(
-          2
-        )} sebaiknya ditunda karena melebihi ruang belanja aman bulan ini (${discretionaryBudget.toFixed(
-          2
-        )}).`;
-      }
-    } else if (params.balance <= 0) {
-      prescriptive =
-        "Preskriptif: tunda pembelian non-prioritas dulu, fokus menormalkan cashflow sampai saldo bulanan kembali positif.";
-    } else {
-      const suggestedCap = Math.max(0, params.balance * 0.3);
-      prescriptive = `Preskriptif: pembelian boleh dipertimbangkan jika nominalnya di bawah ${suggestedCap.toFixed(
-        2
-      )} dan tidak mengganggu target tabungan.`;
+  const descriptive = `Deskriptif: Bulan ini pemasukan kamu ${formatMoneyWhole(params.income)}, pengeluaran ${formatMoneyWhole(params.expense)}, jadi saldo tersisa ${formatMoneyWhole(params.balance)}.`;
+  const diagnostic = `Diagnostik: Pengeluaran terbesar ada di kategori ${params.topExpenseCategory} sebesar ${formatMoneyWhole(params.topExpenseAmount)} (${formatPercentId(topExpenseShare)} dari total pengeluaran). Estimasi kebutuhan wajib saat ini ${formatMoneyWhole(params.mandatoryNeedsEstimate.amount)}, dibaca dari ${mandatorySourceText}.`;
+
+  if (isPurchaseQuestion(params.userQuestion) && purchaseAmount) {
+    if (purchaseAmount > safeSpendingRoom) {
+      return [
+        descriptive,
+        diagnostic,
+        `Preskriptif: Pembelian ${formatMoneyWhole(purchaseAmount)} sebaiknya ditunda. Ruang belanja aman kamu saat ini ${formatMoneyWhole(safeSpendingRoom)}, dihitung dari sisa saldo ${formatMoneyWhole(params.balance)} dikurangi estimasi kebutuhan wajib ${formatMoneyWhole(params.mandatoryNeedsEstimate.amount)}.`
+      ].join("\n");
     }
-  } else if (params.balance <= 0) {
-    prescriptive =
-      "Preskriptif: lakukan pengurangan pengeluaran kategori terbesar 10-20% minggu ini agar cashflow membaik.";
-  } else if (params.goalStatus.remainingAmount > 0) {
-    const suggestedTopUp = Math.max(0, params.balance * 0.3);
-    prescriptive = `Preskriptif: alokasikan minimal ${suggestedTopUp.toFixed(
-      2
-    )} dari saldo bulan ini ke target tabungan agar progress lebih cepat.`;
-  } else {
-    prescriptive =
-      "Preskriptif: pertahankan rasio tabungan saat ini dan review budget kategori mingguan supaya konsisten.";
+
+    return [
+      descriptive,
+      diagnostic,
+      `Preskriptif: Pembelian ${formatMoneyWhole(purchaseAmount)} masih masuk ruang aman bulan ini. Ruang belanja aman kamu saat ini ${formatMoneyWhole(safeSpendingRoom)}, dihitung dari sisa saldo ${formatMoneyWhole(params.balance)} dikurangi estimasi kebutuhan wajib ${formatMoneyWhole(params.mandatoryNeedsEstimate.amount)}.`
+    ].join("\n");
   }
 
-  return `${descriptive} ${diagnostic} ${prescriptive}`.trim();
+  if (safeSpendingRoom <= 0) {
+    return [
+      descriptive,
+      diagnostic,
+      `Preskriptif: Ruang belanja aman kamu saat ini ${formatMoneyWhole(0)}, dihitung dari sisa saldo ${formatMoneyWhole(params.balance)} dikurangi estimasi kebutuhan wajib ${formatMoneyWhole(params.mandatoryNeedsEstimate.amount)}. Pembelian non-prioritas sebaiknya ditunda dulu bulan ini.`
+    ].join("\n");
+  }
+
+  return [
+    descriptive,
+    diagnostic,
+    `Preskriptif: Ruang belanja aman tersisa ${formatMoneyWhole(safeSpendingRoom)}, dihitung dari sisa saldo ${formatMoneyWhole(params.balance)} dikurangi estimasi kebutuhan wajib ${formatMoneyWhole(params.mandatoryNeedsEstimate.amount)}. Pembelian di atas ${formatMoneyWhole(safeSpendingRoom)} sebaiknya ditunda bulan ini.`
+  ].join("\n");
 };
 
 export const generateUserFinancialAdvice = async (
@@ -148,7 +209,8 @@ export const generateUserFinancialAdvice = async (
   const now = new Date();
   const range = getMonthRange(now);
   const rollingStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 2, 1, 0, 0, 0, 0));
-  const [txs, rollingExpenseTxs, budgets, goalStatus, userContext] = await Promise.all([
+
+  const [currentMonthTransactions, rollingExpenseTxs] = await Promise.all([
     prisma.transaction.findMany({
       where: {
         userId,
@@ -167,138 +229,64 @@ export const generateUserFinancialAdvice = async (
           lte: now
         }
       }
-    }),
-    prisma.budget.findMany({ where: { userId } }),
-    getSavingsGoalStatus(userId),
-    loadUserFinancialContext({ userId })
+    })
   ]);
 
   let income = 0;
   let expense = 0;
   const expenseByCategory = new Map<string, number>();
 
-  if (txs.length) {
-    for (const tx of txs) {
-      const amount = toNumber(tx.amount);
-      if (tx.type === "INCOME") {
-        income += amount;
-      } else {
-        expense += amount;
-        const normalized = normalizeCategory(tx.category);
-        expenseByCategory.set(normalized, (expenseByCategory.get(normalized) ?? 0) + amount);
-      }
+  for (const tx of currentMonthTransactions) {
+    const amount = Math.max(0, toNumber(tx.amount));
+    if (amount <= 0) continue;
+
+    if (tx.type === "INCOME") {
+      income += amount;
+      continue;
     }
-  } else {
-    income = userContext.monthlyIncomeTotal ?? 0;
-    expense = userContext.monthlyExpenseTotal ?? 0;
-    for (const bucket of userContext.expenseBuckets) {
-      if (bucket.amount <= 0) continue;
-      expenseByCategory.set(normalizeCategory(bucket.categoryKey), bucket.amount);
-    }
+
+    expense += amount;
+    const normalizedCategory = normalizeCategory(tx.category);
+    expenseByCategory.set(normalizedCategory, (expenseByCategory.get(normalizedCategory) ?? 0) + amount);
   }
 
-  if (!txs.length && !income && !expense) {
-    return "Deskriptif: data transaksi dan profil keuangan masih terlalu minim. Diagnostik: saya belum punya cukup konteks untuk membaca pola pengeluaran atau kemampuan beli dengan aman. Preskriptif: lanjutkan onboarding atau catat transaksi rutin 3-7 hari dulu agar analisis lebih akurat.";
-  }
-
-  const balance = income - expense;
-  const topExpense = Array.from(expenseByCategory.entries()).sort((a, b) => b[1] - a[1])[0];
-  const latestBudgetByCategory = new Map<string, { category: string; monthlyLimit: unknown; updatedAt: Date }>();
-  for (const budget of budgets) {
-    const category = normalizeCategory(budget.category);
-    const existing = latestBudgetByCategory.get(category);
-    if (!existing || existing.updatedAt.getTime() < budget.updatedAt.getTime()) {
-      latestBudgetByCategory.set(category, {
-        category,
-        monthlyLimit: budget.monthlyLimit,
-        updatedAt: budget.updatedAt
-      });
-    }
-  }
-
-  const overspentCategories = Array.from(latestBudgetByCategory.values())
-    .map((budget) => {
-      const spent = expenseByCategory.get(budget.category) ?? 0;
-      const limit = toNumber(budget.monthlyLimit);
-      return { category: budget.category, overBy: spent - limit };
-    })
-    .filter((item) => item.overBy > 0)
-    .sort((a, b) => b.overBy - a.overBy);
-
-  const merchantTotals = new Map<string, number>();
-  for (const tx of rollingExpenseTxs) {
-    const merchantLabel = buildTransactionDetailLabel({
-      detailTag:
-        tx.detailTag ??
-        inferTransactionDetailTag({
-          type: tx.type,
-          category: tx.category,
-          merchant: tx.merchant ?? null,
-          note: tx.note ?? null,
-          rawText: tx.rawText ?? null
-        }),
-      merchant: tx.merchant ?? null,
-      note: tx.note ?? null,
-      rawText: tx.rawText ?? null
-    });
-    merchantTotals.set(merchantLabel, (merchantTotals.get(merchantLabel) ?? 0) + toNumber(tx.amount));
-  }
-  const topMerchant = Array.from(merchantTotals.entries()).sort((a, b) => b[1] - a[1])[0];
-  const recurring = analyzeRecurringExpenses(
-    rollingExpenseTxs.map((tx) => ({
-      category: tx.category,
-      amount: tx.amount,
-      occurredAt: tx.occurredAt,
-      merchant: tx.merchant ?? null,
-      note: tx.note ?? null,
-      rawText: tx.rawText ?? null
-    }))
-  );
-  const recurringLeak = recurring[0] ?? null;
-
-  const ruleBasedText = buildRuleBasedAdvice({
-    income,
-    expense,
-    balance,
-    topExpenseCategory: topExpense?.[0] ?? null,
-    topExpenseAmount: topExpense?.[1] ?? 0,
-    topMerchantLabel: topMerchant?.[0] ?? null,
-    topMerchantAmount: topMerchant?.[1] ?? 0,
-    recurringLeakLabel: recurringLeak?.label ?? null,
-    recurringLeakAverage: recurringLeak?.averageAmount ?? 0,
-    overspentCategories,
-    goalStatus,
-    userQuestion
+  const mandatoryNeedsEstimate = calculateMandatoryNeedsEstimate({
+    currentExpenseByCategory: expenseByCategory,
+    rollingExpenseTxs
   });
 
-  const snapshot = [
-    `period=monthly_to_date`,
-    `income=${income.toFixed(2)}`,
-    `expense=${expense.toFixed(2)}`,
-    `balance=${balance.toFixed(2)}`,
-    `topExpenseCategory=${topExpense?.[0] ?? "N/A"}`,
-    `topExpenseAmount=${(topExpense?.[1] ?? 0).toFixed(2)}`,
-    `topMerchant=${topMerchant?.[0] ?? "N/A"}`,
-    `topMerchantSpend=${(topMerchant?.[1] ?? 0).toFixed(2)}`,
-    `topRecurring=${recurringLeak?.label ?? "N/A"}`,
-    `topRecurringAverage=${recurringLeak?.averageAmount.toFixed(2) ?? "0.00"}`,
-    `overspentBudgets=${overspentCategories
-      .map((item) => `${item.category}:${item.overBy.toFixed(2)}`)
-      .join(",") || "none"}`,
-    `goalTarget=${goalStatus.targetAmount.toFixed(2)}`,
-    `goalProgress=${goalStatus.currentProgress.toFixed(2)}`,
-    `goalRemaining=${goalStatus.remainingAmount.toFixed(2)}`,
-    `goalProgressPercent=${goalStatus.progressPercent.toFixed(2)}`,
-    buildUserFinancialContextSummary(userContext)
-  ].join("; ");
-
-  try {
-    const aiText = await generateAIFinancialAdvice({
-      userQuestion,
-      financialSnapshot: snapshot
+  if (
+    !currentMonthTransactions.length ||
+    income <= 0 ||
+    expense <= 0 ||
+    expenseByCategory.size === 0 ||
+    !mandatoryNeedsEstimate
+  ) {
+    return buildDataReadinessReply({
+      hasCurrentMonthTransactions: currentMonthTransactions.length > 0,
+      income,
+      expense,
+      mandatoryNeedsEstimate
     });
-    return `${ruleBasedText} ${aiText}`.trim();
-  } catch {
-    return ruleBasedText;
   }
+
+  const topExpenseEntry = [...expenseByCategory.entries()].sort((left, right) => right[1] - left[1])[0];
+  if (!topExpenseEntry) {
+    return buildDataReadinessReply({
+      hasCurrentMonthTransactions: currentMonthTransactions.length > 0,
+      income,
+      expense,
+      mandatoryNeedsEstimate
+    });
+  }
+
+  return buildAdviceReply({
+    income,
+    expense,
+    balance: income - expense,
+    topExpenseCategory: topExpenseEntry[0],
+    topExpenseAmount: topExpenseEntry[1],
+    mandatoryNeedsEstimate,
+    userQuestion
+  });
 };

@@ -46,6 +46,15 @@ export type SessionAnswerValue =
   | ExpenseBreakdown
   | Record<string, unknown>;
 
+export type StockQuantityUnit = "lot" | "lembar";
+
+export type StockQuantityAnswer = {
+  amount: number;
+  unit: StockQuantityUnit;
+  shares: number;
+  displayLabel: string;
+};
+
 export const PHONE_PROMPT =
   "Sebelum lanjut, kirim nomor WhatsApp aktif Anda dulu.\nFormat: `62812xxxxxx`.";
 export const HELP_CALCULATE_STRATEGY = "HELP_CALCULATE";
@@ -166,6 +175,47 @@ export const parseDecimalInput = (raw: string): number | null => {
   const parsed = extractDecimalFromFreeText(raw.trim().toLowerCase().replace(/\s*gram$/i, ""));
   if (parsed === null || !Number.isFinite(parsed) || parsed <= 0) return null;
   return parsed;
+};
+
+export const parseStockSymbolInput = (raw: unknown) => {
+  if (typeof raw !== "string") return null;
+
+  const normalized = normalizeText(raw)
+    .replace(/^kode\s+saham(?:nya)?[:\s-]*/i, "")
+    .replace(/\s+/g, "")
+    .toUpperCase();
+
+  if (!/^[A-Z]{2,10}$/.test(normalized)) return null;
+  return normalized;
+};
+
+export const parseStockQuantityInput = (raw: unknown): StockQuantityAnswer | null => {
+  if (typeof raw !== "string") return null;
+
+  const normalized = normalizeText(raw).toLowerCase();
+  const hasLot = /lot\b/i.test(normalized);
+  const hasLembar = /(?:lembar|lbr|share|shares|saham)\b/i.test(normalized);
+
+  if ((hasLot && hasLembar) || (!hasLot && !hasLembar)) return null;
+
+  const amountMatch = normalized.match(/(\d[\d.,]*)/);
+  if (!amountMatch) return null;
+
+  const compactAmount = amountMatch[1].replace(/[.,]/g, "");
+  if (!/^\d+$/.test(compactAmount)) return null;
+
+  const amount = Number(compactAmount);
+  if (!Number.isInteger(amount) || amount <= 0) return null;
+
+  const unit: StockQuantityUnit = hasLot ? "lot" : "lembar";
+  const shares = unit === "lot" ? amount * 100 : amount;
+
+  return {
+    amount,
+    unit,
+    shares,
+    displayLabel: unit === "lot" ? `${amount} lot` : `${amount} lembar`
+  };
 };
 
 export const latestSessionForQuestion = (
@@ -517,4 +567,9 @@ export const getLatestCustomGoalName = (sessions: OnboardingSession[]) =>
 
 export const getLatestAssetName = (sessions: OnboardingSession[], questionKey: OnboardingQuestionKey) =>
   getSessionNormalizedValue<string>(latestSessionForQuestion(sessions, questionKey));
+
+export const getLatestStockQuantity = (sessions: OnboardingSession[]) =>
+  getSessionNormalizedValue<StockQuantityAnswer>(
+    latestSessionForQuestion(sessions, OnboardingQuestionKey.ASSET_GOLD_GRAMS)
+  );
 

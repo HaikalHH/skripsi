@@ -1853,7 +1853,7 @@ export const buildCategoryDetailReport = async (params: {
       `- Total bucket: ${formatMoney(total)}`,
       ...topTransactions.map((transaction, index) => {
         const date = DATE_LABEL_FORMATTER.format(transaction.occurredAt);
-        const amount = formatMoney(toNumber(transaction.amount));
+        const amount = formatMoney(transaction.amount);
         const label = resolveTransactionDetailLabel(transaction);
         return `${index + 1}. ${date} | ${amount} | ${label}`;
       })
@@ -1868,7 +1868,7 @@ export const buildCategoryDetailReport = async (params: {
     `- Total pengeluaran: ${formatMoney(total)}`,
     ...visibleTransactions.map((transaction, index) => {
       const date = DATE_LABEL_FORMATTER.format(transaction.occurredAt);
-      const amount = formatMoney(toNumber(transaction.amount));
+      const amount = formatMoney(transaction.amount);
       const label = resolveTransactionDetailLabel(transaction);
       return `${index + 1}. ${date} | ${amount} | ${label}`;
     })

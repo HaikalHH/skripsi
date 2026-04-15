@@ -115,8 +115,6 @@ export const ASSET_OPTIONS: OnboardingOption[] = [
   { value: AssetType.SAVINGS, label: "Tabungan" },
   { value: AssetType.GOLD, label: "Emas" },
   { value: AssetType.STOCK, label: "Saham" },
-  { value: AssetType.CRYPTO, label: "Crypto" },
-  { value: AssetType.MUTUAL_FUND, label: "Reksa dana" },
   { value: AssetType.PROPERTY, label: "Properti" },
   { value: ASSET_NONE_VALUE, label: "Belum punya" }
 ];
@@ -172,6 +170,36 @@ const assetLabel = (assetType: AssetType | null) => {
       return "Properti";
     default:
       return "Aset";
+  }
+};
+
+const getAssetNamePromptBody = (assetType: AssetType | null) => {
+  switch (assetType) {
+    case AssetType.SAVINGS:
+      return "Di bank mana tabungannya?";
+    case AssetType.STOCK:
+      return "Apa kode sahamnya? Contoh: `BBRI` atau `TLKM`.";
+    case AssetType.PROPERTY:
+      return "Properti apa yang kamu punya? Contoh: `rumah`, `tanah`, atau `apartemen`.";
+    case AssetType.GOLD:
+      return "Emas apa yang kamu punya? Contoh: `Antam`, `perhiasan 24K`, atau `emas digital`.";
+    default:
+      return "Apa nama asetnya?";
+  }
+};
+
+const getAssetValuePromptBody = (assetType: AssetType | null) => {
+  switch (assetType) {
+    case AssetType.SAVINGS:
+      return "Berapa saldo tabungannya? (dalam Rupiah)";
+    case AssetType.STOCK:
+      return "Berapa harga beli per lembar sahamnya? (dalam Rupiah)";
+    case AssetType.PROPERTY:
+      return "Berapa estimasi nilai propertinya? (dalam Rupiah)";
+    case AssetType.GOLD:
+      return "Berapa estimasi nilai emasnya? (dalam Rupiah)";
+    default:
+      return "Berapa nominalnya?";
   }
 };
 
@@ -423,7 +451,7 @@ export const getPromptForStep = (
         stepKey: step,
         questionKey: OnboardingQuestionKey.ASSET_SELECTION,
         title: "Aset atau Investasi",
-        body: "Apakah kamu sudah punya aset / investasi? Pilih satu dulu, nanti bisa tambah lagi.",
+        body: "Aset apa yang mau kamu catat dulu? Pilih satu ya.",
         inputType: "single_select",
         options: ASSET_OPTIONS
       };
@@ -439,16 +467,19 @@ export const getPromptForStep = (
       return {
         stepKey: step,
         questionKey: OnboardingQuestionKey.ASSET_GOLD_GRAMS,
-        title: "Berat Emas",
-        body: "Berapa gram? Contoh: `900 gram` atau `10.5`.",
-        inputType: "decimal"
+        title: context.currentAssetType === AssetType.STOCK ? "Jumlah Saham" : "Berat Emas",
+        body:
+          context.currentAssetType === AssetType.STOCK
+            ? "Berapa yang kamu punya? (bisa jawab dalam lot atau lembar, contoh: `2 lot` atau `150 lembar`)"
+            : "Berapa gram? Contoh: `900 gram` atau `10.5`.",
+        inputType: context.currentAssetType === AssetType.STOCK ? "text" : "decimal"
       };
     case OnboardingStep.ASK_ASSET_NAME:
       return {
         stepKey: step,
         questionKey: OnboardingQuestionKey.ASSET_NAME,
         title: assetLabel(context.currentAssetType),
-        body: "Apa nama asetnya?",
+        body: getAssetNamePromptBody(context.currentAssetType),
         inputType: "text"
       };
     case OnboardingStep.ASK_ASSET_ESTIMATED_VALUE:
@@ -456,7 +487,7 @@ export const getPromptForStep = (
         stepKey: step,
         questionKey: OnboardingQuestionKey.ASSET_ESTIMATED_VALUE,
         title: assetLabel(context.currentAssetType),
-        body: "Berapa nominalnya?",
+        body: getAssetValuePromptBody(context.currentAssetType),
         inputType: "money"
       };
     case OnboardingStep.ASK_ASSET_ADD_MORE:
@@ -464,7 +495,7 @@ export const getPromptForStep = (
         stepKey: step,
         questionKey: OnboardingQuestionKey.ASSET_ADD_MORE,
         title: "Tambah Aset",
-        body: "Ada lagi ga Boss?",
+        body: "Apakah ada aset lain yang ingin kamu tambahkan?",
         inputType: "single_select",
         options: ADD_MORE_OPTIONS
       };
@@ -568,14 +599,19 @@ export const getNextOnboardingStep = (
       return answer === true ? OnboardingStep.ASK_GOAL_SELECTION : OnboardingStep.ASK_ASSET_SELECTION;
     case OnboardingStep.ASK_ASSET_SELECTION:
       if (answer === ASSET_NONE_VALUE) return OnboardingStep.SHOW_ANALYSIS;
-      return answer === AssetType.GOLD ? OnboardingStep.ASK_ASSET_GOLD_NAME : OnboardingStep.ASK_ASSET_NAME;
+      return OnboardingStep.ASK_ASSET_NAME;
     case OnboardingStep.ASK_ASSET_GOLD_NAME:
       return OnboardingStep.ASK_ASSET_GOLD_GRAMS;
     case OnboardingStep.ASK_ASSET_GOLD_GRAMS:
+      return context.currentAssetType === AssetType.STOCK
+        ? OnboardingStep.ASK_ASSET_ESTIMATED_VALUE
+        : OnboardingStep.ASK_ASSET_ADD_MORE;
+    case OnboardingStep.ASK_ASSET_NAME:
+      return context.currentAssetType === AssetType.STOCK
+        ? OnboardingStep.ASK_ASSET_GOLD_GRAMS
+        : OnboardingStep.ASK_ASSET_ESTIMATED_VALUE;
     case OnboardingStep.ASK_ASSET_ESTIMATED_VALUE:
       return OnboardingStep.ASK_ASSET_ADD_MORE;
-    case OnboardingStep.ASK_ASSET_NAME:
-      return OnboardingStep.ASK_ASSET_ESTIMATED_VALUE;
     case OnboardingStep.ASK_ASSET_ADD_MORE:
       return answer === true ? OnboardingStep.ASK_ASSET_SELECTION : OnboardingStep.SHOW_ANALYSIS;
     case OnboardingStep.SHOW_ANALYSIS:

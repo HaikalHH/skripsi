@@ -47,6 +47,7 @@ import {
   getGoalExpenseStrategy,
   getLatestAssetName,
   getLatestCustomGoalName,
+  getLatestStockQuantity,
   getSessionNormalizedValue,
   isReadyCommand,
   latestSessionForQuestion,
@@ -64,10 +65,13 @@ import {
   parsePhoneInput,
   parsePrimaryGoal,
   parseEmploymentTypes,
+  parseStockQuantityInput,
+  parseStockSymbolInput,
   PHONE_PROMPT,
   type SessionAnswerValue
 } from "@/lib/services/onboarding/onboarding-parser-service";
 import { resolveConversationMemory } from "@/lib/services/assistant/conversation-memory-service";
+import { formatMoney } from "@/lib/services/shared/money-format";
 import { prisma } from "@/lib/prisma";
 
 type OnboardingResult = {
@@ -117,6 +121,80 @@ const buildValidationReply = (prompt: OnboardingPrompt, message: string): Onboar
   handled: true,
   replyText: `${message}\n\n${formatPromptForChat(prompt)}`
 });
+
+const formatStockHoldingLabel = (amount: number, shares: number, unit: string) =>
+  unit === "lot" ? `${amount} lot (${shares} lembar)` : `${shares} lembar`;
+
+const buildAssetCompletionSummary = (
+  context: RuntimeContext,
+  normalizedAnswer: SessionAnswerValue
+) => {
+  const assetType = context.currentAssetType ?? getCurrentAssetType(context.sessions);
+
+  if (context.user.onboardingStep === OnboardingStep.ASK_ASSET_GOLD_GRAMS && assetType === AssetType.GOLD) {
+    const goldName =
+      getLatestAssetName(context.sessions, OnboardingQuestionKey.ASSET_GOLD_NAME) ?? "Emas";
+    return [
+      "Berikut catatan emas kamu:",
+      `- Jenis emas: ${goldName}`,
+      `- Jumlah: ${normalizedAnswer as number} gram`
+    ].join("\n");
+  }
+
+  if (context.user.onboardingStep !== OnboardingStep.ASK_ASSET_ESTIMATED_VALUE || !assetType) {
+    return null;
+  }
+
+  const assetName =
+    getLatestAssetName(context.sessions, OnboardingQuestionKey.ASSET_NAME) ??
+    getLatestAssetName(context.sessions, OnboardingQuestionKey.ASSET_GOLD_NAME) ??
+    "Aset";
+  const amount = normalizedAnswer as number;
+
+  switch (assetType) {
+    case AssetType.SAVINGS:
+      return [
+        "Berikut catatan tabungan kamu:",
+        `- Bank: ${assetName}`,
+        `- Saldo: ${formatMoney(amount)}`
+      ].join("\n");
+    case AssetType.PROPERTY:
+      return [
+        "Berikut catatan properti kamu:",
+        `- Properti: ${assetName}`,
+        `- Estimasi nilai: ${formatMoney(amount)}`
+      ].join("\n");
+    case AssetType.GOLD:
+      return [
+        "Berikut catatan emas kamu:",
+        `- Jenis emas: ${assetName}`,
+        `- Estimasi nilai: ${formatMoney(amount)}`
+      ].join("\n");
+    case AssetType.STOCK: {
+      const stockQuantity = getLatestStockQuantity(context.sessions);
+      if (!stockQuantity) return null;
+
+      const totalValue = stockQuantity.shares * amount;
+      return [
+        "Berikut catatan saham kamu:",
+        `- Kode saham: ${assetName}`,
+        `- Jumlah: ${formatStockHoldingLabel(
+          stockQuantity.amount,
+          stockQuantity.shares,
+          stockQuantity.unit
+        )}`,
+        `- Harga beli per lembar: ${formatMoney(amount)}`,
+        `- Total nilai: ${formatMoney(totalValue)}`
+      ].join("\n");
+    }
+    default:
+      return [
+        "Berikut catatan aset kamu:",
+        `- Nama aset: ${assetName}`,
+        `- Nilai: ${formatMoney(amount)}`
+      ].join("\n");
+  }
+};
 
 const resolvePrompt = (context: RuntimeContext) => getPromptForStep(context.user.onboardingStep, context);
 
@@ -245,12 +323,28 @@ const validateAnswerForStep = (context: RuntimeContext, rawAnswer: unknown) => {
     case OnboardingStep.ASK_GUIDED_EXPENSE_ENTERTAINMENT:
     case OnboardingStep.ASK_GUIDED_EXPENSE_OTHERS:
     case OnboardingStep.ASK_GOAL_TARGET_AMOUNT:
-    case OnboardingStep.ASK_GOAL_EXPENSE_TOTAL:
-    case OnboardingStep.ASK_ASSET_ESTIMATED_VALUE: {
+    case OnboardingStep.ASK_GOAL_EXPENSE_TOTAL: {
       const parsed = parseMoneyInput(rawAnswer);
       return parsed === null
         ? buildValidationReply(prompt, "Nominalnya belum valid. Coba kirim angka rupiah ya Boss.")
         : { value: parsed };
+    }
+    case OnboardingStep.ASK_ASSET_ESTIMATED_VALUE: {
+      const parsed = parseMoneyInput(rawAnswer);
+      if (parsed === null || (context.currentAssetType === AssetType.STOCK && parsed <= 0)) {
+        const message =
+          context.currentAssetType === AssetType.STOCK
+            ? "Harga beli per lembar belum valid. Coba kirim angka rupiah ya."
+            : context.currentAssetType === AssetType.SAVINGS
+              ? "Saldo tabungannya belum valid. Coba kirim angka rupiah ya."
+              : context.currentAssetType === AssetType.PROPERTY
+                ? "Estimasi nilai propertinya belum valid. Coba kirim angka rupiah ya."
+                : context.currentAssetType === AssetType.GOLD
+                  ? "Estimasi nilai emasnya belum valid. Coba kirim angka rupiah ya."
+                  : "Nominalnya belum valid. Coba kirim angka rupiah ya Boss.";
+        return buildValidationReply(prompt, message);
+      }
+      return { value: parsed };
     }
     case OnboardingStep.ASK_SALARY_DATE: {
       const parsed = parseDayOfMonth(rawAnswer);
@@ -277,7 +371,20 @@ const validateAnswerForStep = (context: RuntimeContext, rawAnswer: unknown) => {
     }
     case OnboardingStep.ASK_GOAL_CUSTOM_NAME:
     case OnboardingStep.ASK_ASSET_GOLD_NAME:
+      return typeof rawAnswer === "string" && normalizeText(rawAnswer).length >= 2
+        ? { value: normalizeText(rawAnswer) }
+        : buildValidationReply(prompt, "Jawabannya masih terlalu pendek, coba lebih spesifik ya Boss.");
     case OnboardingStep.ASK_ASSET_NAME:
+      if (context.currentAssetType === AssetType.STOCK) {
+        const parsed = parseStockSymbolInput(rawAnswer);
+        return parsed
+          ? { value: parsed }
+          : buildValidationReply(
+              prompt,
+              "Kode saham belum valid. Pakai huruf saja, misalnya `BBRI` atau `TLKM`."
+            );
+      }
+
       return typeof rawAnswer === "string" && normalizeText(rawAnswer).length >= 2
         ? { value: normalizeText(rawAnswer) }
         : buildValidationReply(prompt, "Jawabannya masih terlalu pendek, coba lebih spesifik ya Boss.");
@@ -296,6 +403,16 @@ const validateAnswerForStep = (context: RuntimeContext, rawAnswer: unknown) => {
       return parsed ? { value: parsed } : buildValidationReply(prompt, "Pilih salah satu aset dulu ya Boss.");
     }
     case OnboardingStep.ASK_ASSET_GOLD_GRAMS: {
+      if (context.currentAssetType === AssetType.STOCK) {
+        const parsed = parseStockQuantityInput(rawAnswer);
+        return parsed
+          ? { value: parsed }
+          : buildValidationReply(
+              prompt,
+              "Jumlah saham belum valid. Tulis angka + unit, misalnya `2 lot` atau `150 lembar`."
+            );
+      }
+
       const parsed = typeof rawAnswer === "string" ? parseDecimalInput(rawAnswer) : null;
       return parsed ? { value: parsed } : buildValidationReply(prompt, "Jumlah gram emas belum valid ya Boss.");
     }
@@ -429,11 +546,41 @@ const persistAnswer = async (context: RuntimeContext, normalizedAnswer: SessionA
       await prisma.user.update({ where: { id: context.user.id }, data: { hasAssets: normalizedAnswer !== ASSET_NONE_VALUE } });
       break;
     case OnboardingStep.ASK_ASSET_GOLD_GRAMS:
-      await createOnboardingAsset({ userId: context.user.id, assetType: AssetType.GOLD, assetName: getLatestAssetName(context.sessions, OnboardingQuestionKey.ASSET_GOLD_NAME) ?? "Emas", quantity: normalizedAnswer as number, unit: "gram" });
+      if (context.currentAssetType === AssetType.STOCK) break;
+      await createOnboardingAsset({
+        userId: context.user.id,
+        assetType: AssetType.GOLD,
+        assetName: getLatestAssetName(context.sessions, OnboardingQuestionKey.ASSET_GOLD_NAME) ?? "Emas",
+        quantity: normalizedAnswer as number,
+        unit: "gram"
+      });
       break;
     case OnboardingStep.ASK_ASSET_ESTIMATED_VALUE:
+      if (context.currentAssetType === AssetType.STOCK) {
+        const stockQuantity = getLatestStockQuantity(context.sessions);
+        if (!stockQuantity) break;
+
+        const pricePerShare = normalizedAnswer as number;
+        await createOnboardingAsset({
+          userId: context.user.id,
+          assetType: AssetType.STOCK,
+          assetName: getLatestAssetName(context.sessions, OnboardingQuestionKey.ASSET_NAME) ?? "SAHAM",
+          quantity: stockQuantity.shares,
+          unit: "lembar",
+          estimatedValue: stockQuantity.shares * pricePerShare,
+          notes: `${stockQuantity.displayLabel} @ ${pricePerShare}`
+        });
+        break;
+      }
+
       if (context.currentAssetType) {
-        await createOnboardingAsset({ userId: context.user.id, assetType: context.currentAssetType, assetName: getLatestAssetName(context.sessions, OnboardingQuestionKey.ASSET_NAME) ?? "Aset", estimatedValue: normalizedAnswer as number, unit: context.currentAssetType === AssetType.SAVINGS ? "account" : "unit" });
+        await createOnboardingAsset({
+          userId: context.user.id,
+          assetType: context.currentAssetType,
+          assetName: getLatestAssetName(context.sessions, OnboardingQuestionKey.ASSET_NAME) ?? "Aset",
+          estimatedValue: normalizedAnswer as number,
+          unit: context.currentAssetType === AssetType.SAVINGS ? "account" : "unit"
+        });
       }
       break;
   }
@@ -469,12 +616,13 @@ const continueFromValidatedAnswer = async (
     return { handled: true, replyText: buildCompletedReplyText(state), state };
   }
 
+  const assetSummary = buildAssetCompletionSummary(nextContext, normalizedAnswer);
   const updatedUser = await moveToStep(context.user.id, nextStep);
   const updatedContext = await buildRuntimeContext(context.user.id, updatedUser);
   const prompt = resolvePrompt(updatedContext);
   return {
     handled: true,
-    replyText: formatPromptForChat(prompt),
+    replyText: assetSummary ? `${assetSummary}\n\n${formatPromptForChat(prompt)}` : formatPromptForChat(prompt),
     state: createState({ user: updatedUser, prompt })
   };
 };

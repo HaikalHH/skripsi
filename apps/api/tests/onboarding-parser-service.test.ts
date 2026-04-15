@@ -12,7 +12,9 @@ import {
   parseManualExpenseBreakdownDetails,
   parseMoneyInput,
   parseOptionalAge,
-  parsePrimaryGoal
+  parsePrimaryGoal,
+  parseStockQuantityInput,
+  parseStockSymbolInput
 } from "@/lib/services/onboarding/onboarding-parser-service";
 
 describe("onboarding parser service", () => {
@@ -42,6 +44,30 @@ describe("onboarding parser service", () => {
   it("parses goal and asset selections from context", () => {
     expect(parseGoalSelection("aku mau dana darurat dulu")).toBe(FinancialGoalType.EMERGENCY_FUND);
     expect(parseAssetSelection("sekarang saya punya emas antam")).toBe(AssetType.GOLD);
+    expect(parseAssetSelection("aku mau catat properti dulu")).toBe(AssetType.PROPERTY);
+  });
+
+  it("normalizes stock code input into uppercase ticker", () => {
+    expect(parseStockSymbolInput("bbri")).toBe("BBRI");
+    expect(parseStockSymbolInput("kode sahamnya tlkm")).toBe("TLKM");
+    expect(parseStockSymbolInput("bbri 123")).toBeNull();
+  });
+
+  it("parses stock quantity from lot or lembar text", () => {
+    expect(parseStockQuantityInput("2 lot")).toEqual({
+      amount: 2,
+      unit: "lot",
+      shares: 200,
+      displayLabel: "2 lot"
+    });
+    expect(parseStockQuantityInput("150 lembar")).toEqual({
+      amount: 150,
+      unit: "lembar",
+      shares: 150,
+      displayLabel: "150 lembar"
+    });
+    expect(parseStockQuantityInput("dua lot")).toBeNull();
+    expect(parseStockQuantityInput("150")).toBeNull();
   });
 
   it("parses flexible numeric answers", () => {

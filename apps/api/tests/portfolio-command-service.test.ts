@@ -110,32 +110,70 @@ vi.mock("@/lib/prisma", () => ({
   }
 }));
 
-vi.mock("@/lib/services/market/market-price-service", () => ({
-  getMarketQuoteBySymbol: vi.fn(async (symbol: string) => {
-    if (symbol === "BBCA") {
-      return {
-        symbol: "BBCA",
-        label: "Saham BBCA",
-        price: 9500,
-        currency: "IDR",
-        source: "Yahoo Finance"
-      };
-    }
-    if (symbol === "TLKM") {
-      return {
-        symbol: "TLKM",
-        label: "Saham TLKM",
-        price: 2800,
-        currency: "IDR",
-        source: "Yahoo Finance"
-      };
-    }
+vi.mock("@/lib/services/market/market-price-service", () => {
+  class MockMarketDataError extends Error {
+    code: "SYMBOL_NOT_FOUND" | "PROVIDER_UNAVAILABLE" | "NO_DATA";
+    symbol: string;
+    suggestions: string[];
+    fallbackTrail: string[];
 
-    throw new Error("unsupported");
-  })
-}));
+    constructor(params: {
+      code: "SYMBOL_NOT_FOUND" | "PROVIDER_UNAVAILABLE" | "NO_DATA";
+      symbol: string;
+      message: string;
+    }) {
+      super(params.message);
+      this.name = "MarketDataError";
+      this.code = params.code;
+      this.symbol = params.symbol;
+      this.suggestions = [];
+      this.fallbackTrail = [];
+    }
+  }
+
+  return {
+    isMarketDataError: (value: unknown) => value instanceof MockMarketDataError,
+    getMarketQuoteBySymbol: vi.fn(async (symbol: string) => {
+      if (symbol === "BBCA") {
+        return {
+          symbol: "BBCA",
+          label: "Saham BBCA",
+          price: 9500,
+          currency: "IDR",
+          source: "Yahoo Finance"
+        };
+      }
+      if (symbol === "TLKM") {
+        return {
+          symbol: "TLKM",
+          label: "Saham TLKM",
+          price: 2800,
+          currency: "IDR",
+          source: "Yahoo Finance"
+        };
+      }
+      if (symbol === "BBRI") {
+        return {
+          symbol: "BBRI",
+          label: "Saham BBRI",
+          price: 5200,
+          currency: "IDR",
+          source: "Yahoo Finance"
+        };
+      }
+
+      throw new MockMarketDataError({
+        code: "SYMBOL_NOT_FOUND",
+        symbol,
+        message: `Simbol '${symbol}' tidak ditemukan.`
+      });
+    })
+  };
+});
 
 import { tryHandlePortfolioCommand } from "@/lib/services/market/portfolio-command-service";
+
+const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000);
 
 describe("portfolio command service", () => {
   beforeEach(() => {
@@ -158,6 +196,207 @@ describe("portfolio command service", () => {
     expect(hoisted.assets).toHaveLength(1);
     expect(hoisted.assets[0]?.symbol).toBe("TABUNGAN");
     expect(hoisted.assets[0]?.averageBuyPrice).toBe(5000000);
+  });
+
+  it("asks stock code first when user only types tambah saham", async () => {
+    const result = await tryHandlePortfolioCommand({
+      userId: "user_1",
+      text: "tambah saham"
+    });
+
+    expect(result.handled).toBe(true);
+    if (result.handled) {
+      expect(result.replyText).toBe("Apa kode sahamnya? (contoh: BBRI, TLKM)");
+    }
+    expect(hoisted.assets).toHaveLength(0);
+  });
+
+  it("validates stock symbol immediately when direct command already includes the code", async () => {
+    const result = await tryHandlePortfolioCommand({
+      userId: "user_1",
+      text: "tambah saham bbca"
+    });
+
+    expect(result.handled).toBe(true);
+    if (result.handled) {
+      expect(result.replyText).toBe(
+        "Berapa yang kamu punya?\n(bisa jawab dalam lot atau lembar, contoh: 2 lot atau 150 lembar)"
+      );
+    }
+    expect(hoisted.assets).toHaveLength(0);
+  });
+
+  it("rejects invalid stock symbols before asking quantity", async () => {
+    const result = await tryHandlePortfolioCommand({
+      userId: "user_1",
+      text: "tambah saham abcdz"
+    });
+
+    expect(result.handled).toBe(true);
+    if (result.handled) {
+      expect(result.replyText).toBe(
+        "Kode saham ABCDZ tidak ditemukan, coba cek kembali ya kode sahamnya."
+      );
+    }
+    expect(hoisted.assets).toHaveLength(0);
+  });
+
+  it("builds stock confirmation summary first and saves only after user confirms", async () => {
+    hoisted.inboundMessages = [
+      {
+        id: "msg_stock_start",
+        userId: "user_1",
+        messageType: "TEXT",
+        contentOrCaption: "tambah saham bbca",
+        sentAt: minutesAgo(5)
+      },
+      {
+        id: "msg_stock_qty",
+        userId: "user_1",
+        messageType: "TEXT",
+        contentOrCaption: "2 lot",
+        sentAt: minutesAgo(4)
+      }
+    ];
+    hoisted.outboundMessages = [
+      {
+        id: "out_stock_qty",
+        userId: "user_1",
+        messageText:
+          "Berapa yang kamu punya?\n(bisa jawab dalam lot atau lembar, contoh: 2 lot atau 150 lembar)",
+        sentAt: minutesAgo(4.5),
+        createdAt: minutesAgo(4.5)
+      },
+      {
+        id: "out_stock_price",
+        userId: "user_1",
+        messageText: "Berapa harga beli per lembar? (dalam Rupiah)",
+        sentAt: minutesAgo(3.5),
+        createdAt: minutesAgo(3.5)
+      }
+    ];
+
+    const summaryResult = await tryHandlePortfolioCommand({
+      userId: "user_1",
+      text: "9000"
+    });
+
+    expect(summaryResult.handled).toBe(true);
+    if (summaryResult.handled) {
+      expect(summaryResult.replyText).toContain("Berikut catatan saham kamu:");
+      expect(summaryResult.replyText).toContain("- Kode saham : BBCA");
+      expect(summaryResult.replyText).toContain("- Jumlah     : 2 lot (200 lembar)");
+      expect(summaryResult.replyText).toContain("- Harga beli : Rp. 9.000,00/lembar");
+      expect(summaryResult.replyText).toContain("- Total nilai: Rp. 1.800.000,00");
+      expect(summaryResult.replyText).toContain("Apakah data ini sudah benar?");
+    }
+    expect(hoisted.assets).toHaveLength(0);
+
+    hoisted.inboundMessages.push({
+      id: "msg_stock_price",
+      userId: "user_1",
+      messageType: "TEXT",
+      contentOrCaption: "9000",
+      sentAt: minutesAgo(3)
+    });
+    hoisted.outboundMessages.push({
+      id: "out_stock_summary",
+      userId: "user_1",
+      messageText: summaryResult.handled ? summaryResult.replyText : "",
+      sentAt: minutesAgo(2.5),
+      createdAt: minutesAgo(2.5)
+    });
+
+    const confirmResult = await tryHandlePortfolioCommand({
+      userId: "user_1",
+      text: "ya"
+    });
+
+    expect(confirmResult.handled).toBe(true);
+    if (confirmResult.handled) {
+      expect(confirmResult.replyText).toContain("Saham berhasil dicatat: BBCA");
+      expect(confirmResult.replyText).toContain("- Jumlah: 2 lot (200 lembar)");
+      expect(confirmResult.replyText).toContain("- Harga beli: Rp. 9.000,00/lembar");
+    }
+    expect(hoisted.assets).toHaveLength(1);
+    expect(hoisted.assets[0]).toMatchObject({
+      symbol: "BBCA",
+      displayName: "BBCA",
+      quantity: 200,
+      unit: "share",
+      averageBuyPrice: 9000
+    });
+  });
+
+  it("asks which stock field should be corrected when user rejects the summary", async () => {
+    hoisted.inboundMessages = [
+      {
+        id: "msg_stock_start",
+        userId: "user_1",
+        messageType: "TEXT",
+        contentOrCaption: "tambah saham tlkm",
+        sentAt: minutesAgo(8)
+      },
+      {
+        id: "msg_stock_qty",
+        userId: "user_1",
+        messageType: "TEXT",
+        contentOrCaption: "150 lembar",
+        sentAt: minutesAgo(7)
+      },
+      {
+        id: "msg_stock_price",
+        userId: "user_1",
+        messageType: "TEXT",
+        contentOrCaption: "2800",
+        sentAt: minutesAgo(6)
+      }
+    ];
+    hoisted.outboundMessages = [
+      {
+        id: "out_stock_qty",
+        userId: "user_1",
+        messageText:
+          "Berapa yang kamu punya?\n(bisa jawab dalam lot atau lembar, contoh: 2 lot atau 150 lembar)",
+        sentAt: minutesAgo(7.5),
+        createdAt: minutesAgo(7.5)
+      },
+      {
+        id: "out_stock_price",
+        userId: "user_1",
+        messageText: "Berapa harga beli per lembar? (dalam Rupiah)",
+        sentAt: minutesAgo(6.5),
+        createdAt: minutesAgo(6.5)
+      },
+      {
+        id: "out_stock_summary",
+        userId: "user_1",
+        messageText: [
+          "Berikut catatan saham kamu:",
+          "- Kode saham : TLKM",
+          "- Jumlah     : 150 lembar",
+          "- Harga beli : Rp. 2.800,00/lembar",
+          "- Total nilai: Rp. 420.000,00",
+          "",
+          "Apakah data ini sudah benar?"
+        ].join("\n"),
+        sentAt: minutesAgo(5.5),
+        createdAt: minutesAgo(5.5)
+      }
+    ];
+
+    const result = await tryHandlePortfolioCommand({
+      userId: "user_1",
+      text: "tidak"
+    });
+
+    expect(result.handled).toBe(true);
+    if (result.handled) {
+      expect(result.replyText).toBe(
+        "Bagian mana yang ingin dikoreksi? Kode saham, jumlah, atau harga beli?"
+      );
+    }
+    expect(hoisted.assets).toHaveLength(0);
   });
 
   it("builds richer portfolio summary with current value and pnl", async () => {
@@ -193,16 +432,18 @@ describe("portfolio command service", () => {
 
     expect(result.handled).toBe(true);
     if (result.handled) {
-      expect(result.replyText).toContain("Ringkasan portfolio:");
-      expect(result.replyText).toContain("Nilai saat ini: Rp. 5.950.000,00");
-      expect(result.replyText).toContain("Unrealized P/L: +Rp. 50.000,00");
-      expect(result.replyText).toContain("Top holding:");
-      expect(result.replyText).toContain("Tipe aset dominan:");
-      expect(result.replyText).toContain("Sinyal rebalance:");
-      expect(result.replyText).toContain("Rasio aset likuid:");
-      expect(result.replyText).toContain("Skor diversifikasi");
-      expect(result.replyText).toContain("BBCA");
-      expect(result.replyText).toContain("Tabungan");
+      expect(result.replyText).toContain("📊 **Ringkasan Portofolio Kamu**");
+      expect(result.replyText).toContain("💰 **Nilai portofoliomu saat ini:** Rp 5.950.000,00");
+      expect(result.replyText).toContain("📉 **Untung / Rugi sementara:** +Rp 50.000,00");
+      expect(result.replyText).toContain("🏆 **Aset terbesar yang kamu pegang:** Tabungan (84%)");
+      expect(result.replyText).toContain("🔁 **Perlu diatur ulang?:** IYA - Disarankan untuk mulai diversifikasi");
+      expect(result.replyText).toContain("📊 **Skor diversifikasi:** 68/100");
+      expect(result.replyText).toContain("🗂️ **Rincian jenis investasi:**");
+      expect(result.replyText).toContain("   - Lainnya: 84%");
+      expect(result.replyText).toContain("   - Saham (STOCK): 16%");
+      expect(result.replyText).toContain("🏅 **Komposisi Aset Kamu**");
+      expect(result.replyText).toContain("1. 🥇 **Tabungan** - Rp 5.000.000,00 (84%)");
+      expect(result.replyText).toContain("2. 🥈 **BBCA** - Rp 950.000,00 (16%)");
     }
   });
 
@@ -228,14 +469,14 @@ describe("portfolio command service", () => {
         userId: "user_1",
         messageType: "TEXT",
         contentOrCaption: "tambah emas 8 gram harga 1800000",
-        sentAt: new Date("2026-04-10T01:00:00.000Z")
+        sentAt: minutesAgo(14)
       },
       {
         id: "msg_gold_type",
         userId: "user_1",
         messageType: "TEXT",
         contentOrCaption: "1",
-        sentAt: new Date("2026-04-10T01:01:00.000Z")
+        sentAt: minutesAgo(13)
       }
     ];
     hoisted.outboundMessages = [
@@ -244,16 +485,16 @@ describe("portfolio command service", () => {
         userId: "user_1",
         messageText:
           "Emas kamu jenis apa?\n\n1\uFE0F\u20E3 Batangan (Antam / UBS / dll)\n2\uFE0F\u20E3 Perhiasan\n3\uFE0F\u20E3 Emas digital",
-        sentAt: new Date("2026-04-10T01:00:30.000Z"),
-        createdAt: new Date("2026-04-10T01:00:30.000Z")
+        sentAt: minutesAgo(13.5),
+        createdAt: minutesAgo(13.5)
       },
       {
         id: "out_gold_brand",
         userId: "user_1",
         messageText:
           "Brand emasnya apa?\n\n1\uFE0F\u20E3 Antam\n2\uFE0F\u20E3 UBS\n3\uFE0F\u20E3 Galeri24\n4\uFE0F\u20E3 Lainnya (sebutkan)",
-        sentAt: new Date("2026-04-10T01:01:30.000Z"),
-        createdAt: new Date("2026-04-10T01:01:30.000Z")
+        sentAt: minutesAgo(12.5),
+        createdAt: minutesAgo(12.5)
       }
     ];
 
@@ -297,7 +538,7 @@ describe("portfolio command service", () => {
         userId: "user_1",
         messageType: "TEXT",
         contentOrCaption: "catat emas perhiasan 22k 2 gram harga 500000",
-        sentAt: new Date("2026-04-10T02:00:00.000Z")
+        sentAt: minutesAgo(11)
       }
     ];
     hoisted.outboundMessages = [
@@ -305,8 +546,8 @@ describe("portfolio command service", () => {
         id: "out_jewelry_mode",
         userId: "user_1",
         messageText: "Itu harga per gram atau total ya?",
-        sentAt: new Date("2026-04-10T02:00:30.000Z"),
-        createdAt: new Date("2026-04-10T02:00:30.000Z")
+        sentAt: minutesAgo(10.5),
+        createdAt: minutesAgo(10.5)
       }
     ];
 
