@@ -171,17 +171,16 @@ export const formatDurationFromMonths = (months: number | null) => {
   if (months === null || !Number.isFinite(months)) return "belum terestimasi";
   if (months <= 0) return "sudah tercapai";
 
-  const rounded = Math.max(1, Math.round(months));
-  const years = Math.floor(rounded / 12);
-  const remainingMonths = rounded % 12;
+  const wholeMonths = Math.floor(months);
+  const remainingDays = Math.round((months - wholeMonths) * 30);
 
-  if (years <= 0) {
-    return `${remainingMonths} bulan`;
+  if (wholeMonths <= 0) {
+    return `${Math.max(1, remainingDays)} hari`;
   }
 
-  if (remainingMonths === 0) {
-    return `${years} tahun`;
+  if (remainingDays === 0) {
+    return `${wholeMonths} bulan`;
   }
 
-  return `${years} tahun ${remainingMonths} bulan`;
+  return `${wholeMonths} bulan ${remainingDays} hari`;
 };

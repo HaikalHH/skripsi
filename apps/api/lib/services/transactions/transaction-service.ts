@@ -4,6 +4,10 @@ import { prisma } from "@/lib/prisma";
 import { normalizeTransactionCategory } from "@/lib/services/transactions/category-override-service";
 import { inferTransactionDetailTag } from "@/lib/services/transactions/detail-tag-service";
 import { resolveMerchantNameForUser } from "@/lib/services/transactions/merchant-normalization-service";
+import {
+  hasSavingKeyword,
+  isLikelySavingTransactionText
+} from "@/lib/services/transactions/saving-intent-service";
 
 const requiredFieldsPresent = (parsed: GeminiExtraction) =>
   Boolean(parsed.type && parsed.amount && parsed.category);
@@ -27,19 +31,31 @@ export const createTransactionFromExtraction = async (params: {
     throw new Error("Invalid occurredAt in extraction");
   }
 
+  const normalizedType =
+    extraction.type === "SAVING" ||
+    isLikelySavingTransactionText(params.rawText ?? "") ||
+    ((extraction.type === "INCOME" || extraction.type === null) &&
+      hasSavingKeyword(
+        [params.rawText ?? "", extraction.category ?? "", extraction.merchant ?? ""].filter(Boolean).join(" ")
+      ))
+      ? "SAVING"
+      : extraction.type!;
   const normalizedCategory = normalizeTransactionCategory({
-    type: extraction.type!,
+    type: normalizedType,
     category: extraction.category!,
     merchant: extraction.merchant,
     rawText: params.rawText ?? null
   });
-  const normalizedMerchant = await resolveMerchantNameForUser({
-    userId: params.userId,
-    merchant: extraction.merchant,
-    rawText: params.rawText ?? null
-  });
+  const normalizedMerchant =
+    normalizedType === "SAVING"
+      ? extraction.merchant?.trim() || "Tabungan Pribadi"
+      : await resolveMerchantNameForUser({
+          userId: params.userId,
+          merchant: extraction.merchant,
+          rawText: params.rawText ?? null
+        });
   const detailTag = inferTransactionDetailTag({
-    type: extraction.type!,
+    type: normalizedType,
     category: normalizedCategory,
     merchant: normalizedMerchant,
     note: extraction.note ?? null,
@@ -49,7 +65,7 @@ export const createTransactionFromExtraction = async (params: {
   return prisma.transaction.create({
     data: {
       userId: params.userId,
-      type: extraction.type!,
+      type: normalizedType,
       amount: extraction.amount!,
       category: normalizedCategory,
       detailTag,

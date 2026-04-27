@@ -249,7 +249,7 @@ const parseRssItems = (xml: string): RawRssItem[] => {
     .map((block) => ({
       title: getTagValue(block, "title"),
       link: getTagValue(block, "link"),
-      source: getTagValue(block, "source") || "Unknown",
+      source: getTagValue(block, "source"),
       publishedAt: getTagValue(block, "pubDate") || null,
       summary: getTagValue(block, "description") || null
     }))

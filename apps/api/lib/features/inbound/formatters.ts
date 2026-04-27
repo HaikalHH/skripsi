@@ -1,7 +1,14 @@
 import { formatMoney, formatPercent } from "@/lib/services/shared/money-format";
+import { formatDurationFromMonths } from "@/lib/services/shared/projection-math-service";
+
+const TRANSACTION_DATE_FORMATTER = new Intl.DateTimeFormat("id-ID", {
+  day: "numeric",
+  month: "long",
+  year: "numeric"
+});
 
 export const confirmTransactionText = (params: {
-  type: "INCOME" | "EXPENSE";
+  type: "INCOME" | "EXPENSE" | "SAVING";
   amount: number;
   category: string;
   detailTag?: string | null;
@@ -10,11 +17,11 @@ export const confirmTransactionText = (params: {
 }) =>
   [
     "Transaksi berhasil dicatat:",
-    `- Tipe: ${params.type}`,
+    `- Tipe: ${params.type === "SAVING"}`,
     `- Amount: ${formatMoney(params.amount)}`,
     `- Category: ${params.category}${params.detailTag ? ` / ${params.detailTag}` : ""}`,
     params.merchant ? `- Merchant: ${params.merchant}` : null,
-    `- Tanggal: ${params.occurredAt.toISOString()}`
+    `- Tanggal: ${TRANSACTION_DATE_FORMATTER.format(params.occurredAt)}`
   ]
     .filter(Boolean)
     .join("\n");
@@ -86,7 +93,7 @@ export const buildGoalStatusText = (params: {
 
   const etaText =
     params.estimatedMonthsToGoal != null && Number.isFinite(params.estimatedMonthsToGoal)
-      ? `- Estimasi tercapai: ${params.estimatedMonthsToGoal.toFixed(1)} bulan`
+      ? `- Estimasi tercapai: ${formatDurationFromMonths(params.estimatedMonthsToGoal)}`
       : null;
   const paceText =
     params.monthlyContributionPace != null && Number.isFinite(params.monthlyContributionPace)
@@ -120,7 +127,7 @@ export const buildGoalStatusText = (params: {
         `${index + 1}. ${goal.goalName} | target ${formatMoney(goal.targetAmount)} | progress ${formatPercent(
           goal.progressPercent
         )} | sisa ${formatMoney(goal.remainingAmount)}${
-          goal.estimatedMonthsToGoal != null ? ` | eta ${goal.estimatedMonthsToGoal.toFixed(1)} bln` : ""
+          goal.estimatedMonthsToGoal != null ? ` | eta ${formatDurationFromMonths(goal.estimatedMonthsToGoal)}` : ""
         }${goal.monthlyContributionPace != null ? ` | pace ${formatMoney(goal.monthlyContributionPace)}/bln` : ""}${
           goal.recommendedMonthlyContribution != null
             ? ` | saran ${formatMoney(goal.recommendedMonthlyContribution)}/bln`

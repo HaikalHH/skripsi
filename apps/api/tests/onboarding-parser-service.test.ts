@@ -28,6 +28,7 @@ describe("onboarding parser service", () => {
     expect(parsePrimaryGoal("aku mau fokus ngatur pengeluaran dulu")).toBe(
       PrimaryGoal.MANAGE_EXPENSES
     );
+    expect(parsePrimaryGoal("aku mau bebas finansial")).toBeNull();
   });
 
   it("parses mixed employment roles from natural language", () => {
@@ -43,6 +44,7 @@ describe("onboarding parser service", () => {
 
   it("parses goal and asset selections from context", () => {
     expect(parseGoalSelection("aku mau dana darurat dulu")).toBe(FinancialGoalType.EMERGENCY_FUND);
+    expect(parseGoalSelection("financial freedom")).toBeNull();
     expect(parseAssetSelection("sekarang saya punya emas antam")).toBe(AssetType.GOLD);
     expect(parseAssetSelection("aku mau catat properti dulu")).toBe(AssetType.PROPERTY);
   });

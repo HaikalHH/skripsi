@@ -31,12 +31,20 @@ describe("Gemini extraction parsing", () => {
     expect(() => geminiExtractionSchema.parse(extractJsonObject(raw))).toThrowError();
   });
 
-  it("parses financial advice intent", () => {
+  it("rejects retired financial advice intent", () => {
     const raw =
       '{"intent":"REQUEST_FINANCIAL_ADVICE","type":null,"amount":null,"category":null,"merchant":null,"note":null,"occurredAt":null,"reportPeriod":null,"adviceQuery":"Boleh beli HP bulan ini?"}';
 
+    expect(() => geminiExtractionSchema.parse(extractJsonObject(raw))).toThrowError();
+  });
+
+  it("parses saving transaction intent", () => {
+    const raw =
+      '{"intent":"RECORD_TRANSACTION","type":"SAVING","amount":500000,"category":"Tabungan","merchant":"Tabungan Pribadi","note":null,"occurredAt":null,"reportPeriod":null,"adviceQuery":null}';
+
     const parsed = geminiExtractionSchema.parse(extractJsonObject(raw));
-    expect(parsed.intent).toBe("REQUEST_FINANCIAL_ADVICE");
-    expect(parsed.adviceQuery).toBe("Boleh beli HP bulan ini?");
+    expect(parsed.intent).toBe("RECORD_TRANSACTION");
+    expect(parsed.type).toBe("SAVING");
+    expect(parsed.amount).toBe(500000);
   });
 });

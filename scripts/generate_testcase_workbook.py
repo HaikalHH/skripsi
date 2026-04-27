@@ -91,7 +91,6 @@ ONB-010	Onboarding	Budget mode	Auto	Solid	P0	Step budget mode aktif	belum punya 
 ONB-011	Onboarding	Expense allocation	Flexible multiline	Solid	P0	Budget manual aktif	makan 1jt\ntransport 200rb\ntagihan 350rb\nistri 1jt	Onboarding expense parser	Bot terima dan map istri ke others	expense_plan_items tercipta	Tidak boleh stuck
 ONB-012	Onboarding	Goals	Emergency fund with expense	Solid	P0	Expense tersedia	dana darurat	Onboarding goal creation	Target dana darurat dihitung otomatis	goal target_amount auto	
 ONB-013	Onboarding	Goals	Emergency fund pending	Solid	P0	Expense belum ada	dana darurat	Pending calculation flow	Bot tawarkan bantu hitung / sudah punya data / lewati	goal pending_calculation bila dilewati	
-ONB-014	Onboarding	Goals	Financial freedom age	Solid	P1	Expense tersedia	financial freedom usia 45	Onboarding FF goal	Bot hitung target dan simpan usia	FF goal + target age tersimpan	
 ONB-015	Onboarding	Goals	No more goals	Solid	P0	Step ada lagi? aktif	ga ada lagi	Onboarding boolean	Bot pindah ke aset	Session step selesai	Regression looping target
 ONB-016	Onboarding	Assets	No assets	Solid	P1	Step aset aktif	belum punya	Onboarding assets	Bot tandai belum punya aset	users.has_assets false	
 ONB-017	Onboarding	Resume	Resume last step	Solid	P0	User keluar di tengah onboarding	lanjut	Onboarding resume	Bot lanjut dari current step	Session dipakai resume	
@@ -154,11 +153,6 @@ PLN-008	Planning	Goal planner	Focus duration	Solid	P1	Ada beberapa goal	kalau fo
 PLN-009	Planning	Goal planner	Split recommendation	Solid	P1	Ada beberapa goal	tabungan bulan ini paling baik dibagi ke target apa	Goal planner SPLIT	Bot rekomendasikan alokasi per goal	No data change	
 PLN-010	Planning	Goal planner	Custom split ratio	Solid	P1	Ada beberapa goal	kalau tabungan dibagi 60:40 hasilnya gimana	Goal planner SPLIT_RATIO	Bot simulasikan split 60:40	No data change	
 PLN-011	Planning	Goal planner	Priority	Solid	P1	Ada beberapa goal	target mana yang paling realistis dulu	Goal planner PRIORITY	Bot beri ranking prioritas	No data change	
-PLN-012	Planning	Advisor	Smart allocation	Partial	P1	Ada profile, expense, goals	sisa uang bulan ini sebaiknya kemana	Smart allocation	Bot beri rekomendasi alokasi	No data change	Masih rule-based
-PLN-013	Planning	Financial freedom	Activate/track	Partial	P1	Ada expense dan income	aktifkan financial freedom	Financial freedom	Bot aktifkan tracker FF	Setting / goal FF updated	Masih baseline
-PLN-014	Planning	Financial freedom	Status	Partial	P1	FF aktif	financial freedom aku aman gak	Financial freedom	Bot jawab status dan gap	No data change	Masih baseline
-PLN-015	Planning	Wealth projection	Monthly invest	Partial	P1	User aktif	kalau invest 3 juta per bulan 10 tahun hasilnya berapa	Wealth projection	Bot kirim skenario proyeksi	No data change	Belum semua skenario kompleks
-PLN-016	Planning	Wealth projection	Target reach	Partial	P1	User aktif	kalau target 1 miliar kapan tercapai	Wealth projection	Bot hitung estimasi target reach	No data change	
 """, len(COMMON_HEADERS))
 
 PORTFOLIO = parse_tsv("""
@@ -238,9 +232,6 @@ Goal Planner	Focus	Fokus goal	kalau fokus rumah dulu gimana	Goal Planner	Text	No
 Goal Planner	Focus duration	Fokus selama periode	kalau fokus rumah 6 bulan dulu gimana	Goal Planner	Text	No	
 Goal Planner	Split	Bagi tabungan	kalau tabungan dibagi 60:40 hasilnya gimana	Goal Planner	Text	No	
 Goal Planner	Priority	Target paling realistis	target mana yang paling realistis dulu	Goal Planner	Text	No	
-Smart Allocation	Advice	Arahkan sisa uang	sisa uang bulan ini sebaiknya kemana	Smart Allocation	Text	No	Masih rule-based
-Financial Freedom	Status	Tracker financial freedom	financial freedom aku aman gak	Financial Freedom	Text	No	Masih baseline planner
-Wealth Projection	Future value	Proyeksi wealth	kalau invest 3 juta per bulan 10 tahun hasilnya berapa	Wealth Projection	Text	No	
 Portfolio	Add asset	Catat aset	tambah saham BBCA 10 lot harga 9000	Portfolio	Text	No	
 Portfolio	Summary	Ringkasan portfolio	portfolio aku gimana	Portfolio	Text	No	
 Portfolio	Risk/rebalance	Analisa konsentrasi	perlu rebalance gak	Portfolio	Text	No	
@@ -281,7 +272,7 @@ summary = wb.create_sheet('00_Summary')
 summary['A1'] = 'AI Finance Assistant - Comprehensive Test Case Workbook'
 summary['A1'].font = Font(size=16, bold=True)
 summary['A3'] = 'Generated At'; summary['B3'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-summary['A4'] = 'Scope'; summary['B4'] = 'User first arrival, onboarding, transactions, reports, analytics, planning, goals, portfolio, reminders, general chat, and query catalog.'
+summary['A4'] = 'Scope'; summary['B4'] = 'User first arrival, onboarding, transactions, reports, analytics, goals, portfolio, reminders, general chat, and query catalog.'
 summary['A5'] = 'Notes'; summary['B5'] = 'Rows bertanda Requires API dipakai saat provider market/news/gold sudah aktif.'
 summary.append([]); summary.append(['Sheet','Purpose','Test Case Count'])
 for cell in summary[7]:
@@ -291,7 +282,7 @@ summary_rows = [
     ('02_Onboarding','Branching onboarding and summary',len(ONBOARDING)),
     ('03_Transactions','Transaction, OCR, mutation, categorization',len(TRANSACTIONS)),
     ('04_Reports_Analytics','Report, analytics, cashflow, health score',len(REPORTS)),
-    ('05_Planning_Goals','Budget, goals, allocation, FF, projection',len(PLANNING)),
+    ('05_Planning_Goals','Budget, goals, and goal planning',len(PLANNING)),
     ('06_Portfolio_Market_News','Portfolio, market, news, fallback',len(PORTFOLIO)),
     ('07_Reminders_General','Reminders, general chat, memory safety',len(REMINDERS)),
     ('08_Query_Catalog','Query variants catalog',len(QUERY_ROWS)),

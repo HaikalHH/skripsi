@@ -6,8 +6,6 @@ import { parseReportPeriod } from "@/lib/services/reporting/report-service";
 
 export type ParsedCommand =
   | { kind: "HELP" }
-  | { kind: "INSIGHT" }
-  | { kind: "ADVICE"; question: string | null }
   | { kind: "REPORT"; period: ReportPeriod }
   | { kind: "BUDGET_SET"; category: string; monthlyLimit: number }
   | {
@@ -34,15 +32,7 @@ export const parseCommand = (rawText: string | undefined): ParsedCommand => {
   const lowerText = text.toLowerCase();
 
   if (lowerText === "/help") return { kind: "HELP" };
-  if (lowerText === "/insight") return { kind: "INSIGHT" };
-  if (lowerText === "/advice") return { kind: "ADVICE", question: null };
   if (lowerText === "/goal status") return { kind: "GOAL_STATUS", goalQuery: null, goalType: null };
-
-  if (lowerText.startsWith("/advice ")) {
-    const question = normalizeText(text.slice("/advice ".length));
-    if (!question) return { kind: "ADVICE", question: null };
-    return { kind: "ADVICE", question };
-  }
 
   if (lowerText.startsWith("/report")) {
     const [, periodText] = lowerText.split(/\s+/);

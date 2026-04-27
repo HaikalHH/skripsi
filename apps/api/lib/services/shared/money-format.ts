@@ -158,9 +158,42 @@ const normalizeMoneyInput = (amount: MoneyInput): NormalizedMoneyValue => {
 
 const formatIntegerPart = (value: string) => value.replace(INTEGER_GROUP_PATTERN, ".");
 
-const formatFractionPart = (value: string) => {
-  if (!value) return "00";
-  return value.length >= 2 ? value : value.padEnd(2, "0");
+const roundNormalizedMoneyValue = (
+  value: NormalizedMoneyValue,
+  maximumFractionDigits: number
+): NormalizedMoneyValue => {
+  if (maximumFractionDigits < 0) return ZERO_MONEY_VALUE;
+
+  const paddedFraction = value.fractionPart.padEnd(maximumFractionDigits + 1, "0");
+  const keptFraction = paddedFraction.slice(0, maximumFractionDigits);
+  const roundingDigit = paddedFraction[maximumFractionDigits] ?? "0";
+  const scaledValue = BigInt(`${value.integerPart}${keptFraction}`);
+  const roundedScaledValue = roundingDigit >= "5" ? scaledValue + 1n : scaledValue;
+  const roundedScaledString = roundedScaledValue.toString();
+
+  if (maximumFractionDigits === 0) {
+    const integerPart = stripLeadingZeros(roundedScaledString);
+    const isZero = integerPart === "0";
+    return {
+      sign: isZero ? "" : value.sign,
+      integerPart,
+      fractionPart: ""
+    };
+  }
+
+  const splitIndex = Math.max(0, roundedScaledString.length - maximumFractionDigits);
+  const integerPart =
+    splitIndex > 0 ? stripLeadingZeros(roundedScaledString.slice(0, splitIndex)) : "0";
+  const fractionPart = (splitIndex > 0 ? roundedScaledString.slice(splitIndex) : roundedScaledString)
+    .padStart(maximumFractionDigits, "0")
+    .replace(/0+$/, "");
+  const isZero = integerPart === "0" && !fractionPart;
+
+  return {
+    sign: isZero ? "" : value.sign,
+    integerPart,
+    fractionPart
+  };
 };
 
 const buildMagnitudeLabel = ({ integerPart, fractionPart }: NormalizedMoneyValue) => {
@@ -185,15 +218,16 @@ const buildMagnitudeLabel = ({ integerPart, fractionPart }: NormalizedMoneyValue
 };
 
 export const formatMoney = (amount: MoneyInput, options: FormatMoneyOptions = {}) => {
-  const normalized = normalizeMoneyInput(amount);
-  const formatted = `${normalized.sign ? "-Rp. " : "Rp. "}${formatIntegerPart(normalized.integerPart)},${formatFractionPart(normalized.fractionPart)}`;
+  const normalized = roundNormalizedMoneyValue(normalizeMoneyInput(amount), 2);
+  const fractionText = normalized.fractionPart ? `,${normalized.fractionPart}` : "";
+  const formatted = `${normalized.sign ? "-Rp. " : "Rp. "}${formatIntegerPart(normalized.integerPart)}${fractionText}`;
   const magnitudeLabel = options.withMagnitudeLabel ? buildMagnitudeLabel(normalized) : "";
 
   return magnitudeLabel ? `${formatted} ${magnitudeLabel}` : formatted;
 };
 
 export const formatMoneyWhole = (amount: MoneyInput) => {
-  const normalized = normalizeMoneyInput(amount);
+  const normalized = roundNormalizedMoneyValue(normalizeMoneyInput(amount), 0);
   return `${normalized.sign ? "-Rp. " : "Rp. "}${formatIntegerPart(normalized.integerPart)}`;
 };
 

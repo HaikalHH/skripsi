@@ -68,9 +68,12 @@ const hoisted = vi.hoisted(() => {
         store.goalContributions.filter((item) => item.userId === where.userId)
       ),
       create: vi.fn(async ({ data }: any) => {
+        const now = new Date();
         const row = {
           id: `contrib_${store.goalContributions.length + 1}`,
-          occurredAt: new Date(`2026-03-${12 + store.goalContributions.length}T10:00:00.000Z`),
+          occurredAt: new Date(
+            Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 12 + store.goalContributions.length, 10, 0, 0, 0)
+          ),
           ...data
         };
         store.goalContributions.push(row);
@@ -78,10 +81,18 @@ const hoisted = vi.hoisted(() => {
       })
     },
     savingsGoal: {
+      findUnique: vi.fn(async ({ where }: any) =>
+        store.savingsGoals.find((item) => item.userId === where.userId) ?? null
+      ),
       upsert: vi.fn(async ({ where, update, create }: any) => {
         const existing = store.savingsGoals.find((item) => item.userId === where.userId);
         if (existing) {
-          Object.assign(existing, update);
+          const nextUpdate = { ...update };
+          if (nextUpdate.currentProgress && typeof nextUpdate.currentProgress === "object") {
+            const incrementValue = Number(nextUpdate.currentProgress.increment ?? 0);
+            nextUpdate.currentProgress = Number(existing.currentProgress ?? 0) + incrementValue;
+          }
+          Object.assign(existing, nextUpdate);
           return existing;
         }
 
@@ -169,6 +180,9 @@ describe("goal service", () => {
   });
 
   it("tracks explicit contribution per goal", async () => {
+    const now = new Date();
+    const twoMonthsAgo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 2, 15, 10, 0, 0, 0));
+    const twentyDaysAgo = new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000);
     hoisted.store.financialGoals = [
       {
         id: "goal_1",
@@ -187,14 +201,14 @@ describe("goal service", () => {
         userId: "user_1",
         goalId: "goal_1",
         amount: 2000000,
-        occurredAt: new Date("2026-01-15T10:00:00.000Z")
+        occurredAt: twoMonthsAgo
       },
       {
         id: "contrib_seed_2",
         userId: "user_1",
         goalId: "goal_1",
         amount: 2500000,
-        occurredAt: new Date("2026-02-15T10:00:00.000Z")
+        occurredAt: twentyDaysAgo
       }
     ];
 
@@ -212,6 +226,24 @@ describe("goal service", () => {
     expect(result.goalStatus.goals[0]?.contributionActiveMonths).toBe(3);
     expect(result.goalStatus.goals[0]?.contributionMonthStreak).toBe(3);
     expect(result.goalStatus.goals[0]?.trackingStatus).toBe("ON_TRACK");
+  });
+
+  it("falls back to legacy primary goal progress when no active financial goal exists", async () => {
+    hoisted.store.savingsGoals = [
+      {
+        id: "legacy_1",
+        userId: "user_1",
+        targetAmount: 10000000,
+        currentProgress: 2000000
+      }
+    ];
+
+    const result = await addGoalContribution("user_1", 500000);
+
+    expect(result.contributionAmount).toBe(500000);
+    expect(hoisted.store.savingsGoals[0]?.currentProgress).toBe(2500000);
+    expect(result.goalStatus.currentProgress).toBe(2500000);
+    expect(result.goalStatus.targetAmount).toBe(10000000);
   });
 });
 

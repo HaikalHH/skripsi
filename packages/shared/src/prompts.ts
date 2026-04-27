@@ -8,13 +8,10 @@ Task:
 1) Classify intent from user message.
 2) If intent is RECORD_TRANSACTION, extract transaction fields.
 3) If intent is REQUEST_REPORT, infer reportPeriod when possible.
-4) If intent is REQUEST_FINANCIAL_ADVICE, copy the original question into adviceQuery.
 
 Allowed intent values:
 - RECORD_TRANSACTION
 - REQUEST_REPORT
-- REQUEST_INSIGHT
-- REQUEST_FINANCIAL_ADVICE
 - HELP
 - UNKNOWN
 
@@ -24,9 +21,11 @@ Interpretation guidance (important):
 - Handle shorthand amounts: "5jt", "2,5 juta", "750rb", "25 ribu", "1.500.000", "Rp 300.000".
 - Typical income context: salary/gaji, bonus, transfer masuk, pendapatan, pemasukan, komisi.
 - Typical expense context: beli, bayar, belanja, makan, topup, ongkir, tagihan, langganan.
+- Typical saving context: nabung, menabung, tabung, setor tabungan, simpan, saving.
 - If user clearly states a monetary transaction, set intent=RECORD_TRANSACTION even if sentence is casual.
-- If there is no clear transaction/report/insight/advice/help meaning, set intent=UNKNOWN.
+- If there is no clear transaction/report/help meaning, set intent=UNKNOWN.
 - If amount exists but transaction direction is ambiguous, infer the most likely direction from sentence context.
+- For saving transactions, set type=SAVING, category="Tabungan", and merchant="Tabungan Pribadi" unless a clearer merchant/context is explicitly provided.
 
 Rules:
 - Return STRICT JSON only.
@@ -34,7 +33,7 @@ Rules:
 - Keep keys exactly:
   {
     "intent": string,
-    "type": "INCOME"|"EXPENSE"|null,
+    "type": "INCOME"|"EXPENSE"|"SAVING"|null,
     "amount": number|null,
     "category": string|null,
     "merchant": string|null,
@@ -45,7 +44,6 @@ Rules:
   }
 - If unsure, use null for fields.
 - For reports, set intent=REQUEST_REPORT and set reportPeriod.
-- For advice questions (financial health, affordability, spending decision), set intent=REQUEST_FINANCIAL_ADVICE and set adviceQuery.
 
 Examples:
 Input: "gaji masuk 5 juta"
@@ -54,11 +52,11 @@ Output: {"intent":"RECORD_TRANSACTION","type":"INCOME","amount":5000000,"categor
 Input: "beli kopi 25 ribu"
 Output: {"intent":"RECORD_TRANSACTION","type":"EXPENSE","amount":25000,"category":"Food & Drink","merchant":"Coffee Shop","note":null,"occurredAt":null,"reportPeriod":null,"adviceQuery":null}
 
+Input: "nabung 500 ribu"
+Output: {"intent":"RECORD_TRANSACTION","type":"SAVING","amount":500000,"category":"Tabungan","merchant":"Tabungan Pribadi","note":null,"occurredAt":null,"reportPeriod":null,"adviceQuery":null}
+
 Input: "laporan minggu ini"
 Output: {"intent":"REQUEST_REPORT","type":null,"amount":null,"category":null,"merchant":null,"note":null,"occurredAt":null,"reportPeriod":"weekly","adviceQuery":null}
-
-Input: "boleh beli hp 5 juta bulan ini?"
-Output: {"intent":"REQUEST_FINANCIAL_ADVICE","type":null,"amount":null,"category":null,"merchant":null,"note":null,"occurredAt":null,"reportPeriod":null,"adviceQuery":"boleh beli hp 5 juta bulan ini?"}
 
 User input:
 ${input}
@@ -133,6 +131,7 @@ Supported command families and examples:
 - transactions:
   - "beli kopi 25 ribu"
   - "gaji masuk 5 juta"
+  - "nabung 500 ribu"
   - "bayar listrik 450rb"
 - transaction mutation:
   - "hapus transaksi terakhir"
@@ -163,10 +162,6 @@ Supported command families and examples:
   - "apa aja isi entertainment bulan ini"
   - "spotify nyumbang berapa persen"
   - "merchant mana yang paling bikin spending naik"
-- insights and advice:
-  - "keuangan aku sehat gak"
-  - "aku boros gak bulan ini"
-  - "yang bikin bocor halus apa"
 - portfolio and market:
   - "portfolio aku gimana"
   - "tambah saham bbca 10 lot harga 9000"
@@ -174,11 +169,6 @@ Supported command families and examples:
 - finance news:
   - "berita finance hari ini"
   - "berita tentang aset aku"
-- saving and freedom planning:
-  - "sisa uang bulan ini sebaiknya kemana"
-  - "financial freedom aku aman gak"
-  - "kalau invest 3 juta per bulan target 1 miliar kapan tercapai"
-
 Return STRICT JSON only:
 {
   "normalizedText": "string | null"

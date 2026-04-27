@@ -87,9 +87,7 @@ const PRIMARY_GOAL_INTENT_OPTIONS: FlexibleChoiceOption[] = PRIMARY_GOAL_OPTIONS
         ? ["nabung disiplin", "lebih disiplin nabung", "menabung", "saving", "tabung rutin"]
         : option.value === PrimaryGoal.TRACK_INVESTMENTS
           ? ["pantau investasi", "monitor investasi", "portfolio", "investasi", "tracking asset", "aset"]
-          : option.value === PrimaryGoal.FINANCIAL_FREEDOM
-            ? ["financial freedom", "bebas finansial", "menuju bebas finansial", "ff", "pensiun dini"]
-            : ["semua", "semua di atas", "semuanya", "all", "all in one", "semua fitur"]
+          : ["semua", "semua di atas", "semuanya", "all", "all in one", "semua fitur"]
 }));
 
 const EMPLOYMENT_INTENT_OPTIONS: FlexibleChoiceOption[] = EMPLOYMENT_OPTIONS.map((option) => ({
@@ -127,11 +125,9 @@ const GOAL_INTENT_OPTIONS: FlexibleChoiceOption[] = GOAL_OPTIONS.map((option) =>
           ? ["kendaraan", "mobil", "motor", "beli mobil", "beli motor"]
           : option.value === FinancialGoalType.VACATION
             ? ["liburan", "travel", "jalan jalan", "holiday"]
-            : option.value === FinancialGoalType.FINANCIAL_FREEDOM
-              ? ["financial freedom", "bebas finansial", "pensiun dini", "ff"]
-              : option.value === GOAL_NONE_VALUE
-                ? ["belum ada target", "ga ada target", "gak ada target", "tidak ada target", "no goal"]
-                : ["custom", "target custom", "target lain", "target sendiri"]
+            : option.value === GOAL_NONE_VALUE
+              ? ["belum ada target", "ga ada target", "gak ada target", "tidak ada target", "no goal"]
+              : ["custom", "target custom", "target lain", "target sendiri"]
 }));
 
 const GOAL_EXPENSE_STRATEGY_INTENT_OPTIONS: FlexibleChoiceOption[] = GOAL_EXPENSE_STRATEGY_OPTIONS.map((option) => ({

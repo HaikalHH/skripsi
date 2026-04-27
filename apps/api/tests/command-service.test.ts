@@ -56,15 +56,10 @@ describe("command parser", () => {
     });
   });
 
-  it("parses advice command with and without question", () => {
-    const noQuestion = parseCommand("/advice");
-    expect(noQuestion).toEqual({ kind: "ADVICE", question: null });
-
-    const withQuestion = parseCommand("/advice boleh beli hp 3500000 bulan ini?");
-    expect(withQuestion).toEqual({
-      kind: "ADVICE",
-      question: "boleh beli hp 3500000 bulan ini?"
-    });
+  it("does not parse retired insight and advice commands", () => {
+    expect(parseCommand("/insight")).toEqual({ kind: "NONE" });
+    expect(parseCommand("/advice")).toEqual({ kind: "NONE" });
+    expect(parseCommand("/advice boleh beli hp 3500000 bulan ini?")).toEqual({ kind: "NONE" });
   });
 
   it("returns NONE for invalid budget amount", () => {

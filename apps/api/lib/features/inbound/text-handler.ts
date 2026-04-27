@@ -1,4 +1,3 @@
-import type { GeminiExtraction } from "@finance/shared";
 import { AnalysisType } from "@prisma/client";
 import { HELP_TEXT } from "@/lib/constants";
 import { logger } from "@/lib/logger";
@@ -11,17 +10,14 @@ import {
 import { extractForcedCategory } from "@/lib/services/transactions/category-override-service";
 import { parseFallbackTransactionExtraction } from "@/lib/services/transactions/fallback-transaction-parser";
 import { tryHandleGeneralChat } from "@/lib/services/assistant/general-chat-service";
-import { generateUserFinancialAdvice } from "@/lib/services/assistant/advice-service";
 import {
   loadRecentConversationTurns,
   resolveConversationMemory
 } from "@/lib/services/assistant/conversation-memory-service";
 import { routeGlobalTextContext } from "@/lib/services/assistant/global-context-router-service";
 import { recordIntentObservation } from "@/lib/services/observability/observability-service";
-import { getSavingsGoalStatus } from "@/lib/services/planning/goal-service";
-import { generateUserInsight } from "@/lib/services/reporting/insight-service";
 import { parseReportPeriod } from "@/lib/services/reporting/report-service";
-import { createTransactionFromExtraction, isTransactionExtractable } from "@/lib/services/transactions/transaction-service";
+import { isTransactionExtractable } from "@/lib/services/transactions/transaction-service";
 import { saveTransactionAndBuildReply } from "./transaction-reply";
 import { buildReportResponse, toReportReplyBody } from "./report";
 import { tryHandleStructuredText } from "./structured-text-handler";
@@ -262,33 +258,6 @@ export const handleTextMessage = async (
     const report = await buildReportResponse(params.userId, { period });
     return observeAndReturn(ok(toReportReplyBody(report)), {
       handledBy: "ai_intent_report"
-    });
-  }
-
-  if (extraction.intent === "REQUEST_INSIGHT") {
-    const insightText = await generateUserInsight(params.userId);
-    await createAIAnalysisLog({
-      userId: params.userId,
-      messageId: params.messageId,
-      analysisType: AnalysisType.INSIGHT,
-      payload: { insightText, source: "intent" }
-    });
-    return observeAndReturn(ok({ replyText: insightText }), {
-      handledBy: "ai_intent_insight"
-    });
-  }
-
-  if (extraction.intent === "REQUEST_FINANCIAL_ADVICE") {
-    const userQuestion = extraction.adviceQuery ?? effectiveText;
-    const insightText = await generateUserFinancialAdvice(params.userId, userQuestion);
-    await createAIAnalysisLog({
-      userId: params.userId,
-      messageId: params.messageId,
-      analysisType: AnalysisType.INSIGHT,
-      payload: { insightText, source: "intent_advice", userQuestion }
-    });
-    return observeAndReturn(ok({ replyText: insightText }), {
-      handledBy: "ai_intent_advice"
     });
   }
 

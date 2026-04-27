@@ -61,22 +61,36 @@ type GoalSelection = {
   goalQuery?: string | null;
 };
 
+const SUPPORTED_FINANCIAL_GOAL_TYPES = [
+  FinancialGoalType.EMERGENCY_FUND,
+  FinancialGoalType.HOUSE,
+  FinancialGoalType.VEHICLE,
+  FinancialGoalType.VACATION,
+  FinancialGoalType.CUSTOM
+] as const;
+
+const isSupportedFinancialGoalType = (
+  goalType: FinancialGoalType | null | undefined
+): goalType is (typeof SUPPORTED_FINANCIAL_GOAL_TYPES)[number] =>
+  goalType != null &&
+  SUPPORTED_FINANCIAL_GOAL_TYPES.includes(
+    goalType as (typeof SUPPORTED_FINANCIAL_GOAL_TYPES)[number]
+  );
+
 const PRIMARY_GOAL_ORDER: FinancialGoalType[] = [
   FinancialGoalType.EMERGENCY_FUND,
   FinancialGoalType.HOUSE,
   FinancialGoalType.VEHICLE,
   FinancialGoalType.VACATION,
-  FinancialGoalType.CUSTOM,
-  FinancialGoalType.FINANCIAL_FREEDOM
+  FinancialGoalType.CUSTOM
 ];
 
-const GOAL_PRIORITY_BASELINE: Record<FinancialGoalType, number> = {
+const GOAL_PRIORITY_BASELINE: Partial<Record<FinancialGoalType, number>> = {
   EMERGENCY_FUND: 100,
   HOUSE: 85,
   VEHICLE: 72,
   VACATION: 60,
-  CUSTOM: 65,
-  FINANCIAL_FREEDOM: 55
+  CUSTOM: 65
 };
 
 const toNumber = (value: unknown): number => {
@@ -169,6 +183,15 @@ const calculateNetSavings = async (userId: string) => {
   const income = toNumber(incomeAgg._sum.amount ?? 0);
   const expense = toNumber(expenseAgg._sum.amount ?? 0);
   return Math.max(0, income - expense);
+};
+
+const calculateRecordedSavingTotal = async (userId: string) => {
+  const savingAgg = await prisma.transaction.aggregate({
+    where: { userId, type: "SAVING" },
+    _sum: { amount: true }
+  });
+
+  return Math.max(0, toNumber(savingAgg._sum.amount ?? 0));
 };
 
 const GOAL_PACE_WINDOW_DAYS = 90;
@@ -306,7 +329,6 @@ const defaultGoalNameByType = (goalType: FinancialGoalType | null) => {
   if (goalType === FinancialGoalType.HOUSE) return "Beli Rumah";
   if (goalType === FinancialGoalType.VEHICLE) return "Beli Kendaraan";
   if (goalType === FinancialGoalType.VACATION) return "Liburan";
-  if (goalType === FinancialGoalType.FINANCIAL_FREEDOM) return "Financial Freedom";
   return "Target Tabungan";
 };
 
@@ -489,29 +511,31 @@ const syncFinancialGoalEstimates = async (userId: string, monthlySavingCapacity:
   ]);
 
   await Promise.all(
-    goals.map((goal: any) => {
-      const targetAmount = toNumber(goal.targetAmount ?? 0);
-      const goalCurrentProgress = contributionProgress.hasAnyContributions
-        ? contributionProgress.totalByGoal.get(goal.id) ?? 0
-        : 0;
-      const remainingAmount = contributionProgress.hasAnyContributions
-        ? Math.max(0, targetAmount - goalCurrentProgress)
-        : targetAmount;
-      const goalMonthlyPace =
-        contributionProgress.monthlyPaceByGoal.get(goal.id) ??
-        (contributionProgress.hasAnyContributions ? null : monthlySavingCapacity);
-      const estimatedMonthsToGoal =
-        remainingAmount > 0 && goalMonthlyPace && goalMonthlyPace > 0
-          ? Number((remainingAmount / goalMonthlyPace).toFixed(2))
-          : null;
+    goals
+      .filter((goal: any) => isSupportedFinancialGoalType(goal.goalType as FinancialGoalType))
+      .map((goal: any) => {
+        const targetAmount = toNumber(goal.targetAmount ?? 0);
+        const goalCurrentProgress = contributionProgress.hasAnyContributions
+          ? contributionProgress.totalByGoal.get(goal.id) ?? 0
+          : 0;
+        const remainingAmount = contributionProgress.hasAnyContributions
+          ? Math.max(0, targetAmount - goalCurrentProgress)
+          : targetAmount;
+        const goalMonthlyPace =
+          contributionProgress.monthlyPaceByGoal.get(goal.id) ??
+          (contributionProgress.hasAnyContributions ? null : monthlySavingCapacity);
+        const estimatedMonthsToGoal =
+          remainingAmount > 0 && goalMonthlyPace && goalMonthlyPace > 0
+            ? Number((remainingAmount / goalMonthlyPace).toFixed(2))
+            : null;
 
-      return financialGoalModel.update({
-        where: { id: goal.id },
-        data: {
-          estimatedMonthsToGoal
-        }
-      });
-    })
+        return financialGoalModel.update({
+          where: { id: goal.id },
+          data: {
+            estimatedMonthsToGoal
+          }
+        });
+      })
   );
 };
 
@@ -538,7 +562,11 @@ const getFinancialGoalStatuses = async (userId: string) => {
     getGoalContributionProgress(userId)
   ]);
 
-  const eligibleGoals = goals.filter((goal: any) => toNumber(goal.targetAmount ?? 0) > 0);
+  const eligibleGoals = goals.filter(
+    (goal: any) =>
+      isSupportedFinancialGoalType(goal.goalType as FinancialGoalType) &&
+      toNumber(goal.targetAmount ?? 0) > 0
+  );
   if (!eligibleGoals.length) return [];
 
   const primary = pickPrimaryGoal(eligibleGoals);
@@ -608,15 +636,33 @@ const getFinancialGoalStatuses = async (userId: string) => {
 
 const getLegacyGoalStatus = async (userId: string): Promise<GoalStatusSummary> => {
   const savingsGoalModel = getSavingsGoalModel();
-  const netSavings = await calculateNetSavings(userId);
-  const monthlySavingCapacity = await getMonthlySavingCapacity(userId);
+  const [netSavings, monthlySavingCapacity, recordedSavingTotal] = await Promise.all([
+    calculateNetSavings(userId),
+    getMonthlySavingCapacity(userId),
+    calculateRecordedSavingTotal(userId)
+  ]);
+  const existingLegacyGoal =
+    savingsGoalModel?.findUnique != null
+      ? await savingsGoalModel.findUnique({
+          where: { userId },
+          select: {
+            targetAmount: true,
+            currentProgress: true
+          }
+        })
+      : null;
+  const explicitLegacyProgress = Math.max(
+    toNumber(existingLegacyGoal?.currentProgress ?? 0),
+    recordedSavingTotal
+  );
+  const resolvedLegacyProgress = explicitLegacyProgress > 0 ? explicitLegacyProgress : netSavings;
 
   if (!savingsGoalModel) {
     return buildGoalStatus({
       goalName: null,
       goalType: null,
       targetAmount: 0,
-      currentProgress: netSavings,
+      currentProgress: resolvedLegacyProgress,
       monthlyContributionPace: monthlySavingCapacity,
       monthlySavingCapacity,
       progressSource: "NET_SAVINGS_PROXY"
@@ -625,11 +671,13 @@ const getLegacyGoalStatus = async (userId: string): Promise<GoalStatusSummary> =
 
   const goal = await savingsGoalModel.upsert({
     where: { userId },
-    update: { currentProgress: netSavings },
+    update: {
+      currentProgress: resolvedLegacyProgress
+    },
     create: {
       userId,
       targetAmount: 0,
-      currentProgress: netSavings
+      currentProgress: resolvedLegacyProgress
     }
   });
 
@@ -645,8 +693,7 @@ const getLegacyGoalStatus = async (userId: string): Promise<GoalStatusSummary> =
     recommendedAllocationShare: monthlySavingCapacity > 0 ? 100 : null,
     status: "LEGACY",
     isPrimary: true,
-    progressSource: "NET_SAVINGS_PROXY"
-    ,
+    progressSource: "NET_SAVINGS_PROXY",
     contributionActiveMonths: 0,
     contributionMonthStreak: 0,
     trackingStatus: "WATCH"
@@ -674,8 +721,7 @@ const getLegacyGoalStatus = async (userId: string): Promise<GoalStatusSummary> =
             }
           ]
         : [],
-    progressSource: "NET_SAVINGS_PROXY"
-    ,
+    progressSource: "NET_SAVINGS_PROXY",
     contributionActiveMonths: goalItem.contributionActiveMonths,
     contributionMonthStreak: goalItem.contributionMonthStreak,
     trackingStatus: goalItem.trackingStatus
@@ -736,12 +782,13 @@ const findExistingGoalForSet = async (params: {
 }) => {
   const financialGoalModel = getFinancialGoalModel();
   if (!financialGoalModel) return null;
+  const normalizedGoalType = isSupportedFinancialGoalType(params.goalType) ? params.goalType : null;
 
-  if (params.goalType && params.goalType !== FinancialGoalType.CUSTOM) {
+  if (normalizedGoalType && normalizedGoalType !== FinancialGoalType.CUSTOM) {
     return financialGoalModel.findFirst({
       where: {
         userId: params.userId,
-        goalType: params.goalType,
+        goalType: normalizedGoalType,
         status: { in: [FinancialGoalStatus.ACTIVE, FinancialGoalStatus.PENDING_CALCULATION] }
       },
       orderBy: { createdAt: "desc" }
@@ -783,14 +830,16 @@ const findGoalForSelection = async (params: {
 
   if (!goals.length) return null;
 
-  const filteredGoals = goals.filter((goal: any) =>
-    matchesGoalSelection(
-      {
-        goalName: goal.goalName,
-        goalType: goal.goalType as FinancialGoalType
-      },
-      params.selection
-    )
+  const filteredGoals = goals.filter(
+    (goal: any) =>
+      isSupportedFinancialGoalType(goal.goalType as FinancialGoalType) &&
+      matchesGoalSelection(
+        {
+          goalName: goal.goalName,
+          goalType: goal.goalType as FinancialGoalType
+        },
+        params.selection
+      )
   );
 
   if (filteredGoals.length === 1) return filteredGoals[0];
@@ -799,6 +848,23 @@ const findGoalForSelection = async (params: {
   }
 
   return null;
+};
+
+const hasAnyActiveFinancialGoal = async (userId: string) => {
+  const financialGoalModel = getFinancialGoalModel();
+  if (!financialGoalModel) return false;
+
+  const goals = await financialGoalModel.findMany({
+    where: {
+      userId,
+      status: { in: [FinancialGoalStatus.ACTIVE, FinancialGoalStatus.PENDING_CALCULATION] }
+    },
+    orderBy: { createdAt: "asc" }
+  });
+
+  return goals.some((goal: any) =>
+    isSupportedFinancialGoalType(goal.goalType as FinancialGoalType)
+  );
 };
 
 export const refreshSavingsGoalProgress = async (userId: string) => {
@@ -822,8 +888,11 @@ export const setSavingsGoalTarget = async (
 ) => {
   const financialGoalModel = getFinancialGoalModel();
   const normalizedTarget = Math.max(0, Math.round(targetAmount));
-  const goalType = selection?.goalType ?? FinancialGoalType.CUSTOM;
-  const goalName = selection?.goalName ?? defaultGoalNameByType(selection?.goalType ?? null);
+  const selectedGoalType = isSupportedFinancialGoalType(selection?.goalType)
+    ? (selection?.goalType ?? null)
+    : null;
+  const goalType = selectedGoalType ?? FinancialGoalType.CUSTOM;
+  const goalName = selection?.goalName ?? defaultGoalNameByType(selectedGoalType);
   const netSavings = await calculateNetSavings(userId);
 
   if (financialGoalModel) {
@@ -925,6 +994,32 @@ export const addGoalContribution = async (
   });
 
   if (!goal) {
+    const hasActiveGoals = await hasAnyActiveFinancialGoal(userId);
+    if (!hasActiveGoals) {
+      const savingsGoalModel = getSavingsGoalModel();
+      if (savingsGoalModel) {
+        await savingsGoalModel.upsert({
+          where: { userId },
+          update: {
+            currentProgress: {
+              increment: normalizedAmount
+            }
+          },
+          create: {
+            userId,
+            targetAmount: 0,
+            currentProgress: normalizedAmount
+          }
+        });
+      }
+
+      return {
+        contributionAmount: normalizedAmount,
+        goalStatus: await getSavingsGoalStatus(userId, selection),
+        goalCompleted: false
+      };
+    }
+
     const goalStatus = await getSavingsGoalStatus(userId);
     return {
       contributionAmount: normalizedAmount,

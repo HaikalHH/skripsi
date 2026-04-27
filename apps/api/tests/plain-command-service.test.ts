@@ -54,6 +54,7 @@ describe("plain text command parser", () => {
   it("returns NONE for regular transaction text", () => {
     expect(parsePlainTextCommand("beli kopi 25 ribu")).toEqual({ kind: "NONE" });
     expect(parsePlainTextCommand("nabung 500 ribu")).toEqual({ kind: "NONE" });
+    expect(parsePlainTextCommand("setor tabungan 500 ribu")).toEqual({ kind: "NONE" });
   });
 });
 

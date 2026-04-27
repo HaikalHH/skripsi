@@ -175,13 +175,17 @@ const sanitizeFallbackTag = (value: string) =>
   );
 
 export const inferTransactionDetailTag = (params: {
-  type: "INCOME" | "EXPENSE";
+  type: "INCOME" | "EXPENSE" | "SAVING";
   category?: string | null;
   merchant?: string | null;
   note?: string | null;
   rawText?: string | null;
 }) => {
   const merchant = normalizeMerchantName(params.merchant ?? null);
+  if (params.type === "SAVING") {
+    return null;
+  }
+
   if (params.type === "INCOME") {
     return merchant ?? (params.category ? titleCase(normalizeSpaces(params.category)) : null);
   }

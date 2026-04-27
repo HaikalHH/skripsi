@@ -1,11 +1,8 @@
-import { AnalysisType } from "@prisma/client";
 import { HELP_TEXT } from "@/lib/constants";
 import { logger } from "@/lib/logger";
-import { createAIAnalysisLog } from "@/lib/services/ai/ai-log-service";
 import { upsertCategoryBudget } from "@/lib/services/transactions/budget-service";
 import { buildCashflowForecastReply } from "@/lib/services/planning/cashflow-forecast-service";
 import { buildFinancialHealthReply } from "@/lib/services/planning/financial-health-service";
-import { tryHandleFinancialFreedomCommand } from "@/lib/services/planning/financial-freedom-service";
 import {
   buildFinanceNewsFailureReply,
   tryHandleFinanceNewsCommand
@@ -22,16 +19,12 @@ import {
 import { tryHandlePortfolioCommand } from "@/lib/services/market/portfolio-command-service";
 import { tryHandlePrivacyCommand } from "@/lib/services/assistant/privacy-command-service";
 import { buildGoalPlannerReply } from "@/lib/services/planning/goal-planner-service";
-import { tryHandleSmartAllocation } from "@/lib/services/planning/smart-allocation-service";
 import { tryHandleTransactionMutationCommand } from "@/lib/services/transactions/transaction-mutation-command-service";
-import { tryHandleWealthProjection } from "@/lib/services/planning/wealth-projection-service";
-import { generateUserFinancialAdvice } from "@/lib/services/assistant/advice-service";
 import {
   addGoalContribution,
   getSavingsGoalStatus,
   setSavingsGoalTarget
 } from "@/lib/services/planning/goal-service";
-import { generateUserInsight } from "@/lib/services/reporting/insight-service";
 import {
   buildCategoryDetailReport,
   buildGeneralAnalyticsReport
@@ -125,36 +118,6 @@ const tryHandleContextModules = async (
         return ok({
           replyText: buildFinanceNewsFailureReply(error)
         });
-      }
-      continue;
-    }
-
-    if (contextModule === "SMART_ALLOCATION") {
-      const allocationCommand = await tryHandleSmartAllocation({
-        userId: params.userId,
-        text: params.text
-      });
-      if (allocationCommand.handled) {
-        return ok({ replyText: allocationCommand.replyText });
-      }
-      continue;
-    }
-
-    if (contextModule === "FINANCIAL_FREEDOM") {
-      const freedomCommand = await tryHandleFinancialFreedomCommand({
-        userId: params.userId,
-        text: params.text
-      });
-      if (freedomCommand.handled) {
-        return ok({ replyText: freedomCommand.replyText });
-      }
-      continue;
-    }
-
-    if (contextModule === "WEALTH_PROJECTION") {
-      const projectionCommand = tryHandleWealthProjection(params.text);
-      if (projectionCommand.handled) {
-        return ok({ replyText: projectionCommand.replyText });
       }
       continue;
     }
@@ -266,31 +229,6 @@ export const tryHandleStructuredText = async (
       dateRange: routedContext.command.dateRange ?? null
     });
     return ok({ replyText });
-  }
-
-  if (routedContext.command.kind === "INSIGHT") {
-    const insightText = await generateUserInsight(params.userId);
-    await createAIAnalysisLog({
-      userId: params.userId,
-      messageId: params.messageId,
-      analysisType: AnalysisType.INSIGHT,
-      payload: { insightText, source: "command" }
-    });
-    return ok({ replyText: insightText });
-  }
-
-  if (routedContext.command.kind === "ADVICE") {
-    const userQuestion =
-      routedContext.command.question ??
-      "Keuangan aku sehat gak? Kasih saran yang paling penting bulan ini.";
-    const insightText = await generateUserFinancialAdvice(params.userId, userQuestion);
-    await createAIAnalysisLog({
-      userId: params.userId,
-      messageId: params.messageId,
-      analysisType: AnalysisType.INSIGHT,
-      payload: { insightText, source: "command_advice", userQuestion }
-    });
-    return ok({ replyText: insightText });
   }
 
   if (routedContext.command.kind === "BUDGET_SET") {

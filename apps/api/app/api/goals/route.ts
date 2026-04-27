@@ -7,6 +7,9 @@ import { goalCreateBodySchema, resolveUserIdentity, toJsonSafe, userIdentitySche
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const isSupportedGoalType = (goalType: FinancialGoalType) =>
+  goalType !== FinancialGoalType.FINANCIAL_FREEDOM;
+
 export async function GET(request: NextRequest) {
   const parsed = userIdentitySchema.safeParse({
     userId: request.nextUrl.searchParams.get("userId") ?? undefined,
@@ -17,8 +20,12 @@ export async function GET(request: NextRequest) {
   }
 
   const user = await resolveUserIdentity(parsed.data);
-  const goals = await prisma.financialGoal.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" } });
-  return NextResponse.json(toJsonSafe(goals));
+  const goals = await prisma.financialGoal.findMany({
+    where: { userId: user.id },
+    orderBy: { createdAt: "desc" }
+  });
+  const supportedGoals = goals.filter((goal) => isSupportedGoalType(goal.goalType));
+  return NextResponse.json(toJsonSafe(supportedGoals));
 }
 
 export async function POST(request: NextRequest) {
@@ -27,11 +34,16 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
+  if (!isSupportedGoalType(parsed.data.goalType)) {
+    return NextResponse.json(
+      { error: "Goal type tersebut sudah tidak didukung." },
+      { status: 400 }
+    );
+  }
 
   const user = await resolveUserIdentity(parsed.data);
   const calculationType =
-    parsed.data.goalType === FinancialGoalType.EMERGENCY_FUND ||
-    parsed.data.goalType === FinancialGoalType.FINANCIAL_FREEDOM
+    parsed.data.goalType === FinancialGoalType.EMERGENCY_FUND
       ? GoalCalculationType.FORMULA_BASED
       : GoalCalculationType.MANUAL;
   const status = parsed.data.targetAmount == null ? FinancialGoalStatus.PENDING_CALCULATION : FinancialGoalStatus.ACTIVE;

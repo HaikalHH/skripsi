@@ -32,17 +32,12 @@ const MEMORY_WINDOW_HOURS = 24;
 const SAFE_REPLAY_MODULES = new Set<GlobalContextModule>([
   "MARKET",
   "NEWS",
-  "SMART_ALLOCATION",
-  "FINANCIAL_FREEDOM",
-  "WEALTH_PROJECTION",
   "PRIVACY"
 ]);
 
 const SAFE_REPLAY_COMMANDS = new Set([
   "HELP",
   "REPORT",
-  "INSIGHT",
-  "ADVICE",
   "GOAL_STATUS",
   "CATEGORY_DETAIL_REPORT",
   "GENERAL_ANALYTICS_REPORT",
@@ -262,12 +257,10 @@ const buildGoalPlanFollowUpText = (
       ? "rumah"
       : command.goalType === "VEHICLE"
         ? "kendaraan"
-        : command.goalType === "VACATION"
-          ? "liburan"
-          : command.goalType === "EMERGENCY_FUND"
-            ? "dana darurat"
-            : command.goalType === "FINANCIAL_FREEDOM"
-              ? "financial freedom"
+            : command.goalType === "VACATION"
+              ? "liburan"
+            : command.goalType === "EMERGENCY_FUND"
+              ? "dana darurat"
               : null);
   const ratioMatch = currentText.match(RATIO_PATTERN);
   if (ratioMatch) {
@@ -390,9 +383,6 @@ const EXPLICIT_CONTEXT_MODULES = new Set<GlobalContextModule>([
   "PORTFOLIO",
   "MARKET",
   "NEWS",
-  "SMART_ALLOCATION",
-  "FINANCIAL_FREEDOM",
-  "WEALTH_PROJECTION",
   "PRIVACY"
 ]);
 

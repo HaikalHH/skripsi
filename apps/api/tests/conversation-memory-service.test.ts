@@ -111,15 +111,15 @@ describe("conversation memory service", () => {
       text: "2",
       fallbackAssistantText: [
         "Saya ketemu beberapa transaksi yang mirip untuk dihapus:",
-        "1. 10 Mar | Rp. 50.000,00 | Entertainment (Spotify)",
-        "2. 08 Mar | Rp. 75.000,00 | Entertainment (Spotify)",
+        "1. 10 Mar | Rp. 50.000 | Entertainment (Spotify)",
+        "2. 08 Mar | Rp. 75.000 | Entertainment (Spotify)",
         "Balas nomor transaksi yang dimaksud ya Boss."
       ].join("\n")
     });
 
     expect(result).toMatchObject({
       kind: "rewrite",
-      effectiveText: "hapus transaksi 08 Mar | Rp. 75.000,00 | Entertainment (Spotify)"
+      effectiveText: "hapus transaksi 08 Mar | Rp. 75.000 | Entertainment (Spotify)"
     });
   });
 
@@ -174,7 +174,7 @@ describe("conversation memory service", () => {
       userId: "user_1",
       currentMessageId: "msg_current",
       text: "yang tadi",
-      fallbackAssistantText: "Transaksi berhasil dicatat - Tipe: EXPENSE - Amount: Rp. 25.000,00"
+      fallbackAssistantText: "Transaksi berhasil dicatat - Tipe: EXPENSE - Amount: Rp. 25.000"
     });
 
     expect(result.kind).toBe("reply");

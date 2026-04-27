@@ -35,10 +35,6 @@ const envSchema = z.object({
   BOT_HEARTBEAT_STALE_SECONDS: z.coerce.number().int().positive().default(120),
   EMERGENCY_FUND_STABLE_MULTIPLIER: z.coerce.number().positive().default(6),
   EMERGENCY_FUND_UNSTABLE_MULTIPLIER: z.coerce.number().positive().default(9),
-  FINANCIAL_FREEDOM_EXPENSE_MULTIPLIER: z.coerce
-    .number()
-    .positive()
-    .default(25),
   FINNHUB_API_KEY: optionalApiKey,
   GOLDAPI_API_KEY: optionalApiKey,
   MARKETAUX_API_TOKEN: optionalApiKey,

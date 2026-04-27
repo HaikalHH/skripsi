@@ -5,6 +5,7 @@ import { buildFinancialHealthReply } from "@/lib/services/planning/financial-hea
 import { getSavingsGoalStatus } from "@/lib/services/planning/goal-service";
 import { getUserPortfolioValuation } from "@/lib/services/market/portfolio-valuation-service";
 import { formatMoney, formatPercent } from "@/lib/services/shared/money-format";
+import { formatDurationFromMonths } from "@/lib/services/shared/projection-math-service";
 import { analyzeRecurringExpenses } from "@/lib/services/transactions/recurring-expense-service";
 import { normalizeExpenseBucketCategory } from "@/lib/services/transactions/category-override-service";
 import type { ReportDateRange } from "@/lib/services/reporting/report-service";
@@ -87,7 +88,7 @@ const buildGoalSection = async (userId: string) => {
         (goal, index) =>
           `${index + 1}. ${goal.goalName} | ${formatPercent(goal.progressPercent)} | sisa ${formatMoney(
             goal.remainingAmount
-          )}${goal.estimatedMonthsToGoal != null ? ` | eta ${goal.estimatedMonthsToGoal.toFixed(1)} bln` : ""}${
+          )}${goal.estimatedMonthsToGoal != null ? ` | eta ${formatDurationFromMonths(goal.estimatedMonthsToGoal)}` : ""}${
             goal.trackingStatus ? ` | ${goal.trackingStatus}` : ""
           }`
       )
@@ -99,7 +100,7 @@ const buildGoalSection = async (userId: string) => {
     lines: [
       `${goalStatus.goalName ?? "Goal utama"} | ${formatPercent(goalStatus.progressPercent)} | sisa ${formatMoney(
         goalStatus.remainingAmount
-      )}${goalStatus.estimatedMonthsToGoal != null ? ` | eta ${goalStatus.estimatedMonthsToGoal.toFixed(1)} bln` : ""}`,
+      )}${goalStatus.estimatedMonthsToGoal != null ? ` | eta ${formatDurationFromMonths(goalStatus.estimatedMonthsToGoal)}` : ""}`,
       `Status tracking: ${goalStatus.trackingStatus}`,
       ...(goalStatus.contributionMonthStreak > 0
         ? [`Streak kontribusi: ${goalStatus.contributionMonthStreak} bulan`]

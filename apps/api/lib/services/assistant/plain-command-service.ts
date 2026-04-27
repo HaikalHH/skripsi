@@ -2,6 +2,7 @@ import type { ReportPeriod } from "@finance/shared";
 import { FinancialGoalType } from "@prisma/client";
 import { parsePositiveAmount } from "@/lib/services/transactions/amount-parser";
 import { buildGoalIntentDetails } from "@/lib/services/planning/goal-intent-service";
+import { isLikelySavingTransactionText } from "@/lib/services/transactions/saving-intent-service";
 
 export type ParsedPlainCommand =
   | { kind: "REPORT"; period: ReportPeriod }
@@ -51,6 +52,15 @@ const parseBudgetCommand = (text: string): ParsedPlainCommand => {
 };
 
 const parseGoalCommand = (text: string): ParsedPlainCommand => {
+  if (isLikelySavingTransactionText(text)) return { kind: "NONE" };
+  if (
+    /(kalau|jika).*(nabung|invest|investasi).*(jadi berapa|hasilnya berapa|berapa nanti|berapa lama|kapan tercapai)/i.test(
+      text
+    )
+  ) {
+    return { kind: "NONE" };
+  }
+
   const hasGoalIntent =
     /\b(target|goal|tabungan|saving|dp)\b/i.test(text) ||
     /\b(mau|ingin|pengen)\s+(?:nabung|tabung)\b/i.test(text);

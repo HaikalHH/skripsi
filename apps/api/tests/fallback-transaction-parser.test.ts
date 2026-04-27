@@ -30,6 +30,20 @@ describe("fallback transaction parser", () => {
     });
   });
 
+  it("parses saving phrases as saving transactions", () => {
+    expect(parseFallbackTransactionExtraction("nabung 500 ribu")).toEqual({
+      intent: "RECORD_TRANSACTION",
+      type: "SAVING",
+      amount: 500000,
+      category: "Tabungan",
+      merchant: "Tabungan Pribadi",
+      note: null,
+      occurredAt: null,
+      reportPeriod: null,
+      adviceQuery: null
+    });
+  });
+
   it("ignores question-style advice text", () => {
     expect(parseFallbackTransactionExtraction("boleh beli hp 5 juta ga?")).toBeNull();
   });

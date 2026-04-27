@@ -10,7 +10,7 @@ describe("inbound formatters", () => {
       occurredAt: new Date("2026-04-03T15:38:46.096Z")
     });
 
-    expect(text).toContain("- Amount: Rp. 10.000,00");
+    expect(text).toContain("- Amount: Rp. 10.000");
   });
 
   it("formats budget summaries as fixed rupiah", () => {
@@ -21,8 +21,22 @@ describe("inbound formatters", () => {
       remainingThisMonth: 900_000
     });
 
-    expect(text).toContain("- Limit bulanan: Rp. 1.000.000,00");
-    expect(text).toContain("- Terpakai bulan ini: Rp. 100.000,00");
-    expect(text).toContain("- Sisa bulan ini: Rp. 900.000,00");
+    expect(text).toContain("- Limit bulanan: Rp. 1.000.000");
+    expect(text).toContain("- Terpakai bulan ini: Rp. 100.000");
+    expect(text).toContain("- Sisa bulan ini: Rp. 900.000");
+  });
+
+  it("formats saving confirmations with SAVING type", () => {
+    const text = confirmTransactionText({
+      type: "SAVING",
+      amount: 500_000,
+      category: "Tabungan",
+      merchant: "Tabungan Pribadi",
+      occurredAt: new Date("2026-04-17T08:00:00.000Z")
+    });
+
+    expect(text).toContain("- Tipe: SAVING ✅");
+    expect(text).toContain("- Category: Tabungan");
+    expect(text).toContain("- Merchant: Tabungan Pribadi");
   });
 });

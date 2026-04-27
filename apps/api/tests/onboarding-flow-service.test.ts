@@ -31,6 +31,7 @@ describe("onboarding flow service", () => {
 
     expect(text).toContain("Pilihan:");
     expect(text).toContain("1. Mengatur pengeluaran");
+    expect(text.toLowerCase()).not.toContain("financial freedom");
   });
 
   it("keeps the welcome prompt natural without explicit answer examples", () => {
@@ -49,6 +50,13 @@ describe("onboarding flow service", () => {
     expect(text.toLowerCase()).toContain("gaya bebas");
     expect(text.toLowerCase()).toContain("saya akan baca otomatis");
     expect(text.toLowerCase()).toContain("contoh kalau mau");
+  });
+
+  it("removes financial freedom from goal selection options", () => {
+    const prompt = getPromptForStep(OnboardingStep.ASK_GOAL_SELECTION, baseContext);
+    const text = formatPromptForChat(prompt);
+
+    expect(text.toLowerCase()).not.toContain("financial freedom");
   });
 });
 

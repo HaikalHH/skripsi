@@ -22,6 +22,7 @@ describe("amount parser", () => {
     expect(parsePositiveAmount("1 juta 500 ribu 100 rupiah")).toBe(1500100);
     expect(parsePositiveAmount("sejuta lima ratur ribu seratus rupiah")).toBe(1500100);
     expect(parsePositiveAmount("dua belas juta lima ratus ribu")).toBe(12500000);
+    expect(parsePositiveAmount("ratus ribu")).toBe(100000);
   });
 
   it("returns null for invalid amount", () => {

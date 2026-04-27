@@ -72,6 +72,9 @@ const parseNumericChunk = (token: string) => parseLocalizedNumber(token);
 
 const parseUnderThousandTokens = (tokens: string[]): number | null => {
   if (!tokens.length) return 0;
+  if (tokens.length === 1 && tokens[0] === "ratus") {
+    return 100;
+  }
   if (tokens.length === 1 && isNumericToken(tokens[0]!)) {
     return parseNumericChunk(tokens[0]!);
   }

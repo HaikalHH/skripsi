@@ -41,11 +41,9 @@ describe("global context router service", () => {
       goalType: "HOUSE"
     });
     expect(routeGlobalTextContext("nabung untuk dana darurat 1 juta").command).toEqual({
-      kind: "GOAL_CONTRIBUTE",
-      amount: 1000000,
-      goalQuery: "Dana Darurat",
-      goalType: "EMERGENCY_FUND"
+      kind: "NONE"
     });
+    expect(routeGlobalTextContext("nabung untuk dana darurat 1 juta").moduleOrder[0]).toBe("TRANSACTION");
     expect(routeGlobalTextContext("kalau fokus rumah 6 bulan dulu gimana").command).toEqual({
       kind: "GOAL_PLAN",
       mode: "FOCUS_DURATION",
@@ -72,7 +70,7 @@ describe("global context router service", () => {
     });
   });
 
-  it("parses report and advice intents from natural language", () => {
+  it("parses report and analytics intents from natural language", () => {
     expect(routeGlobalTextContext("laporan minggu ini dong").command).toEqual({
       kind: "REPORT",
       period: "weekly"
@@ -343,10 +341,6 @@ describe("global context router service", () => {
       limit: 5,
       rangeWindow: null
     });
-    expect(routeGlobalTextContext("keuangan aku sehat gak bulan ini?").command).toEqual({
-      kind: "ADVICE",
-      question: "keuangan aku sehat gak bulan ini?"
-    });
   });
 
   it("prioritizes transaction mutation", () => {
@@ -457,22 +451,33 @@ describe("global context router service", () => {
     expect(comparisonGeneralReport.command.comparisonRange.previous.label).toBe("3 bulan sebelumnya");
   });
 
-  it("prioritizes market, news, projection, and portfolio contexts", () => {
+  it("prioritizes market, news, and portfolio contexts", () => {
     expect(routeGlobalTextContext("btc sekarang berapa").moduleOrder[0]).toBe("MARKET");
     expect(routeGlobalTextContext("berita finance pagi ini").moduleOrder[0]).toBe("NEWS");
-    expect(
-      routeGlobalTextContext("kalau invest 3 juta tiap bulan 10 tahun hasilnya berapa").moduleOrder[0]
-    ).toBe("WEALTH_PROJECTION");
-    expect(
-      routeGlobalTextContext("kalau invest 3 juta per bulan target 1 miliar kapan tercapai")
-        .moduleOrder[0]
-    ).toBe("WEALTH_PROJECTION");
     expect(routeGlobalTextContext("tambah saham bbca 10 lot harga 9000").moduleOrder[0]).toBe(
       "PORTFOLIO"
     );
     expect(routeGlobalTextContext("beli emas 2 gram harga 1800000").moduleOrder[0]).toBe("PORTFOLIO");
     expect(routeGlobalTextContext("tambah tabungan 5 juta").moduleOrder[0]).toBe("PORTFOLIO");
     expect(routeGlobalTextContext("perlu rebalance gak").moduleOrder[0]).toBe("PORTFOLIO");
+  });
+
+  it("does not parse retired projection prompts as supported commands", () => {
+    expect(routeGlobalTextContext("kalau nabung 2 juta/bulan 5 tahun jadi berapa").command).toEqual({
+      kind: "NONE"
+    });
+    expect(
+      routeGlobalTextContext("kalau invest 3 juta per bulan target 1 miliar kapan tercapai")
+        .command
+    ).toEqual({
+      kind: "NONE"
+    });
+    expect(routeGlobalTextContext("keuangan aku sehat gak bulan ini?").command).toEqual({
+      kind: "NONE"
+    });
+    expect(routeGlobalTextContext("boleh beli hp 5 juta bulan ini?").command).toEqual({
+      kind: "NONE"
+    });
   });
 
   it("parses advanced date ranges and new planner commands", () => {

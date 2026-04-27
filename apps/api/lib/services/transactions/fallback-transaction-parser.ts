@@ -1,6 +1,7 @@
 import type { GeminiExtraction } from "@finance/shared";
 import { parsePositiveAmount } from "@/lib/services/transactions/amount-parser";
 import { normalizeDetectedMerchant } from "@/lib/services/transactions/merchant-normalization-service";
+import { isLikelySavingTransactionText } from "@/lib/services/transactions/saving-intent-service";
 
 const INCOME_HINTS = [
   /\bgaji\b/i,
@@ -11,9 +12,7 @@ const INCOME_HINTS = [
   /\bbonus\b/i,
   /\bkomisi\b/i,
   /\binsentif\b/i,
-  /\bmasuk\b/i,
-  /\bnabung\b/i,
-  /\btabungan\b/i
+  /\bmasuk\b/i
 ];
 
 const EXPENSE_HINTS = [
@@ -100,6 +99,20 @@ export const parseFallbackTransactionExtraction = (rawText: string): GeminiExtra
 
   const amount = parsePositiveAmount(amountPhrase);
   if (!amount) return null;
+
+  if (isLikelySavingTransactionText(text)) {
+    return {
+      intent: "RECORD_TRANSACTION",
+      type: "SAVING",
+      amount,
+      category: "Tabungan",
+      merchant: "Tabungan Pribadi",
+      note: null,
+      occurredAt: null,
+      reportPeriod: null,
+      adviceQuery: null
+    };
+  }
 
   const incomeScore = countMatches(text, INCOME_HINTS);
   const expenseScore = countMatches(text, EXPENSE_HINTS);

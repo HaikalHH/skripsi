@@ -220,11 +220,15 @@ export const normalizeExpenseBucketCategory = (raw: string) =>
 export const normalizeForcedCategory = (raw: string) => normalizeExpenseBucketCategory(raw);
 
 export const normalizeTransactionCategory = (params: {
-  type: "INCOME" | "EXPENSE";
+  type: "INCOME" | "EXPENSE" | "SAVING";
   category: string;
   merchant?: string | null;
   rawText?: string | null;
 }) => {
+  if (params.type === "SAVING") {
+    return "Tabungan";
+  }
+
   const candidates = [params.category, params.merchant ?? "", params.rawText ?? ""].filter(Boolean);
   if (params.type === "EXPENSE") {
     for (const candidate of candidates) {

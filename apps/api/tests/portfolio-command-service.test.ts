@@ -286,8 +286,8 @@ describe("portfolio command service", () => {
       expect(summaryResult.replyText).toContain("Berikut catatan saham kamu:");
       expect(summaryResult.replyText).toContain("- Kode saham : BBCA");
       expect(summaryResult.replyText).toContain("- Jumlah     : 2 lot (200 lembar)");
-      expect(summaryResult.replyText).toContain("- Harga beli : Rp. 9.000,00/lembar");
-      expect(summaryResult.replyText).toContain("- Total nilai: Rp. 1.800.000,00");
+      expect(summaryResult.replyText).toContain("- Harga beli : Rp. 9.000/lembar");
+      expect(summaryResult.replyText).toContain("- Total nilai: Rp. 1.800.000");
       expect(summaryResult.replyText).toContain("Apakah data ini sudah benar?");
     }
     expect(hoisted.assets).toHaveLength(0);
@@ -316,7 +316,7 @@ describe("portfolio command service", () => {
     if (confirmResult.handled) {
       expect(confirmResult.replyText).toContain("Saham berhasil dicatat: BBCA");
       expect(confirmResult.replyText).toContain("- Jumlah: 2 lot (200 lembar)");
-      expect(confirmResult.replyText).toContain("- Harga beli: Rp. 9.000,00/lembar");
+      expect(confirmResult.replyText).toContain("- Harga beli: Rp. 9.000/lembar");
     }
     expect(hoisted.assets).toHaveLength(1);
     expect(hoisted.assets[0]).toMatchObject({
@@ -375,8 +375,8 @@ describe("portfolio command service", () => {
           "Berikut catatan saham kamu:",
           "- Kode saham : TLKM",
           "- Jumlah     : 150 lembar",
-          "- Harga beli : Rp. 2.800,00/lembar",
-          "- Total nilai: Rp. 420.000,00",
+          "- Harga beli : Rp. 2.800/lembar",
+          "- Total nilai: Rp. 420.000",
           "",
           "Apakah data ini sudah benar?"
         ].join("\n"),
@@ -433,8 +433,8 @@ describe("portfolio command service", () => {
     expect(result.handled).toBe(true);
     if (result.handled) {
       expect(result.replyText).toContain("📊 **Ringkasan Portofolio Kamu**");
-      expect(result.replyText).toContain("💰 **Nilai portofoliomu saat ini:** Rp 5.950.000,00");
-      expect(result.replyText).toContain("📉 **Untung / Rugi sementara:** +Rp 50.000,00");
+      expect(result.replyText).toContain("💰 **Nilai portofoliomu saat ini:** Rp 5.950.000");
+      expect(result.replyText).toContain("📉 **Untung / Rugi sementara:** +Rp 50.000");
       expect(result.replyText).toContain("🏆 **Aset terbesar yang kamu pegang:** Tabungan (84%)");
       expect(result.replyText).toContain("🔁 **Perlu diatur ulang?:** IYA - Disarankan untuk mulai diversifikasi");
       expect(result.replyText).toContain("📊 **Skor diversifikasi:** 68/100");
@@ -442,8 +442,8 @@ describe("portfolio command service", () => {
       expect(result.replyText).toContain("   - Lainnya: 84%");
       expect(result.replyText).toContain("   - Saham (STOCK): 16%");
       expect(result.replyText).toContain("🏅 **Komposisi Aset Kamu**");
-      expect(result.replyText).toContain("1. 🥇 **Tabungan** - Rp 5.000.000,00 (84%)");
-      expect(result.replyText).toContain("2. 🥈 **BBCA** - Rp 950.000,00 (16%)");
+      expect(result.replyText).toContain("1. 🥇 **Tabungan** - Rp 5.000.000 (84%)");
+      expect(result.replyText).toContain("2. 🥈 **BBCA** - Rp 950.000 (16%)");
     }
   });
 
@@ -507,8 +507,8 @@ describe("portfolio command service", () => {
     if (result.handled) {
       expect(result.replyText).toContain("\u2705 Aset berhasil dicatat: Antam");
       expect(result.replyText).toContain("- Qty: 8 gram");
-      expect(result.replyText).toContain("- Harga beli: Rp. 1.800.000,00");
-      expect(result.replyText).toContain("- Total: Rp. 14.400.000,00");
+      expect(result.replyText).toContain("- Harga beli: Rp. 1.800.000");
+      expect(result.replyText).toContain("- Total: Rp. 14.400.000");
       expect(result.replyText).toContain("Ketik *portfolio aku*");
     }
     expect(hoisted.assets).toHaveLength(1);
@@ -560,8 +560,8 @@ describe("portfolio command service", () => {
     if (result.handled) {
       expect(result.replyText).toContain("\u2705 Aset berhasil dicatat: Perhiasan 22K");
       expect(result.replyText).toContain("- Qty: 2 gram");
-      expect(result.replyText).toContain("- Harga beli: Rp. 250.000,00");
-      expect(result.replyText).toContain("- Total: Rp. 500.000,00");
+      expect(result.replyText).toContain("- Harga beli: Rp. 250.000");
+      expect(result.replyText).toContain("- Total: Rp. 500.000");
     }
     expect(hoisted.assets).toHaveLength(1);
     expect(hoisted.assets[0]?.symbol).toBe("GOLD_JEWELRY_22K");

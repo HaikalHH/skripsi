@@ -13,6 +13,7 @@ import {
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { formatMoney, formatPercent } from "@/lib/services/shared/money-format";
+import { formatDurationFromMonths } from "@/lib/services/shared/projection-math-service";
 import { getMarketQuoteBySymbol } from "@/lib/services/market/market-price-service";
 
 export type ExpenseBreakdown = {
@@ -54,6 +55,9 @@ const ONBOARDING_EXPENSE_BUCKET_EXPLANATIONS: Record<keyof ExpenseBreakdown, str
   entertainment: "nongkrong, streaming, game, bioskop, konser, hobi, dan pengeluaran lifestyle serupa",
   others: "kebutuhan keluarga, rumah tangga, donasi, pet, hadiah, dan item lain yang tidak masuk kategori utama"
 };
+
+const isSupportedOnboardingGoalType = (goalType: FinancialGoalType) =>
+  goalType !== FinancialGoalType.FINANCIAL_FREEDOM;
 
 const toBigIntAmount = (value: number | bigint | null | undefined) => {
   if (value === null || value === undefined) return null;
@@ -388,12 +392,16 @@ const selectPrimaryGoalForLegacySavings = async (userId: string) => {
     FinancialGoalType.HOUSE,
     FinancialGoalType.VEHICLE,
     FinancialGoalType.VACATION,
-    FinancialGoalType.CUSTOM,
-    FinancialGoalType.FINANCIAL_FREEDOM
+    FinancialGoalType.CUSTOM
   ];
 
   for (const goalType of priority) {
-    const match = goals.find((goal) => goal.goalType === goalType && goal.targetAmount !== null);
+    const match = goals.find(
+      (goal) =>
+        isSupportedOnboardingGoalType(goal.goalType) &&
+        goal.goalType === goalType &&
+        goal.targetAmount !== null
+    );
     if (match) return match;
   }
 
@@ -412,8 +420,7 @@ export const buildInitialFinancialProfile = async (userId: string) => {
         take: 1
       },
       financialGoals: true,
-      assets: true,
-      financialFreedom: true
+      assets: true
     }
   });
 
@@ -448,7 +455,6 @@ export const buildInitialFinancialProfile = async (userId: string) => {
       : null;
 
   const annualExpense = monthlyExpenseTotal !== null ? monthlyExpenseTotal * 12 : null;
-  const financialFreedomTarget = annualExpense !== null ? annualExpense * env.FINANCIAL_FREEDOM_EXPENSE_MULTIPLIER : null;
 
   const profile = await prisma.financialProfile.upsert({
     where: { userId },
@@ -458,7 +464,7 @@ export const buildInitialFinancialProfile = async (userId: string) => {
       potentialMonthlySaving: toBigIntAmount(potentialMonthlySaving),
       savingRate: toDecimal(savingRate),
       emergencyFundTarget: toBigIntAmount(emergencyFundTarget),
-      financialFreedomTarget: toBigIntAmount(financialFreedomTarget),
+      financialFreedomTarget: null,
       annualExpense: toBigIntAmount(annualExpense)
     },
     create: {
@@ -471,28 +477,22 @@ export const buildInitialFinancialProfile = async (userId: string) => {
       potentialMonthlySaving: toBigIntAmount(potentialMonthlySaving),
       savingRate: toDecimal(savingRate),
       emergencyFundTarget: toBigIntAmount(emergencyFundTarget),
-      financialFreedomTarget: toBigIntAmount(financialFreedomTarget),
+      financialFreedomTarget: null,
       annualExpense: toBigIntAmount(annualExpense)
     }
   });
 
   for (const goal of user.financialGoals) {
+    if (!isSupportedOnboardingGoalType(goal.goalType)) {
+      continue;
+    }
+
     let targetAmount = goal.targetAmount;
     let status = goal.status;
 
     if (goal.goalType === FinancialGoalType.EMERGENCY_FUND) {
       if (emergencyFundTarget !== null) {
         targetAmount = BigInt(emergencyFundTarget);
-        status = FinancialGoalStatus.ACTIVE;
-      } else {
-        targetAmount = null;
-        status = FinancialGoalStatus.PENDING_CALCULATION;
-      }
-    }
-
-    if (goal.goalType === FinancialGoalType.FINANCIAL_FREEDOM) {
-      if (financialFreedomTarget !== null) {
-        targetAmount = BigInt(financialFreedomTarget);
         status = FinancialGoalStatus.ACTIVE;
       } else {
         targetAmount = null;
@@ -511,23 +511,6 @@ export const buildInitialFinancialProfile = async (userId: string) => {
         targetAmount,
         status,
         estimatedMonthsToGoal: toDecimal(estimatedMonthsToGoal)
-      }
-    });
-  }
-
-  if (user.financialGoals.some((goal) => goal.goalType === FinancialGoalType.FINANCIAL_FREEDOM)) {
-    await prisma.financialFreedomProfile.upsert({
-      where: { userId },
-      update: {
-        enabled: true,
-        monthlyExpense: monthlyExpenseTotal ?? 0
-      },
-      create: {
-        userId,
-        enabled: true,
-        monthlyExpense: monthlyExpenseTotal ?? 0,
-        targetYears: 15,
-        safeWithdrawalRate: 0.04
       }
     });
   }
@@ -586,12 +569,13 @@ export const getOnboardingAnalysisData = async (userId: string) => {
     savingRate: profile.savingRate !== null ? toNumber(profile.savingRate) : null,
     emergencyFundTarget:
       profile.emergencyFundTarget !== null ? toNumber(profile.emergencyFundTarget) : null,
-    financialFreedomTarget:
-      profile.financialFreedomTarget !== null ? toNumber(profile.financialFreedomTarget) : null,
+    financialFreedomTarget: null,
     annualExpense: profile.annualExpense !== null ? toNumber(profile.annualExpense) : null,
     expenseBreakdown,
     totalAssetValue,
-    goals: user.financialGoals.map((goal) => ({
+    goals: user.financialGoals
+      .filter((goal) => isSupportedOnboardingGoalType(goal.goalType))
+      .map((goal) => ({
       id: goal.id,
       goalType: goal.goalType,
       goalName: goal.goalName,
@@ -599,7 +583,7 @@ export const getOnboardingAnalysisData = async (userId: string) => {
       status: goal.status,
       estimatedMonthsToGoal:
         goal.estimatedMonthsToGoal !== null ? toNumber(goal.estimatedMonthsToGoal) : null
-    })),
+      })),
     assets: user.assets.map((asset) => ({
       id: asset.id,
       assetType: asset.assetType,
@@ -645,22 +629,15 @@ export const generateOnboardingAnalysis = async (userId: string) => {
     );
   }
 
-  const freedomGoal = data.goals.find((goal) => goal.goalType === FinancialGoalType.FINANCIAL_FREEDOM);
-  if (freedomGoal) {
-    lines.push(
-      freedomGoal.targetAmount !== null
-        ? `Target financial freedom: ${formatMoney(freedomGoal.targetAmount)}`
-        : "Target financial freedom: masih pending, butuh data pengeluaran bulanan."
-    );
-  }
-
   const manualGoals = data.goals.filter(
-    (goal) =>
-      goal.goalType !== FinancialGoalType.EMERGENCY_FUND && goal.goalType !== FinancialGoalType.FINANCIAL_FREEDOM
+    (goal) => goal.goalType !== FinancialGoalType.EMERGENCY_FUND
   );
   for (const goal of manualGoals.slice(0, 3)) {
     const goalLine = goal.targetAmount !== null ? formatMoney(goal.targetAmount) : "pending";
-    const etaLine = goal.estimatedMonthsToGoal ? `, estimasi ${goal.estimatedMonthsToGoal.toFixed(1)} bulan` : "";
+    const etaLine =
+      goal.estimatedMonthsToGoal !== null
+        ? `, estimasi ${formatDurationFromMonths(goal.estimatedMonthsToGoal)}`
+        : "";
     lines.push(`Target ${goal.goalName}: ${goalLine}${etaLine}`);
   }
 

@@ -1,21 +1,14 @@
-import { AnalysisType, TransactionSource } from "@prisma/client";
+import { AnalysisType } from "@prisma/client";
 import { logger } from "@/lib/logger";
 import { createAIAnalysisLog } from "@/lib/services/ai/ai-log-service";
-import { checkBudgetAlert } from "@/lib/services/transactions/budget-service";
 import { extractForcedCategory } from "@/lib/services/transactions/category-override-service";
-import { buildSavingsProgressUpdateText } from "@/lib/services/planning/savings-progress-service";
-import { checkUnusualExpenseAlert } from "@/lib/services/transactions/spending-anomaly-service";
-import { refreshSavingsGoalProgress } from "@/lib/services/planning/goal-service";
 import {
   extractIntentAndTransaction,
   isGeminiRateLimitError,
 } from "@/lib/services/ai/ai-service";
 import { extractTextFromImage } from "@/lib/services/ai/ocr-service";
-import {
-  createTransactionFromExtraction,
-  isTransactionExtractable,
-} from "@/lib/services/transactions/transaction-service";
-import { confirmTransactionText } from "./formatters";
+import { isTransactionExtractable } from "@/lib/services/transactions/transaction-service";
+import { saveTransactionAndBuildReply } from "./transaction-reply";
 import { badRequest, ok, type InboundHandlerResult } from "./result";
 import type { MessageContext } from "./types";
 
@@ -84,50 +77,12 @@ export const handleImageMessage = async (
     });
   }
 
-  const transaction = await createTransactionFromExtraction({
+  return saveTransactionAndBuildReply({
     userId: params.userId,
+    messageId: params.messageId,
     extraction: normalizedExtraction,
-    source: TransactionSource.OCR,
     rawText: ocrText,
+    analysisPayload: { source: "image_handler", extraction: normalizedExtraction, ocrText },
+    forcedCategory
   });
-  const goalStatus = await refreshSavingsGoalProgress(params.userId);
-
-  const alertText = await checkBudgetAlert(
-    params.userId,
-    transaction.category,
-    transaction.occurredAt,
-  );
-  const goalProgressText = await buildSavingsProgressUpdateText({
-    userId: params.userId,
-    goalStatus,
-  });
-  const anomalyText =
-    transaction.type === "EXPENSE"
-      ? await checkUnusualExpenseAlert({
-          userId: params.userId,
-          amount: Number(transaction.amount),
-          occurredAt: transaction.occurredAt,
-        })
-      : null;
-  const categoryOverrideText =
-    forcedCategory && transaction.category === forcedCategory
-      ? `Kategori dipaksa sesuai input: ${forcedCategory}.`
-      : null;
-  const replyText = [
-    confirmTransactionText({
-      type: transaction.type,
-      amount: Number(transaction.amount),
-      category: transaction.category,
-      occurredAt: transaction.occurredAt,
-      merchant: transaction.merchant,
-    }),
-    categoryOverrideText,
-    alertText,
-    anomalyText,
-    goalProgressText,
-  ]
-    .filter(Boolean)
-    .join("\n");
-
-  return ok({ replyText });
 };

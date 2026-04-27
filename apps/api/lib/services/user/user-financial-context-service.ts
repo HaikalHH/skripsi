@@ -7,6 +7,7 @@ import {
 } from "@/lib/services/onboarding/onboarding-parser-service";
 import { buildTransactionDetailLabel, inferTransactionDetailTag } from "@/lib/services/transactions/detail-tag-service";
 import { formatMoney, formatPercent } from "@/lib/services/shared/money-format";
+import { formatDurationFromMonths } from "@/lib/services/shared/projection-math-service";
 
 const toNumber = (value: unknown): number => {
   if (typeof value === "number") return value;
@@ -69,7 +70,10 @@ const stringifyGoals = (goals: UserFinancialContextData["goals"]) =>
     .slice(0, 5)
     .map((goal) => {
       const amount = goal.targetAmount !== null ? formatMoney(goal.targetAmount) : "pending";
-      const eta = goal.estimatedMonthsToGoal ? `, eta=${goal.estimatedMonthsToGoal.toFixed(1)} bln` : "";
+      const eta =
+        goal.estimatedMonthsToGoal !== null
+          ? `, eta=${formatDurationFromMonths(goal.estimatedMonthsToGoal)}`
+          : "";
       const progress =
         goal.progressPercent !== null && goal.currentProgress !== null
           ? `, progress=${formatPercent(goal.progressPercent)} (${formatMoney(goal.currentProgress)})`

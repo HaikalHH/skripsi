@@ -191,8 +191,8 @@ describe("onboarding service asset flow", () => {
     expect(priceStep.replyText).toContain("Berikut catatan saham kamu:");
     expect(priceStep.replyText).toContain("Kode saham: BBRI");
     expect(priceStep.replyText).toContain("Jumlah: 2 lot (200 lembar)");
-    expect(priceStep.replyText).toContain("Harga beli per lembar: Rp. 9.000,00");
-    expect(priceStep.replyText).toContain("Total nilai: Rp. 1.800.000,00");
+    expect(priceStep.replyText).toContain("Harga beli per lembar: Rp. 9.000");
+    expect(priceStep.replyText).toContain("Total nilai: Rp. 1.800.000");
     expect(priceStep.replyText).toContain("Apakah ada aset lain yang ingin kamu tambahkan?");
 
     expect(hoisted.store.createdAssets).toEqual([
@@ -221,7 +221,7 @@ describe("onboarding service asset flow", () => {
     expect(saldoStep.state?.stepKey).toBe(OnboardingStep.ASK_ASSET_ADD_MORE);
     expect(saldoStep.replyText).toContain("Berikut catatan tabungan kamu:");
     expect(saldoStep.replyText).toContain("Bank: BCA");
-    expect(saldoStep.replyText).toContain("Saldo: Rp. 5.000.000,00");
+    expect(saldoStep.replyText).toContain("Saldo: Rp. 5.000.000");
 
     expect(hoisted.store.createdAssets).toEqual([
       {

@@ -6,6 +6,7 @@ import {
   type GoalStatusSummary
 } from "@/lib/services/planning/goal-service";
 import { formatMoney } from "@/lib/services/shared/money-format";
+import { formatDurationFromMonths } from "@/lib/services/shared/projection-math-service";
 
 export type GoalPlannerMode =
   | "FOCUS"
@@ -31,12 +32,11 @@ type GoalPlanCandidate = GoalStatusSummary["goals"][number] & {
   projectedEtaMonths: number | null;
 };
 
-const PRIORITY_BASELINE: Record<FinancialGoalType, number> = {
+const PRIORITY_BASELINE: Partial<Record<FinancialGoalType, number>> = {
   EMERGENCY_FUND: 100,
   HOUSE: 85,
   VEHICLE: 72,
   VACATION: 60,
-  FINANCIAL_FREEDOM: 55,
   CUSTOM: 65
 };
 
@@ -51,6 +51,8 @@ const toNumber = (value: unknown) => {
   }
   return 0;
 };
+
+const roundToTwoDecimals = (value: number) => Math.round(value * 100) / 100;
 
 const buildGoalPriorityScore = (goal: GoalStatusSummary["goals"][number]) => {
   const typeScore = goal.goalType ? PRIORITY_BASELINE[goal.goalType] ?? 50 : 50;
@@ -72,7 +74,7 @@ const buildEqualSplitAllocation = (monthlySavingCapacity: number, goals: GoalPla
     return {
       ...goal,
       recommendedAllocation: allocation,
-      projectedEtaMonths: allocation > 0 ? Number((goal.remainingAmount / allocation).toFixed(1)) : null
+      projectedEtaMonths: allocation > 0 ? roundToTwoDecimals(goal.remainingAmount / allocation) : null
     };
   });
 };
@@ -95,7 +97,7 @@ const buildRatioAllocation = (
     return {
       ...goal,
       recommendedAllocation: allocation,
-      projectedEtaMonths: allocation > 0 ? Number((goal.remainingAmount / allocation).toFixed(1)) : null
+      projectedEtaMonths: allocation > 0 ? roundToTwoDecimals(goal.remainingAmount / allocation) : null
     };
   });
 };
@@ -112,7 +114,7 @@ const buildFocusedAllocation = (
       ...goal,
       recommendedAllocation: monthlySavingCapacity,
       projectedEtaMonths:
-        monthlySavingCapacity > 0 ? Number((goal.remainingAmount / monthlySavingCapacity).toFixed(1)) : null
+        monthlySavingCapacity > 0 ? roundToTwoDecimals(goal.remainingAmount / monthlySavingCapacity) : null
     }));
   }
 
@@ -129,7 +131,7 @@ const buildFocusedAllocation = (
     return {
       ...goal,
       recommendedAllocation: allocation,
-      projectedEtaMonths: allocation > 0 ? Number((goal.remainingAmount / allocation).toFixed(1)) : null
+      projectedEtaMonths: allocation > 0 ? roundToTwoDecimals(goal.remainingAmount / allocation) : null
     };
   });
 };
@@ -168,9 +170,6 @@ const buildPriorityReason = (goal: GoalPlanCandidate) => {
   }
   if (goal.goalType === FinancialGoalType.HOUSE) {
     return "butuh nominal besar, jadi lebih aman mulai dicicil konsisten dari sekarang";
-  }
-  if (goal.goalType === FinancialGoalType.FINANCIAL_FREEDOM) {
-    return "ini target jangka panjang, jadi tetap penting tapi tidak harus paling depan";
   }
   return "target ini cukup realistis untuk dikejar sambil menjaga cashflow";
 };
@@ -260,9 +259,9 @@ export const buildGoalPlannerReply = async (params: GoalPlannerInput) => {
       splitPlan.find((goal) => goal.goalName === focusedGoal.goalName)?.recommendedAllocation ?? 0;
     const focusedEtaAfterDuration =
       remainingAfterFocus <= 0
-        ? Number((focusedGoal.remainingAmount / monthlySavingCapacity).toFixed(1))
+        ? roundToTwoDecimals(focusedGoal.remainingAmount / monthlySavingCapacity)
         : focusedSplitAllocation > 0
-          ? Number((focusMonths + remainingAfterFocus / focusedSplitAllocation).toFixed(1))
+          ? roundToTwoDecimals(focusMonths + remainingAfterFocus / focusedSplitAllocation)
           : null;
 
     return [
@@ -270,7 +269,7 @@ export const buildGoalPlannerReply = async (params: GoalPlannerInput) => {
       `- Kapasitas tabungan bulanan: ${formatMoney(monthlySavingCapacity)}`,
       `- Dana yang masuk ke ${focusedGoal.goalName} selama fase fokus: ${formatMoney(focusProgress)}`,
       ...(focusedEtaAfterDuration != null
-        ? [`- ETA ${focusedGoal.goalName}: sekitar ${focusedEtaAfterDuration.toFixed(1)} bln`]
+        ? [`- ETA ${focusedGoal.goalName}: ${formatDurationFromMonths(focusedEtaAfterDuration)}`]
         : []),
       "- Setelah fase fokus, pembagian balik ke mode split normal:",
       ...splitPlan
@@ -278,7 +277,7 @@ export const buildGoalPlannerReply = async (params: GoalPlannerInput) => {
         .map(
           (goal) =>
             `${goal.goalName} | alokasi ${formatMoney(goal.recommendedAllocation)}${
-              goal.projectedEtaMonths != null ? ` | eta ${goal.projectedEtaMonths.toFixed(1)} bln` : ""
+              goal.projectedEtaMonths != null ? ` | eta ${formatDurationFromMonths(goal.projectedEtaMonths)}` : ""
             }`
         )
     ].join("\n");
@@ -295,7 +294,7 @@ export const buildGoalPlannerReply = async (params: GoalPlannerInput) => {
       ...ratioPlan.slice(0, 2).map(
         (goal, index) =>
           `${index + 1}. ${goal.goalName} | alokasi ${formatMoney(goal.recommendedAllocation)}${
-            goal.projectedEtaMonths != null ? ` | eta ${goal.projectedEtaMonths.toFixed(1)} bln` : ""
+            goal.projectedEtaMonths != null ? ` | eta ${formatDurationFromMonths(goal.projectedEtaMonths)}` : ""
           }`
       ),
       ...(pausedGoals.length
@@ -327,9 +326,9 @@ export const buildGoalPlannerReply = async (params: GoalPlannerInput) => {
     const delay = Math.max(0, simulatedEta - baselineEta);
     return [
       `Kalau pengeluaran naik ${annualExpenseGrowthRate}% per tahun, target ${targetGoal.goalName} akan berubah seperti ini:`,
-      `- ETA baseline: sekitar ${baselineEta.toFixed(1)} bln`,
-      `- ETA setelah simulasi kenaikan expense: sekitar ${simulatedEta.toFixed(1)} bln`,
-      `- Perkiraan mundur: ${delay.toFixed(1)} bln`,
+      `- ETA baseline: ${formatDurationFromMonths(baselineEta)}`,
+      `- ETA setelah simulasi kenaikan expense: ${formatDurationFromMonths(simulatedEta)}`,
+      `- Perkiraan mundur: ${formatDurationFromMonths(delay)}`,
       `- Implikasi: ruang tabungan bulanan akan makin tertekan kalau income tidak ikut naik.`
     ].join("\n");
   }
@@ -345,7 +344,7 @@ export const buildGoalPlannerReply = async (params: GoalPlannerInput) => {
       ...sortedByPriority.slice(0, 5).map(
         (goal, index) =>
           `${index + 1}. ${goal.goalName} | sisa ${formatMoney(goal.remainingAmount)}${
-            goal.estimatedMonthsToGoal != null ? ` | eta ${goal.estimatedMonthsToGoal.toFixed(1)} bln` : ""
+            goal.estimatedMonthsToGoal != null ? ` | eta ${formatDurationFromMonths(goal.estimatedMonthsToGoal)}` : ""
           } | alasan: ${buildPriorityReason(goal)}`
       )
     ].join("\n");
@@ -363,7 +362,9 @@ export const buildGoalPlannerReply = async (params: GoalPlannerInput) => {
       `- Alokasi ke ${focusedGoal.goalName}: ${formatMoney(focusedPlan.recommendedAllocation)}`,
       ...(baselinePlan?.projectedEtaMonths != null && focusedPlan.projectedEtaMonths != null
         ? [
-            `- ETA ${focusedGoal.goalName}: ${focusedPlan.projectedEtaMonths.toFixed(1)} bln (sebelumnya sekitar ${baselinePlan.projectedEtaMonths.toFixed(1)} bln)`
+            `- ETA ${focusedGoal.goalName}: ${formatDurationFromMonths(
+              focusedPlan.projectedEtaMonths
+            )} (sebelumnya ${formatDurationFromMonths(baselinePlan.projectedEtaMonths)})`
           ]
         : []),
       "- Sisa goal lain:",
@@ -373,7 +374,7 @@ export const buildGoalPlannerReply = async (params: GoalPlannerInput) => {
         .map(
           (goal) =>
             `${goal.goalName} | alokasi ${formatMoney(goal.recommendedAllocation)}${
-              goal.projectedEtaMonths != null ? ` | eta ${goal.projectedEtaMonths.toFixed(1)} bln` : ""
+              goal.projectedEtaMonths != null ? ` | eta ${formatDurationFromMonths(goal.projectedEtaMonths)}` : ""
             }`
         )
     ].join("\n");
@@ -386,7 +387,7 @@ export const buildGoalPlannerReply = async (params: GoalPlannerInput) => {
       (goal, index) =>
         `${index + 1}. ${goal.goalName} | alokasi ${formatMoney(goal.recommendedAllocation)} | sisa ${formatMoney(
           goal.remainingAmount
-        )}${goal.projectedEtaMonths != null ? ` | eta ${goal.projectedEtaMonths.toFixed(1)} bln` : ""}`
+        )}${goal.projectedEtaMonths != null ? ` | eta ${formatDurationFromMonths(goal.projectedEtaMonths)}` : ""}`
     )
   ].join("\n");
 };

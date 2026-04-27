@@ -1,3 +1,4 @@
+import type { PortfolioAssetType as PrismaPortfolioAssetType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { loadRecentConversationTurns } from "@/lib/services/assistant/conversation-memory-service";
 import {
@@ -12,10 +13,9 @@ import {
 } from "@/lib/services/market/portfolio-valuation-service";
 import { normalizeMarketSymbolForKind } from "@/lib/services/market/market-symbol-normalization";
 
-type PortfolioAssetType =
+type SupportedPortfolioAssetType =
   | "GOLD"
   | "STOCK"
-  | "MUTUAL_FUND"
   | "CRYPTO"
   | "DEPOSIT"
   | "PROPERTY"
@@ -23,7 +23,7 @@ type PortfolioAssetType =
   | "OTHER";
 
 type ParsedAddAsset = {
-  assetType: PortfolioAssetType;
+  assetType: SupportedPortfolioAssetType;
   symbol: string;
   displayName: string;
   quantity: number;
@@ -101,12 +101,6 @@ const STOCK_COUNT_FORMATTER = new Intl.NumberFormat("id-ID", {
   minimumFractionDigits: 0,
   maximumFractionDigits: 0
 });
-const PORTFOLIO_MONEY_FORMATTER = new Intl.NumberFormat("id-ID", {
-  style: "currency",
-  currency: "IDR",
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2
-});
 const PORTFOLIO_PERCENT_FORMATTER = new Intl.NumberFormat("id-ID", {
   minimumFractionDigits: 0,
   maximumFractionDigits: 0
@@ -158,10 +152,10 @@ const STOCK_CONFIRM_QUESTION = "Apakah data ini sudah benar?";
 const STOCK_VALIDATION_UNAVAILABLE_REPLY =
   "Lagi belum bisa validasi kode saham sekarang. Coba lagi sebentar ya.";
 
-const PORTFOLIO_ASSET_TYPE_LABELS: Record<PortfolioAssetType, string> = {
+const PORTFOLIO_ASSET_TYPE_LABELS: Record<PrismaPortfolioAssetType, string> = {
   GOLD: "Emas (GOLD)",
   STOCK: "Saham (STOCK)",
-  MUTUAL_FUND: "Reksa Dana",
+  MUTUAL_FUND: "Lainnya",
   CRYPTO: "Kripto (CRYPTO)",
   DEPOSIT: "Deposito / Kas",
   PROPERTY: "Properti",
@@ -170,7 +164,7 @@ const PORTFOLIO_ASSET_TYPE_LABELS: Record<PortfolioAssetType, string> = {
 };
 
 const formatPortfolioMoney = (amount: number) =>
-  PORTFOLIO_MONEY_FORMATTER.format(amount).replace(/\u00a0/g, " ");
+  formatMoney(amount).replace(/^(-?)Rp\. /, "$1Rp ");
 
 const formatPortfolioSignedMoney = (amount: number, showPlusForPositive = false) => {
   const absolute = formatPortfolioMoney(Math.abs(amount));
@@ -305,12 +299,7 @@ const buildPortfolioPriceLine = (item: ValuedPortfolioItem) => {
   return `Harga yang dipakai saat ini: ${priceText} (sementara masih pakai harga beli)`;
 };
 
-const getCompositionRankIcon = (index: number) => {
-  if (index === 0) return "🥇";
-  if (index === 1) return "🥈";
-  if (index === 2) return "🥉";
-  return "•";
-};
+
 
 const getCompositionInsight = (params: {
   item: ValuedPortfolioItem;
@@ -1334,7 +1323,7 @@ const parseSimpleAssetAdd = (text: string): ParsedAddAsset | null => {
   }
 
   const match = text.match(
-    /^(?:tambah|catat|punya)\s+(tabungan|cash|kas|reksa dana|reksadana|deposito|properti|bisnis)(?:\s+(.+?))?\s+(?:senilai|sebesar|harga|nilai)\s+(.+)$/i
+    /^(?:tambah|catat|punya)\s+(tabungan|cash|kas|deposito|properti|bisnis)(?:\s+(.+?))?\s+(?:senilai|sebesar|harga|nilai)\s+(.+)$/i
   );
   if (!match) return null;
 
@@ -1343,8 +1332,6 @@ const parseSimpleAssetAdd = (text: string): ParsedAddAsset | null => {
     tabungan: "Tabungan",
     cash: "Cash",
     kas: "Kas",
-    "reksa dana": "Reksa Dana",
-    reksadana: "Reksa Dana",
     deposito: "Deposito",
     properti: "Properti",
     bisnis: "Bisnis"
@@ -1353,12 +1340,10 @@ const parseSimpleAssetAdd = (text: string): ParsedAddAsset | null => {
   const price = parsePositiveAmount(match[3]);
   if (!name || !price) return null;
 
-  const typeMap: Record<string, PortfolioAssetType> = {
+  const typeMap: Record<string, SupportedPortfolioAssetType> = {
     tabungan: "OTHER",
     cash: "OTHER",
     kas: "OTHER",
-    "reksa dana": "MUTUAL_FUND",
-    reksadana: "MUTUAL_FUND",
     deposito: "DEPOSIT",
     properti: "PROPERTY",
     bisnis: "BUSINESS"
@@ -1380,7 +1365,7 @@ const parseAddAssetCommand = (text: string): ParsedAddAsset | null =>
 const getPortfolioModel = () => (prisma as { portfolioAsset?: any }).portfolioAsset;
 
 export type PortfolioNewsContextItem = {
-  assetType: PortfolioAssetType;
+  assetType: PrismaPortfolioAssetType;
   symbol: string;
   displayName: string;
   normalizedSymbol: string;
@@ -1402,7 +1387,7 @@ export const getPortfolioNewsContext = async (userId: string): Promise<Portfolio
   });
 
   return assets
-    .map((asset: { assetType: PortfolioAssetType; symbol: string; displayName: string }) => {
+    .map((asset: { assetType: PrismaPortfolioAssetType; symbol: string; displayName: string }) => {
       const normalizedSymbol =
         asset.assetType === "GOLD"
           ? normalizePortfolioSymbol("gold", asset.symbol || asset.displayName)
@@ -1518,42 +1503,37 @@ const buildPortfolioSummary = async (userId: string) => {
   const worstAsset = [...snapshot.items].sort((left, right) => left.unrealizedGain - right.unrealizedGain)[0];
 
   const lines = [
-    "📊 **Ringkasan Portofolio Kamu**",
+    "Ringkasan Portofolio Kamu",
     "",
-    `💰 **Nilai portofoliomu saat ini:** ${formatPortfolioMoney(snapshot.totalCurrentValue)}`,
-    "   _(Ini adalah total nilai semua aset kamu kalau dijual hari ini)_",
+    `Nilai portofoliomu saat ini: ${formatPortfolioMoney(snapshot.totalCurrentValue)}`,
     "",
-    `📥 **Total uang yang sudah kamu masukkan:** ${formatPortfolioMoney(snapshot.totalBookValue)}`,
-    "   _(Semua uang yang pernah kamu pakai untuk beli aset)_",
+    `Total uang yang sudah kamu masukkan: ${formatPortfolioMoney(snapshot.totalBookValue)}`,
     "",
-    `📉 **Untung / Rugi sementara:** ${formatPortfolioSignedMoney(snapshot.totalUnrealizedGain, true)}`,
-    `   _(${getPortfolioGainNote(snapshot.totalUnrealizedGain)})_`,
+    `Untung / Rugi sementara: ${formatPortfolioSignedMoney(snapshot.totalUnrealizedGain, true)}`,
+    `   (${getPortfolioGainNote(snapshot.totalUnrealizedGain)})`,
     "",
-    `🏦 **Uang tunai / kas:** ${formatPortfolioMoney(snapshot.totalLiquidValue)}`,
-    "   _(Bagian dana yang masih likuid dan relatif mudah dipakai kembali)_",
+    `Uang tunai / kas: ${formatPortfolioMoney(snapshot.totalLiquidValue)}`,
+    "   (Bagian dana yang masih likuid dan relatif mudah dipakai kembali)",
     "",
-    `🏆 **Aset terbesar yang kamu pegang:** ${snapshot.topHoldingName ?? "-"} (${formatPortfolioPercent(topHoldingShare)})`,
-    `   _(${getLargestHoldingNote(topHoldingShare)})_`,
+    `Aset terbesar yang kamu pegang: ${snapshot.topHoldingName ?? "-"} (${formatPortfolioPercent(topHoldingShare)})`,
+    `   (${getLargestHoldingNote(topHoldingShare)})`,
     "",
-    `⚠️ **Tingkat risiko portofolio:** ${riskLabel}`,
-    `   _(${getPortfolioRiskNote(riskLabel, topHoldingShare)})_`,
+    `Tingkat risiko portofolio:  ${riskLabel}`,
+    `   (${getPortfolioRiskNote(riskLabel, topHoldingShare)})`,
     "",
-    `🔁 **Perlu diatur ulang?:** ${getRebalanceLabel(snapshot.rebalanceStatus)}`,
-    `   _(${getRebalanceNote(snapshot.rebalanceStatus)})_`,
+    `Perlu diatur ulang?: ${getRebalanceLabel(snapshot.rebalanceStatus)}`,
+    `   (${getRebalanceNote(snapshot.rebalanceStatus)})`,
     "",
-    `📊 **Skor diversifikasi:** ${formatPortfolioScore(snapshot.diversificationScore)}/100`,
-    "   _(Skor ideal biasanya di atas 60. Makin tinggi angkanya, makin tersebar portofoliomu.)_",
+    `Aset yang lagi untung / rugi: ${snapshot.profitableAssetCount} untung, ${snapshot.losingAssetCount} rugi`,
     "",
-    `📈 **Aset yang lagi untung / rugi:** ${snapshot.profitableAssetCount} untung, ${snapshot.losingAssetCount} rugi`,
-    "",
-    `😬 **Aset paling banyak ruginya:** ${
+    `Aset paling banyak ruginya: ${
       worstAsset && worstAsset.unrealizedGain < 0
         ? `${worstAsset.displayName} (${formatPortfolioSignedMoney(worstAsset.unrealizedGain)})`
         : "Belum ada aset yang rugi"
     }`,
-    `   _(${getPortfolioWorstAssetNote(worstAsset)})_`,
+    `   (${getPortfolioWorstAssetNote(worstAsset)})`,
     "",
-    "🗂️ **Rincian jenis investasi:**"
+    "Rincian jenis investasi:"
   ];
 
   snapshot.typeBreakdown.forEach((item, index) => {
@@ -1565,12 +1545,12 @@ const buildPortfolioSummary = async (userId: string) => {
   });
 
   lines.push("");
-  lines.push("🏅 **Komposisi Aset Kamu**");
+  lines.push("**Komposisi Aset Kamu**");
   lines.push("");
 
   snapshot.items.forEach((item, index) => {
     lines.push(
-      `${index + 1}. ${getCompositionRankIcon(index)} **${item.displayName}** - ${formatPortfolioMoney(
+      `${index + 1}. ${item.displayName} - ${formatPortfolioMoney(
         item.currentValue
       )} (${formatPortfolioPercent(itemSharePercents[index] ?? 0)})`
     );
@@ -1592,14 +1572,14 @@ const buildPortfolioSummary = async (userId: string) => {
   if (snapshot.bookFallbackCount > 0) {
     lines.push("");
     lines.push(
-      `⚠️ _${snapshot.bookFallbackCount} aset masih menggunakan harga beli karena harga pasar belum tersedia._`
+      ` ${snapshot.bookFallbackCount} aset masih menggunakan harga beli karena harga pasar belum tersedia.`
     );
   }
 
   if (bestAsset && bestAsset.unrealizedGain > 0 && snapshot.losingAssetCount === 0) {
     lines.push("");
     lines.push(
-      `✨ Saat ini belum ada aset yang rugi. Posisi terbaikmu sementara ada di ${bestAsset.displayName} dengan ${formatPortfolioSignedMoney(
+      `Saat ini belum ada aset yang rugi. Posisi terbaikmu sementara ada di ${bestAsset.displayName} dengan ${formatPortfolioSignedMoney(
         bestAsset.unrealizedGain,
         true
       )}.`

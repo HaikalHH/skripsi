@@ -62,7 +62,6 @@ export const PRIMARY_GOAL_OPTIONS: OnboardingOption[] = [
   { value: PrimaryGoal.MANAGE_EXPENSES, label: "Mengatur pengeluaran" },
   { value: PrimaryGoal.SAVE_DISCIPLINED, label: "Nabung lebih disiplin" },
   { value: PrimaryGoal.TRACK_INVESTMENTS, label: "Tracking investasi" },
-  { value: PrimaryGoal.FINANCIAL_FREEDOM, label: "Menuju financial freedom" },
   { value: PrimaryGoal.ALL_OF_THE_ABOVE, label: "Semua di atas" }
 ];
 
@@ -95,7 +94,6 @@ export const GOAL_OPTIONS: OnboardingOption[] = [
   { value: FinancialGoalType.HOUSE, label: "Beli rumah" },
   { value: FinancialGoalType.VEHICLE, label: "Beli kendaraan" },
   { value: FinancialGoalType.VACATION, label: "Liburan" },
-  { value: FinancialGoalType.FINANCIAL_FREEDOM, label: "Financial freedom" },
   { value: GOAL_NONE_VALUE, label: "Belum ada target" },
   { value: FinancialGoalType.CUSTOM, label: "Custom target" }
 ];
@@ -145,8 +143,6 @@ const goalLabel = (goalType: FinancialGoalType | null) => {
       return "Beli Kendaraan";
     case FinancialGoalType.VACATION:
       return "Liburan";
-    case FinancialGoalType.FINANCIAL_FREEDOM:
-      return "Financial Freedom";
     case FinancialGoalType.CUSTOM:
       return "Custom Target";
     default:
@@ -413,7 +409,7 @@ export const getPromptForStep = (
         questionKey: OnboardingQuestionKey.GOAL_EXPENSE_STRATEGY,
         title: goalLabel(context.currentGoalType),
         body: [
-          "Boss saya belum bisa menghitung Dana Darurat dan Financial Freedom karena belum ada data pengeluaran bulanan.",
+          "Boss saya belum bisa menghitung Dana Darurat kalau belum ada data pengeluaran bulanan.",
           "Pilih salah satu ya:"
         ].join("\n"),
         inputType: "single_select",
@@ -431,10 +427,10 @@ export const getPromptForStep = (
       return {
         stepKey: step,
         questionKey: OnboardingQuestionKey.GOAL_FINANCIAL_FREEDOM_AGE,
-        title: "Usia Target",
+        title: "Target Tidak Tersedia",
         body:
-          "Ingin target financial freedom di usia berapa? Kalau mau lewati, balas `skip`.",
-        inputType: "integer",
+          "Target financial freedom sudah tidak didukung lagi. Balas pesan apa saja untuk lanjut ke target lain ya Boss.",
+        inputType: "text",
         allowSkip: true
       };
     case OnboardingStep.ASK_GOAL_ADD_MORE:
@@ -560,9 +556,7 @@ export const getNextOnboardingStep = (
       return OnboardingStep.ASK_GUIDED_EXPENSE_OTHERS;
     case OnboardingStep.ASK_GUIDED_EXPENSE_OTHERS:
       if (context.goalExpenseStrategy === "HELP_CALCULATE" && context.currentGoalType) {
-        return context.currentGoalType === FinancialGoalType.FINANCIAL_FREEDOM
-          ? OnboardingStep.ASK_GOAL_FINANCIAL_FREEDOM_AGE
-          : OnboardingStep.ASK_GOAL_ADD_MORE;
+        return OnboardingStep.ASK_GOAL_ADD_MORE;
       }
       return OnboardingStep.ASK_GOAL_SELECTION;
     case OnboardingStep.ASK_GOAL_SELECTION:
@@ -573,11 +567,6 @@ export const getNextOnboardingStep = (
           ? OnboardingStep.ASK_GOAL_ADD_MORE
           : OnboardingStep.ASK_GOAL_EXPENSE_STRATEGY;
       }
-      if (answer === FinancialGoalType.FINANCIAL_FREEDOM) {
-        return context.expenseAvailable
-          ? OnboardingStep.ASK_GOAL_FINANCIAL_FREEDOM_AGE
-          : OnboardingStep.ASK_GOAL_EXPENSE_STRATEGY;
-      }
       return OnboardingStep.ASK_GOAL_TARGET_AMOUNT;
     case OnboardingStep.ASK_GOAL_CUSTOM_NAME:
       return OnboardingStep.ASK_GOAL_TARGET_AMOUNT;
@@ -586,13 +575,9 @@ export const getNextOnboardingStep = (
     case OnboardingStep.ASK_GOAL_EXPENSE_STRATEGY:
       if (answer === "HELP_CALCULATE") return OnboardingStep.ASK_GUIDED_EXPENSE_FOOD;
       if (answer === "HAVE_DATA") return OnboardingStep.ASK_GOAL_EXPENSE_TOTAL;
-      return context.currentGoalType === FinancialGoalType.FINANCIAL_FREEDOM
-        ? OnboardingStep.ASK_GOAL_FINANCIAL_FREEDOM_AGE
-        : OnboardingStep.ASK_GOAL_ADD_MORE;
+      return OnboardingStep.ASK_GOAL_ADD_MORE;
     case OnboardingStep.ASK_GOAL_EXPENSE_TOTAL:
-      return context.currentGoalType === FinancialGoalType.FINANCIAL_FREEDOM
-        ? OnboardingStep.ASK_GOAL_FINANCIAL_FREEDOM_AGE
-        : OnboardingStep.ASK_GOAL_ADD_MORE;
+      return OnboardingStep.ASK_GOAL_ADD_MORE;
     case OnboardingStep.ASK_GOAL_FINANCIAL_FREEDOM_AGE:
       return OnboardingStep.ASK_GOAL_ADD_MORE;
     case OnboardingStep.ASK_GOAL_ADD_MORE:

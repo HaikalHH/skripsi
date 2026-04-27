@@ -1,0 +1,2 @@
+ALTER TABLE `Transaction`
+MODIFY `type` ENUM('INCOME', 'EXPENSE', 'SAVING') NOT NULL;

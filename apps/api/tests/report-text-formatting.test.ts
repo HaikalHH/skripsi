@@ -26,10 +26,10 @@ describe("buildReportText", () => {
       "minggu ini"
     );
 
-    expect(text).toContain("income Rp. 6.000.000,00");
-    expect(text).toContain("expense Rp. 1.250.000,00");
-    expect(text).toContain("balance Rp. 4.750.000,00");
-    expect(text).toContain("Top expense category: Bills (Rp. 750.000,00).");
+    expect(text).toContain("income Rp. 6.000.000");
+    expect(text).toContain("expense Rp. 1.250.000");
+    expect(text).toContain("balance Rp. 4.750.000");
+    expect(text).toContain("Top expense category: Bills (Rp. 750.000).");
   });
 
   it("formats custom-range summaries with fixed rupiah", () => {
@@ -41,8 +41,8 @@ describe("buildReportText", () => {
       "Januari 2026"
     );
 
-    expect(text).toContain("Ringkasan Januari 2026: income Rp. 6.000.000,00");
-    expect(text).toContain("expense Rp. 1.250.000,00");
-    expect(text).toContain("balance Rp. 4.750.000,00");
+    expect(text).toContain("Ringkasan Januari 2026: income Rp. 6.000.000");
+    expect(text).toContain("expense Rp. 1.250.000");
+    expect(text).toContain("balance Rp. 4.750.000");
   });
 });

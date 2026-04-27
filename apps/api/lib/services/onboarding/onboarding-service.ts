@@ -19,7 +19,6 @@ import {
   formatPromptForChat,
   getNextOnboardingStep,
   getPromptForStep,
-  GOAL_NONE_VALUE,
   type OnboardingPrompt,
   type OnboardingPromptContext
 } from "@/lib/services/onboarding/onboarding-flow-service";
@@ -61,13 +60,11 @@ import {
   parseGoalSelection,
   parseManualExpenseBreakdown,
   parseMoneyInput,
-  parseOptionalAge,
   parsePhoneInput,
   parsePrimaryGoal,
   parseEmploymentTypes,
   parseStockQuantityInput,
   parseStockSymbolInput,
-  PHONE_PROMPT,
   type SessionAnswerValue
 } from "@/lib/services/onboarding/onboarding-parser-service";
 import { resolveConversationMemory } from "@/lib/services/assistant/conversation-memory-service";
@@ -100,6 +97,9 @@ type RuntimeContext = OnboardingPromptContext & {
 const getOnboardingSessionModel = () => (prisma as { onboardingSession?: any }).onboardingSession;
 const getFinancialProfileModel = () => (prisma as { financialProfile?: any }).financialProfile;
 const getExpensePlanModel = () => (prisma as { expensePlan?: any }).expensePlan;
+const sanitizeSupportedGoalType = (goalType: FinancialGoalType | null) =>
+  goalType === FinancialGoalType.FINANCIAL_FREEDOM ? null : goalType;
+
 const createState = (params: {
   user: User;
   prompt: OnboardingPrompt | null;
@@ -224,7 +224,7 @@ const buildRuntimeContext = async (userId: string, existingUser?: User): Promise
     needsPhoneVerification: !/^62\d{7,15}$/.test(user.waNumber),
     budgetMode: user.budgetMode ?? null,
     employmentTypes: getEmploymentTypes(sessions),
-    currentGoalType: getCurrentGoalType(sessions),
+    currentGoalType: sanitizeSupportedGoalType(getCurrentGoalType(sessions)),
     currentAssetType: getCurrentAssetType(sessions),
     expenseAvailable: Boolean(activePlan || profile?.monthlyExpenseTotal != null),
     goalExpenseStrategy: getGoalExpenseStrategy(sessions)
@@ -259,7 +259,7 @@ const goalNameByType = (goalType: FinancialGoalType, customName: string | null) 
   if (goalType === FinancialGoalType.HOUSE) return "Beli Rumah";
   if (goalType === FinancialGoalType.VEHICLE) return "Beli Kendaraan";
   if (goalType === FinancialGoalType.VACATION) return "Liburan";
-  return "Financial Freedom";
+  return "Target Keuangan";
 };
 
 const PROFILE_RECALCULATION_STEPS: OnboardingStep[] = [
@@ -272,7 +272,6 @@ const PROFILE_RECALCULATION_STEPS: OnboardingStep[] = [
   OnboardingStep.ASK_GOAL_TARGET_AMOUNT,
   OnboardingStep.ASK_GOAL_EXPENSE_STRATEGY,
   OnboardingStep.ASK_GOAL_EXPENSE_TOTAL,
-  OnboardingStep.ASK_GOAL_FINANCIAL_FREEDOM_AGE,
   OnboardingStep.ASK_ASSET_GOLD_GRAMS,
   OnboardingStep.ASK_ASSET_ESTIMATED_VALUE
 ];
@@ -392,12 +391,8 @@ const validateAnswerForStep = (context: RuntimeContext, rawAnswer: unknown) => {
       const parsed = parseGoalExpenseStrategy(rawAnswer);
       return parsed ? { value: parsed } : buildValidationReply(prompt, "Pilih salah satu opsi dulu ya Boss.");
     }
-    case OnboardingStep.ASK_GOAL_FINANCIAL_FREEDOM_AGE: {
-      const parsed = parseOptionalAge(rawAnswer);
-      return parsed === undefined
-        ? buildValidationReply(prompt, "Usia target belum valid. Balas angka 18-100 atau `skip`.")
-        : { value: parsed };
-    }
+    case OnboardingStep.ASK_GOAL_FINANCIAL_FREEDOM_AGE:
+      return { value: null };
     case OnboardingStep.ASK_ASSET_SELECTION: {
       const parsed = parseAssetSelection(rawAnswer);
       return parsed ? { value: parsed } : buildValidationReply(prompt, "Pilih salah satu aset dulu ya Boss.");
@@ -539,8 +534,10 @@ const persistAnswer = async (context: RuntimeContext, normalizedAnswer: SessionA
       }
       break;
     case OnboardingStep.ASK_GOAL_FINANCIAL_FREEDOM_AGE:
-      await prisma.user.update({ where: { id: context.user.id }, data: { targetFinancialFreedomAge: typeof normalizedAnswer === "number" ? normalizedAnswer : null } });
-      await createOrUpdateFinancialGoal({ userId: context.user.id, goalType: FinancialGoalType.FINANCIAL_FREEDOM, goalName: goalNameByType(FinancialGoalType.FINANCIAL_FREEDOM, null), targetAmount: null, calculationType: GoalCalculationType.FORMULA_BASED, status: context.expenseAvailable ? FinancialGoalStatus.ACTIVE : FinancialGoalStatus.PENDING_CALCULATION, targetAge: typeof normalizedAnswer === "number" ? normalizedAnswer : null });
+      await prisma.user.update({
+        where: { id: context.user.id },
+        data: { targetFinancialFreedomAge: null }
+      });
       break;
     case OnboardingStep.ASK_ASSET_SELECTION:
       await prisma.user.update({ where: { id: context.user.id }, data: { hasAssets: normalizedAnswer !== ASSET_NONE_VALUE } });
