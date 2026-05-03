@@ -25,6 +25,11 @@ describe("general chat service", () => {
     expect(result.handled).toBe(true);
     if (result.handled) {
       expect(result.replyText.toLowerCase()).toContain("catat pemasukan");
+      expect(result.replyText.toLowerCase()).not.toContain("financial freedom");
+      expect(result.replyText.toLowerCase()).not.toContain("wealth projection");
+      expect(result.replyText.toLowerCase()).not.toContain("/insight");
+      expect(result.replyText.toLowerCase()).not.toContain("/advice");
+      expect(result.replyText.toLowerCase()).not.toContain("insight dan advice");
     }
   });
 

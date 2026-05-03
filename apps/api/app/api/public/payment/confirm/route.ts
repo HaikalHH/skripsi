@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { confirmPaymentByToken } from "@/lib/services/payments/payment-service";
+import {
+  confirmPaymentByToken,
+  getPaymentSessionByToken
+} from "@/lib/services/payments/payment-service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,10 +19,31 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid token payload" }, { status: 400 });
   }
 
+  const existingSession = await getPaymentSessionByToken(parsed.data.token);
+  if (!existingSession) {
+    return NextResponse.json({ ok: false, error: "Payment session not found" }, { status: 404 });
+  }
+
+  if (existingSession.provider === "AIRWALLEX") {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Konfirmasi manual dimatikan untuk Airwallex. Tunggu webhook pembayaran masuk.",
+        provider: existingSession.provider,
+        status: existingSession.status,
+        providerStatus: existingSession.providerStatus ?? null,
+        paidAt: existingSession.paidAt?.toISOString() ?? null,
+        checkoutUrl: existingSession.checkoutUrl ?? null
+      },
+      { status: 409 }
+    );
+  }
+
   try {
     const session = await confirmPaymentByToken(parsed.data.token);
     return NextResponse.json({
       ok: true,
+      provider: session.provider,
       status: session.status,
       paidAt: session.paidAt?.toISOString() ?? null
     });

@@ -1,31 +1,28 @@
-import { AnalysisType } from "@prisma/client";
 import { HELP_TEXT } from "@/lib/constants";
 import { logger } from "@/lib/logger";
-import { createAIAnalysisLog } from "@/lib/services/ai/ai-log-service";
-import { upsertCategoryBudget } from "@/lib/services/transactions/budget-service";
 import { buildCashflowForecastReply } from "@/lib/services/planning/cashflow-forecast-service";
 import { buildFinancialHealthReply } from "@/lib/services/planning/financial-health-service";
-import { tryHandleFinancialFreedomCommand } from "@/lib/services/planning/financial-freedom-service";
-import { tryHandleFinanceNewsCommand } from "@/lib/services/market/finance-news-service";
+import {
+  buildFinanceNewsFailureReply,
+  tryHandleFinanceNewsCommand
+} from "@/lib/services/market/finance-news-service";
 import {
   ALL_GLOBAL_CONTEXT_MODULES,
   routeGlobalTextContext,
   type GlobalContextModule
 } from "@/lib/services/assistant/global-context-router-service";
-import { tryHandleMarketCommand } from "@/lib/services/market/market-command-service";
+import {
+  buildMarketCommandFailureReply,
+  tryHandleMarketCommand
+} from "@/lib/services/market/market-command-service";
 import { tryHandlePortfolioCommand } from "@/lib/services/market/portfolio-command-service";
 import { tryHandlePrivacyCommand } from "@/lib/services/assistant/privacy-command-service";
 import { buildGoalPlannerReply } from "@/lib/services/planning/goal-planner-service";
-import { tryHandleSmartAllocation } from "@/lib/services/planning/smart-allocation-service";
 import { tryHandleTransactionMutationCommand } from "@/lib/services/transactions/transaction-mutation-command-service";
-import { tryHandleWealthProjection } from "@/lib/services/planning/wealth-projection-service";
-import { generateUserFinancialAdvice } from "@/lib/services/assistant/advice-service";
 import {
-  addGoalContribution,
-  getSavingsGoalStatus,
-  setSavingsGoalTarget
+  addGoalContributionAndRecordSaving,
+  getSavingsGoalStatus
 } from "@/lib/services/planning/goal-service";
-import { generateUserInsight } from "@/lib/services/reporting/insight-service";
 import {
   buildCategoryDetailReport,
   buildGeneralAnalyticsReport
@@ -36,10 +33,14 @@ import {
   updateReminderPreference
 } from "@/lib/services/reminders/reminder-preference-service";
 import {
-  buildBudgetSetText,
   buildGoalContributionText,
   buildGoalStatusText
 } from "./formatters";
+import {
+  stageBudgetAndBuildReply,
+  stageGoalAndBuildReply
+} from "@/lib/services/assistant/pending-action-service";
+import { startCommandFlow } from "@/lib/services/assistant/command-flow-service";
 import { buildReportResponse, toReportReplyBody } from "./report";
 import { ok, type InboundHandlerResult } from "./result";
 
@@ -81,7 +82,8 @@ const tryHandleContextModules = async (
     if (contextModule === "PORTFOLIO") {
       const portfolioCommand = await tryHandlePortfolioCommand({
         userId: params.userId,
-        text: params.text
+        text: params.text,
+        currentMessageId: params.messageId
       });
       if (portfolioCommand.handled) {
         return ok({ replyText: portfolioCommand.replyText });
@@ -90,9 +92,16 @@ const tryHandleContextModules = async (
     }
 
     if (contextModule === "MARKET") {
-      const marketCommand = await tryHandleMarketCommand(params.text);
-      if (marketCommand.handled) {
-        return ok({ replyText: marketCommand.replyText });
+      try {
+        const marketCommand = await tryHandleMarketCommand(params.text);
+        if (marketCommand.handled) {
+          return ok({ replyText: marketCommand.replyText });
+        }
+      } catch (error) {
+        logger.warn({ err: error }, "Market quote retrieval failed");
+        return ok({
+          replyText: buildMarketCommandFailureReply(error)
+        });
       }
       continue;
     }
@@ -109,38 +118,8 @@ const tryHandleContextModules = async (
       } catch (error) {
         logger.warn({ err: error }, "Finance news retrieval failed");
         return ok({
-          replyText: "Berita finance belum tersedia sementara. Coba lagi beberapa menit lagi."
+          replyText: buildFinanceNewsFailureReply(error)
         });
-      }
-      continue;
-    }
-
-    if (contextModule === "SMART_ALLOCATION") {
-      const allocationCommand = await tryHandleSmartAllocation({
-        userId: params.userId,
-        text: params.text
-      });
-      if (allocationCommand.handled) {
-        return ok({ replyText: allocationCommand.replyText });
-      }
-      continue;
-    }
-
-    if (contextModule === "FINANCIAL_FREEDOM") {
-      const freedomCommand = await tryHandleFinancialFreedomCommand({
-        userId: params.userId,
-        text: params.text
-      });
-      if (freedomCommand.handled) {
-        return ok({ replyText: freedomCommand.replyText });
-      }
-      continue;
-    }
-
-    if (contextModule === "WEALTH_PROJECTION") {
-      const projectionCommand = tryHandleWealthProjection(params.text);
-      if (projectionCommand.handled) {
-        return ok({ replyText: projectionCommand.replyText });
       }
       continue;
     }
@@ -254,47 +233,64 @@ export const tryHandleStructuredText = async (
     return ok({ replyText });
   }
 
-  if (routedContext.command.kind === "INSIGHT") {
-    const insightText = await generateUserInsight(params.userId);
-    await createAIAnalysisLog({
-      userId: params.userId,
-      messageId: params.messageId,
-      analysisType: AnalysisType.INSIGHT,
-      payload: { insightText, source: "command" }
-    });
-    return ok({ replyText: insightText });
-  }
-
-  if (routedContext.command.kind === "ADVICE") {
-    const userQuestion =
-      routedContext.command.question ??
-      "Keuangan aku sehat gak? Kasih saran yang paling penting bulan ini.";
-    const insightText = await generateUserFinancialAdvice(params.userId, userQuestion);
-    await createAIAnalysisLog({
-      userId: params.userId,
-      messageId: params.messageId,
-      analysisType: AnalysisType.INSIGHT,
-      payload: { insightText, source: "command_advice", userQuestion }
-    });
-    return ok({ replyText: insightText });
-  }
-
   if (routedContext.command.kind === "BUDGET_SET") {
-    const budget = await upsertCategoryBudget({
+    return stageBudgetAndBuildReply({
       userId: params.userId,
+      messageId: params.messageId,
       category: routedContext.command.category,
       monthlyLimit: routedContext.command.monthlyLimit
     });
-    return ok({ replyText: buildBudgetSetText(budget) });
+  }
+
+  if (routedContext.command.kind === "BUDGET_SET_FLOW_START") {
+    return startCommandFlow({
+      userId: params.userId,
+      messageId: params.messageId,
+      flow: "BUDGET_SET"
+    });
   }
 
   if (routedContext.command.kind === "GOAL_SET") {
-    const goalStatus = await setSavingsGoalTarget(params.userId, routedContext.command.targetAmount, {
+    return stageGoalAndBuildReply({
+      userId: params.userId,
+      messageId: params.messageId,
+      targetAmount: routedContext.command.targetAmount,
       goalName: routedContext.command.goalName,
       goalType: routedContext.command.goalType,
       goalQuery: routedContext.command.goalName
     });
-    return ok({ replyText: buildGoalStatusText(goalStatus) });
+  }
+
+  if (routedContext.command.kind === "GOAL_SET_FLOW_START") {
+    return startCommandFlow({
+      userId: params.userId,
+      messageId: params.messageId,
+      flow: "SET_GOAL"
+    });
+  }
+
+  if (routedContext.command.kind === "GOAL_ADD_FLOW_START") {
+    return startCommandFlow({
+      userId: params.userId,
+      messageId: params.messageId,
+      flow: "GOAL_ADD"
+    });
+  }
+
+  if (routedContext.command.kind === "GOAL_STATUS_FLOW_START") {
+    return startCommandFlow({
+      userId: params.userId,
+      messageId: params.messageId,
+      flow: "GOAL_STATUS"
+    });
+  }
+
+  if (routedContext.command.kind === "ASSET_ADD_FLOW_START") {
+    return startCommandFlow({
+      userId: params.userId,
+      messageId: params.messageId,
+      flow: "ASSET_ADD"
+    });
   }
 
   if (routedContext.command.kind === "GOAL_STATUS") {
@@ -306,11 +302,20 @@ export const tryHandleStructuredText = async (
   }
 
   if (routedContext.command.kind === "GOAL_CONTRIBUTE") {
-    const contribution = await addGoalContribution(params.userId, routedContext.command.amount, {
+    const contribution = await addGoalContributionAndRecordSaving(params.userId, routedContext.command.amount, {
       goalQuery: routedContext.command.goalQuery,
       goalType: routedContext.command.goalType
     });
     return ok({ replyText: buildGoalContributionText(contribution) });
+  }
+
+  const directPortfolioCommand = await tryHandlePortfolioCommand({
+    userId: params.userId,
+    text: params.text,
+    currentMessageId: params.messageId
+  });
+  if (directPortfolioCommand.handled) {
+    return ok({ replyText: directPortfolioCommand.replyText });
   }
 
   return tryHandleContextModules(params, routedContext.moduleOrder);

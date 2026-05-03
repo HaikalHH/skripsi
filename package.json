@@ -5,11 +5,20 @@
   "packageManager": "pnpm@9.12.0",
   "scripts": {
     "dev:api": "pnpm --filter @finance/api dev",
-    "dev:admin": "pnpm --filter @finance/admin-web dev",
+    "dev:api:ngrok": "node scripts/dev-api-ngrok.mjs",
+    "dev:web": "pnpm --filter @finance/web dev",
+    "dev:web:ngrok": "node scripts/dev-web-ngrok.mjs",
     "dev:bot": "pnpm --filter @finance/bot dev",
+    "tunnel:api": "node scripts/dev-api-ngrok.mjs --tunnel-only",
+    "tunnel:web": "node scripts/dev-web-ngrok.mjs --tunnel-only",
+    "lint": "pnpm --filter @finance/api lint && pnpm --filter @finance/admin-web lint",
+    "typecheck": "pnpm --filter @finance/shared typecheck && pnpm --filter @finance/api typecheck && pnpm --filter @finance/admin-web typecheck && pnpm --filter @finance/bot typecheck",
+    "build": "pnpm --filter @finance/api build && pnpm --filter @finance/admin-web build",
     "test": "pnpm --filter @finance/api test",
     "prisma:migrate": "pnpm --filter @finance/api prisma:migrate",
-    "prisma:seed": "pnpm --filter @finance/api prisma:seed"
+    "prisma:seed": "pnpm --filter @finance/api prisma:seed",
+    "prisma:reset": "pnpm --filter @finance/api prisma:reset",
+    "prisma:reset:seed": "pnpm --filter @finance/api prisma:reset:seed"
   },
   "devDependencies": {
     "typescript": "^5.6.3"

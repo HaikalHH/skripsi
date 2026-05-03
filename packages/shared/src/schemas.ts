@@ -7,13 +7,11 @@ const isoDateLikeSchema = z
 export const intentSchema = z.enum([
   "RECORD_TRANSACTION",
   "REQUEST_REPORT",
-  "REQUEST_INSIGHT",
-  "REQUEST_FINANCIAL_ADVICE",
   "HELP",
   "UNKNOWN"
 ]);
 
-export const transactionTypeSchema = z.enum(["INCOME", "EXPENSE"]);
+export const transactionTypeSchema = z.enum(["INCOME", "EXPENSE", "SAVING"]);
 export const messageTypeSchema = z.enum(["TEXT", "IMAGE"]);
 export const transactionSourceSchema = z.enum(["TEXT", "OCR"]);
 export const reportPeriodSchema = z.enum(["daily", "weekly", "monthly"]);

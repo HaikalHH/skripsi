@@ -147,7 +147,7 @@ const scoreTransactionCandidate = (
 };
 
 const buildCandidateOptionLabel = (row: Awaited<ReturnType<typeof prisma.transaction.findMany>>[number]) =>
-  `${SHORT_DATE_FORMATTER.format(row.occurredAt)} | ${formatMoney(Number(row.amount))} | ${buildTransactionLabel(row)}`;
+  `${SHORT_DATE_FORMATTER.format(row.occurredAt)} | ${formatMoney(row.amount)} | ${buildTransactionLabel(row)}`;
 
 const resolveTransactionCandidates = async (userId: string, hint: string | null) => {
   const rows = await prisma.transaction.findMany({
@@ -214,9 +214,7 @@ export const tryHandleTransactionMutationCommand = async (params: {
     await refreshSavingsGoalProgress(params.userId);
     return {
       handled: true,
-      replyText: `Transaksi ${buildTransactionLabel(target)} sebesar ${formatMoney(
-        Number(target.amount)
-      )} berhasil dihapus.`
+      replyText: `Transaksi ${buildTransactionLabel(target)} sebesar ${formatMoney(target.amount)} berhasil dihapus.`
     };
   }
 

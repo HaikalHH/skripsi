@@ -10,6 +10,7 @@ datasource db {
 enum TransactionType {
   INCOME
   EXPENSE
+  SAVING
 }
 
 enum TransactionSource {
@@ -66,16 +67,34 @@ enum OnboardingStep {
   ASK_GOAL_SELECTION
   ASK_GOAL_CUSTOM_NAME
   ASK_GOAL_TARGET_AMOUNT
+  ASK_GOAL_TARGET_DATE
+  ASK_GOAL_ALLOCATION_MODE
+  ASK_GOAL_PRIORITY_FOCUS
   ASK_GOAL_EXPENSE_STRATEGY
   ASK_GOAL_EXPENSE_TOTAL
   ASK_GOAL_FINANCIAL_FREEDOM_AGE
   ASK_GOAL_ADD_MORE
   ASK_ASSET_SELECTION
+  ASK_ASSET_SAVINGS_NAME
+  ASK_ASSET_SAVINGS_BALANCE
+  ASK_ASSET_GOLD_TYPE
+  ASK_ASSET_GOLD_BRAND
   ASK_ASSET_GOLD_NAME
   ASK_ASSET_GOLD_GRAMS
+  ASK_ASSET_GOLD_KARAT
+  ASK_ASSET_GOLD_PLATFORM
+  ASK_ASSET_STOCK_SYMBOL
+  ASK_ASSET_STOCK_LOTS
+  ASK_ASSET_CRYPTO_SYMBOL
+  ASK_ASSET_CRYPTO_QUANTITY
+  ASK_ASSET_MUTUAL_FUND_SYMBOL
+  ASK_ASSET_MUTUAL_FUND_UNITS
+  ASK_ASSET_PROPERTY_NAME
+  ASK_ASSET_PROPERTY_ESTIMATED_VALUE
   ASK_ASSET_NAME
   ASK_ASSET_ESTIMATED_VALUE
   ASK_ASSET_ADD_MORE
+  ASK_PERSONALIZATION_CHOICE
   SHOW_ANALYSIS
   COMPLETED
 }
@@ -84,6 +103,11 @@ enum PaymentSessionStatus {
   PENDING
   PAID
   EXPIRED
+}
+
+enum PaymentProvider {
+  DUMMY
+  AIRWALLEX
 }
 
 enum OutboundMessageStatus {
@@ -102,6 +126,11 @@ enum PortfolioAssetType {
   PROPERTY
   BUSINESS
   OTHER
+}
+
+enum PortfolioTradeSide {
+  BUY
+  SELL
 }
 
 enum PrimaryGoal {
@@ -154,6 +183,11 @@ enum GoalCalculationType {
   FORMULA_BASED
 }
 
+enum GoalExecutionMode {
+  SEQUENTIAL
+  PARALLEL
+}
+
 enum FinancialGoalStatus {
   ACTIVE
   PENDING_CALCULATION
@@ -193,16 +227,34 @@ enum OnboardingQuestionKey {
   GOAL_SELECTION
   GOAL_CUSTOM_NAME
   GOAL_TARGET_AMOUNT
+  GOAL_TARGET_DATE
+  GOAL_ALLOCATION_MODE
+  GOAL_PRIORITY_FOCUS
   GOAL_EXPENSE_STRATEGY
   GOAL_EXPENSE_TOTAL
   GOAL_FINANCIAL_FREEDOM_AGE
   GOAL_ADD_MORE
   ASSET_SELECTION
+  ASSET_SAVINGS_NAME
+  ASSET_SAVINGS_BALANCE
+  ASSET_GOLD_TYPE
+  ASSET_GOLD_BRAND
   ASSET_GOLD_NAME
   ASSET_GOLD_GRAMS
+  ASSET_GOLD_KARAT
+  ASSET_GOLD_PLATFORM
+  ASSET_STOCK_SYMBOL
+  ASSET_STOCK_LOTS
+  ASSET_CRYPTO_SYMBOL
+  ASSET_CRYPTO_QUANTITY
+  ASSET_MUTUAL_FUND_SYMBOL
+  ASSET_MUTUAL_FUND_UNITS
+  ASSET_PROPERTY_NAME
+  ASSET_PROPERTY_ESTIMATED_VALUE
   ASSET_NAME
   ASSET_ESTIMATED_VALUE
   ASSET_ADD_MORE
+  PERSONALIZATION_CHOICE
 }
 
 model User {
@@ -220,6 +272,8 @@ model User {
   hasPassiveIncome          Boolean?
   salaryDate                Int?
   targetFinancialFreedomAge Int?
+  goalExecutionMode         GoalExecutionMode?
+  priorityGoalType          FinancialGoalType?
   budgetMode                BudgetMode?
   hasAssets                 Boolean?
   analysisReady             Boolean                 @default(false)
@@ -234,8 +288,10 @@ model User {
   reminderPreference        ReminderPreference?
   subscriptions             Subscription[]
   paymentSessions           PaymentSession[]
+  paymentProviderEvents     PaymentProviderEvent[]
   outboundMessages          OutboundMessage[]
   portfolioAssets           PortfolioAsset[]
+  portfolioTrades           PortfolioTrade[]
   financialFreedom          FinancialFreedomProfile?
   financialProfile          FinancialProfile?
   expensePlans              ExpensePlan[]
@@ -315,14 +371,25 @@ model SavingsGoal {
 }
 
 model Subscription {
-  id        String             @id @default(cuid())
-  userId    String
-  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  status    SubscriptionStatus @default(TRIAL)
-  createdAt DateTime           @default(now())
-  updatedAt DateTime           @updatedAt
+  id                     String             @id @default(cuid())
+  userId                 String
+  user                   User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status                 SubscriptionStatus @default(TRIAL)
+  provider               PaymentProvider    @default(DUMMY)
+  providerSubscriptionId String?            @unique
+  providerCustomerId     String?
+  providerPriceId        String?
+  providerStatus         String?
+  currentPeriodStartAt   DateTime?
+  currentPeriodEndAt     DateTime?
+  cancelAt               DateTime?
+  cancelAtPeriodEnd      Boolean            @default(false)
+  cancelledAt            DateTime?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
 
   @@index([userId, status])
+  @@index([userId, provider, createdAt])
 }
 
 model ReminderPreference {
@@ -346,17 +413,44 @@ model ReminderPreference {
 }
 
 model PaymentSession {
-  id        String               @id @default(cuid())
-  userId    String
-  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  token     String               @unique
-  amount    Decimal              @db.Decimal(12, 2)
-  status    PaymentSessionStatus @default(PENDING)
-  paidAt    DateTime?
-  createdAt DateTime             @default(now())
-  updatedAt DateTime             @updatedAt
+  id                     String               @id @default(cuid())
+  userId                 String
+  user                   User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token                  String               @unique
+  amount                 Decimal              @db.Decimal(12, 2)
+  currency               String               @default("IDR")
+  provider               PaymentProvider      @default(DUMMY)
+  status                 PaymentSessionStatus @default(PENDING)
+  customerEmail          String?
+  providerCheckoutId     String?              @unique
+  providerSubscriptionId String?
+  providerCustomerId     String?
+  providerStatus         String?
+  checkoutUrl            String?              @db.Text
+  checkoutExpiresAt      DateTime?
+  paidAt                 DateTime?
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
 
   @@index([userId, status])
+  @@index([userId, provider, status])
+  @@index([providerSubscriptionId])
+}
+
+model PaymentProviderEvent {
+  id              String          @id @default(cuid())
+  userId          String?
+  user            User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  provider        PaymentProvider
+  providerEventId String
+  eventType       String
+  payloadJson     Json
+  processedAt     DateTime        @default(now())
+  createdAt       DateTime        @default(now())
+
+  @@unique([provider, providerEventId])
+  @@index([provider, eventType, createdAt])
+  @@index([userId, createdAt])
 }
 
 model OutboundMessage {
@@ -391,6 +485,28 @@ model PortfolioAsset {
 
   @@unique([userId, assetType, symbol])
   @@index([userId, assetType])
+}
+
+model PortfolioTrade {
+  id           String             @id @default(cuid())
+  userId       String
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assetType    PortfolioAssetType
+  side         PortfolioTradeSide
+  symbol       String
+  displayName  String
+  quantity     Decimal            @db.Decimal(24, 8)
+  unit         String
+  pricePerUnit Decimal            @db.Decimal(18, 2)
+  totalAmount  Decimal            @db.Decimal(18, 2)
+  realizedPnL  Decimal?           @db.Decimal(18, 2)
+  currency     String             @default("IDR")
+  occurredAt   DateTime           @default(now())
+  createdAt    DateTime           @default(now())
+
+  @@index([userId, occurredAt])
+  @@index([userId, symbol, occurredAt])
+  @@index([userId, side, occurredAt])
 }
 
 model FinancialFreedomProfile {
@@ -457,8 +573,11 @@ model FinancialGoal {
   goalName              String
   targetAmount          BigInt?
   targetAge             Int?
+  targetMonth           Int?
+  targetYear            Int?
   calculationType       GoalCalculationType
   status                FinancialGoalStatus @default(ACTIVE)
+  priorityOrder         Int                 @default(999)
   estimatedMonthsToGoal Decimal?            @db.Decimal(10, 2)
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt
@@ -466,6 +585,7 @@ model FinancialGoal {
 
   @@index([userId, status])
   @@index([userId, goalType])
+  @@index([userId, priorityOrder])
 }
 
 model GoalContribution {

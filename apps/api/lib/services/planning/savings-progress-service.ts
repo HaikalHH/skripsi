@@ -1,9 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { formatMoney, formatPercent } from "@/lib/services/shared/money-format";
+import { formatDurationFromMonths } from "@/lib/services/shared/projection-math-service";
 
 type GoalStatus = {
   goalName?: string | null;
   totalGoals?: number;
+  goalNotFoundQuery?: string | null;
   targetAmount: number;
   currentProgress: number;
   remainingAmount: number;
@@ -28,54 +30,50 @@ const estimateMonthlySavingsPace = async (userId: string): Promise<number> => {
   const windowStart = new Date();
   windowStart.setUTCDate(windowStart.getUTCDate() - DAYS_WINDOW);
 
-  const [incomeAgg, expenseAgg] = await Promise.all([
-    prisma.transaction.aggregate({
-      where: {
-        userId,
-        type: "INCOME",
-        occurredAt: { gte: windowStart }
-      },
-      _sum: { amount: true }
-    }),
-    prisma.transaction.aggregate({
-      where: {
-        userId,
-        type: "EXPENSE",
-        occurredAt: { gte: windowStart }
-      },
-      _sum: { amount: true }
-    })
-  ]);
+  const savingAgg = await prisma.transaction.aggregate({
+    where: {
+      userId,
+      type: "SAVING",
+      occurredAt: { gte: windowStart }
+    },
+    _sum: { amount: true }
+  });
 
-  const netWindow = toNumber(incomeAgg._sum.amount ?? 0) - toNumber(expenseAgg._sum.amount ?? 0);
-  const monthlyPace = (netWindow / DAYS_WINDOW) * 30;
-  return Number.isFinite(monthlyPace) ? monthlyPace : 0;
+  const directSaving = toNumber(savingAgg._sum.amount ?? 0);
+  if (directSaving > 0) {
+    const monthlySavingPace = (directSaving / DAYS_WINDOW) * 30;
+    return Number.isFinite(monthlySavingPace) ? monthlySavingPace : 0;
+  }
+
+  return 0;
 };
 
 const formatEta = (monthsRaw: number) => {
-  if (!Number.isFinite(monthsRaw) || monthsRaw <= 0) return "estimasi belum tersedia";
-  const roundedMonths = Math.ceil(monthsRaw);
-  if (roundedMonths < 2) return "estimasi sekitar < 1 bulan";
-
-  const years = Math.floor(roundedMonths / 12);
-  const months = roundedMonths % 12;
-  if (years <= 0) return `estimasi sekitar ${months} bulan`;
-  if (months <= 0) return `estimasi sekitar ${years} tahun`;
-  return `estimasi sekitar ${years} tahun ${months} bulan`;
+  if (!Number.isFinite(monthsRaw)) return "estimasi belum tersedia";
+  if (monthsRaw <= 0) return "estimasi sudah tercapai";
+  return `estimasi ${formatDurationFromMonths(monthsRaw)}`;
 };
 
 export const buildSavingsProgressUpdateText = async (params: {
   userId: string;
   goalStatus: GoalStatus;
 }) => {
-  if (params.goalStatus.targetAmount <= 0) return null;
-
   const monthlyPace = await estimateMonthlySavingsPace(params.userId);
+  const preferredMonthlyPace =
+    params.goalStatus.progressSource === "NET_SAVINGS_PROXY"
+      ? monthlyPace || params.goalStatus.monthlyContributionPace || 0
+      : params.goalStatus.monthlyContributionPace || monthlyPace;
+
+  if (params.goalStatus.targetAmount <= 0) {
+    if (params.goalStatus.currentProgress <= 0) return null;
+    return `Total sudah ditabung: ${formatMoney(params.goalStatus.currentProgress)}`;
+  }
+
   const eta =
     params.goalStatus.estimatedMonthsToGoal != null && Number.isFinite(params.goalStatus.estimatedMonthsToGoal)
       ? formatEta(params.goalStatus.estimatedMonthsToGoal)
-      : (params.goalStatus.monthlyContributionPace ?? monthlyPace) > 0
-      ? formatEta(params.goalStatus.remainingAmount / (params.goalStatus.monthlyContributionPace ?? monthlyPace))
+      : preferredMonthlyPace > 0
+      ? formatEta(params.goalStatus.remainingAmount / preferredMonthlyPace)
       : "estimasi belum tersedia (ritme tabungan masih negatif).";
 
   const label =
@@ -86,13 +84,14 @@ export const buildSavingsProgressUpdateText = async (params: {
         : "Progress tabungan";
 
   return [
+    params.goalStatus.goalNotFoundQuery
+      ? `Goal \`${params.goalStatus.goalNotFoundQuery}\` belum ditemukan, jadi progress goal spesifiknya belum berubah.`
+      : null,
     `${label}: ${formatPercent(params.goalStatus.progressPercent)} (${formatMoney(
       params.goalStatus.currentProgress
-    )} dari ${formatMoney(params.goalStatus.targetAmount)}).`,
+    )} dari ${formatMoney(params.goalStatus.targetAmount)})`,
     `Sisa target: ${formatMoney(params.goalStatus.remainingAmount)}; ${eta}`,
-    params.goalStatus.progressSource === "NET_SAVINGS_PROXY"
-      ? "Catatan: progress ini masih memakai proxy tabungan bersih."
-      : null
+    `Total sudah ditabung: ${formatMoney(params.goalStatus.currentProgress)}`
   ]
     .filter(Boolean)
     .join("\n");

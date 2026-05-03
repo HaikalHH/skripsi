@@ -56,8 +56,10 @@ const buildComparisonReportText = (params: {
   current: Awaited<ReturnType<typeof getUserReportData>>;
   previous: Awaited<ReturnType<typeof getUserReportData>>;
 }) => {
-  const currentBalance = params.current.incomeTotal - params.current.expenseTotal;
-  const previousBalance = params.previous.incomeTotal - params.previous.expenseTotal;
+  const currentSaving = params.current.savingTotal ?? 0;
+  const previousSaving = params.previous.savingTotal ?? 0;
+  const currentBalance = params.current.incomeTotal - params.current.expenseTotal - currentSaving;
+  const previousBalance = params.previous.incomeTotal - params.previous.expenseTotal - previousSaving;
   const currentTopCategory = params.current.categoryBreakdown[0];
   const previousTopCategory = params.previous.categoryBreakdown[0];
 
@@ -65,9 +67,11 @@ const buildComparisonReportText = (params: {
     `Ringkasan ${params.current.periodLabel} dibanding ${params.previous.periodLabel}:`,
     `- Income sekarang: ${formatMoney(params.current.incomeTotal)}`,
     `- Expense sekarang: ${formatMoney(params.current.expenseTotal)}`,
+    currentSaving > 0 ? `- Saving/goal sekarang: ${formatMoney(currentSaving)}` : null,
     `- Sisa sekarang: ${formatMoney(currentBalance)}`,
     `- Income sebelumnya: ${formatMoney(params.previous.incomeTotal)}`,
     `- Expense sebelumnya: ${formatMoney(params.previous.expenseTotal)}`,
+    previousSaving > 0 ? `- Saving/goal sebelumnya: ${formatMoney(previousSaving)}` : null,
     `- Sisa sebelumnya: ${formatMoney(previousBalance)}`,
     `- Perubahan expense: ${buildDeltaLabel(params.current.expenseTotal - params.previous.expenseTotal)}`,
     `- Perubahan sisa: ${buildDeltaLabel(currentBalance - previousBalance)}`,
@@ -98,8 +102,10 @@ export const buildReportResponse = async (
     if (
       currentData.incomeTotal === 0 &&
       currentData.expenseTotal === 0 &&
+      (currentData.savingTotal ?? 0) === 0 &&
       previousData.incomeTotal === 0 &&
-      previousData.expenseTotal === 0
+      previousData.expenseTotal === 0 &&
+      (previousData.savingTotal ?? 0) === 0
     ) {
       return {
         replyText: `Belum ada transaksi untuk report ${params.comparisonRange.current.label}.`
@@ -115,15 +121,18 @@ export const buildReportResponse = async (
   }
 
   const reportData = await getUserReportData(userId, params.period, params.dateRange ?? null);
+  const attachMonthlyPdf = shouldAttachMonthlyPdf(params.period, params.dateRange ?? null);
   const summaryText = buildReportText(
     params.period,
     reportData.incomeTotal,
     reportData.expenseTotal,
     reportData.categoryBreakdown,
-    reportData.periodLabel
+    reportData.periodLabel,
+    reportData.transactions,
+    { includeTransactions: !attachMonthlyPdf, savingTotal: reportData.savingTotal ?? 0 }
   );
 
-  if (reportData.incomeTotal === 0 && reportData.expenseTotal === 0) {
+  if (reportData.incomeTotal === 0 && reportData.expenseTotal === 0 && (reportData.savingTotal ?? 0) === 0) {
     return {
       replyText: `Belum ada transaksi untuk report ${reportData.periodLabel}.`
     };
@@ -139,7 +148,7 @@ export const buildReportResponse = async (
       };
     })();
 
-  if (shouldAttachMonthlyPdf(params.period, params.dateRange ?? null)) {
+  if (attachMonthlyPdf) {
     try {
       const document = await buildMonthlyReportPdfAttachment({
         userId,

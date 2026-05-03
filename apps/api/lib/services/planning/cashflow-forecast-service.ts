@@ -401,6 +401,9 @@ export const buildCashflowForecastReply = async (params: {
   const cycleExpense = cycleTransactions
     .filter((transaction) => transaction.type === "EXPENSE")
     .reduce((sum, transaction) => sum + toNumber(transaction.amount), 0);
+  const cycleSaving = cycleTransactions
+    .filter((transaction) => transaction.type === "SAVING")
+    .reduce((sum, transaction) => sum + toNumber(transaction.amount), 0);
   const rollingExpense = rollingExpenses.reduce((sum, transaction) => sum + toNumber(transaction.amount), 0);
   const liquidAssetValue = liquidAssets.reduce((sum, asset) => sum + toNumber(asset.estimatedValue), 0);
 
@@ -446,7 +449,7 @@ export const buildCashflowForecastReply = async (params: {
     return "Data pengeluaran kamu belum cukup untuk saya proyeksikan. Catat dulu beberapa transaksi atau isi profil pengeluaran bulanan ya Boss.";
   }
 
-  const bufferNow = currentIncomeEstimate - cycleExpense + liquidAssetValue;
+  const bufferNow = currentIncomeEstimate - cycleExpense - cycleSaving + liquidAssetValue;
   const scenarioExpenseAmount = params.query.scenarioExpenseAmount ?? 0;
   const projectedExpenseUntilTarget =
     Math.round(expenseRunRate.value * daysRemaining) + scenarioExpenseAmount;
@@ -468,6 +471,7 @@ export const buildCashflowForecastReply = async (params: {
     `- Basis transaksi: ${basisStartLabel} s.d. ${basisEndLabel}`,
     `- Income berjalan: ${formatMoney(currentIncomeEstimate)} (${currentIncomeSource})`,
     `- Expense berjalan: ${formatMoney(cycleExpense)}`,
+    cycleSaving > 0 ? `- Saving/goal berjalan: ${formatMoney(cycleSaving)}` : null,
     liquidAssetValue > 0 ? `- Aset likuid tercatat: ${formatMoney(liquidAssetValue)}` : null,
     scheduledIncomeBeforeTarget > 0
       ? `- Income aktif yang diperkirakan masih masuk sebelum target: ${formatMoney(scheduledIncomeBeforeTarget)}`

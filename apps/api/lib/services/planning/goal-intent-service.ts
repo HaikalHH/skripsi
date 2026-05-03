@@ -30,9 +30,6 @@ export const detectGoalTypeFromText = (rawText: string): FinancialGoalType | nul
   if (/\b(liburan|travel|jalan jalan|holiday)\b/i.test(text)) {
     return FinancialGoalType.VACATION;
   }
-  if (/\b(financial freedom|bebas finansial|pensiun dini|ff)\b/i.test(text)) {
-    return FinancialGoalType.FINANCIAL_FREEDOM;
-  }
 
   return null;
 };
@@ -42,7 +39,6 @@ const buildDefaultGoalName = (goalType: FinancialGoalType | null) => {
   if (goalType === FinancialGoalType.HOUSE) return "Beli Rumah";
   if (goalType === FinancialGoalType.VEHICLE) return "Beli Kendaraan";
   if (goalType === FinancialGoalType.VACATION) return "Liburan";
-  if (goalType === FinancialGoalType.FINANCIAL_FREEDOM) return "Financial Freedom";
   return "Target Tabungan";
 };
 
@@ -66,6 +62,20 @@ const extractCustomTargetName = (rawText: string) => {
 
   const cleaned = explicit[1]
     .replace(/\b(mau|ingin|pengen|nabung|tabungan|buat|untuk)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!cleaned) return null;
+  return titleCaseWords(cleaned);
+};
+
+const extractContextualGoalName = (rawText: string) => {
+  const contextual = rawText.match(
+    /\b(?:buat|untuk)\s+(.+?)(?=\s+\d[\d.,]*(?:\s*(?:jt|juta|rb|ribu|k))?\b|$)/i
+  );
+  if (!contextual) return null;
+
+  const cleaned = contextual[1]
+    .replace(/\b(goal utama|target tabungan|tabungan pribadi|tabungan|saving|nabung|menabung|tabung)\b/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
   if (!cleaned) return null;
@@ -98,6 +108,15 @@ export const buildGoalIntentDetails = (rawText: string): GoalIntentDetails => {
       goalType: FinancialGoalType.CUSTOM,
       goalName: customName,
       goalQuery: customName
+    };
+  }
+
+  const contextualGoalName = extractContextualGoalName(rawText);
+  if (contextualGoalName) {
+    return {
+      goalType: FinancialGoalType.CUSTOM,
+      goalName: contextualGoalName,
+      goalQuery: contextualGoalName
     };
   }
 

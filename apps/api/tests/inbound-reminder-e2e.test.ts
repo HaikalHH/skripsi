@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const hoisted = vi.hoisted(() => {
   const store = {
@@ -212,12 +212,28 @@ const hoisted = vi.hoisted(() => {
     },
     aIAnalysisLog: {
       create: async ({ data }: any) => {
+        const id = `ailog_${store.idCounter++}`;
         const row = {
-          id: `ailog_${store.idCounter++}`,
-          ...data
+          id,
+          ...data,
+          createdAt: new Date(store.now.getTime() + store.idCounter)
         };
         store.aiLogs.push(row);
         return row;
+      },
+      findMany: async ({ where, orderBy, take }: any) => {
+        let rows = [...store.aiLogs];
+        if (where?.userId) {
+          rows = rows.filter((item) => item.userId === where.userId);
+        }
+        if (where?.analysisType) {
+          rows = rows.filter((item) => item.analysisType === where.analysisType);
+        }
+        if (orderBy?.createdAt === "desc") {
+          rows = rows.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        }
+        if (typeof take === "number") rows = rows.slice(0, take);
+        return rows;
       }
     },
     budget: {
@@ -272,10 +288,17 @@ const hoisted = vi.hoisted(() => {
       }
     },
     savingsGoal: {
+      findUnique: async ({ where }: any) =>
+        store.savingsGoals.find((item) => item.userId === where.userId) ?? null,
       upsert: async ({ where, update, create }: any) => {
         const existing = store.savingsGoals.find((item) => item.userId === where.userId);
         if (existing) {
-          Object.assign(existing, update, { updatedAt: new Date(store.now) });
+          const nextUpdate = { ...update };
+          if (nextUpdate.currentProgress && typeof nextUpdate.currentProgress === "object") {
+            const incrementValue = Number(nextUpdate.currentProgress.increment ?? 0);
+            nextUpdate.currentProgress = Number(existing.currentProgress ?? 0) + incrementValue;
+          }
+          Object.assign(existing, nextUpdate, { updatedAt: new Date(store.now) });
           return existing;
         }
 
@@ -486,6 +509,7 @@ vi.mock("@/lib/services/ai/ai-service", () => ({
   extractIntentAndTransaction: vi.fn(async () => hoisted.store.extractionResult),
   generateAIInsight: vi.fn(async () => "insight"),
   generateAIFinancialAdvice: vi.fn(async () => "advice"),
+  generateAIFinancialFreedomOnboardingAnalysis: vi.fn(async () => null),
   canonicalizeOnboardingAnswer: vi.fn(async () => null),
   canonicalizeSupportedFinanceMessage: vi.fn(async ({ userMessage }: any) =>
     Object.prototype.hasOwnProperty.call(hoisted.store.semanticCanonicalizations, userMessage)
@@ -623,7 +647,13 @@ const seedData = () => {
 describe("inbound + reminder e2e (mock DB)", () => {
   beforeEach(() => {
     global.__waRateLimitBuckets?.clear();
+    vi.useFakeTimers();
+    vi.setSystemTime(store.now);
     seedData();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("processes inbound transaction and returns near-budget warning", async () => {
@@ -635,8 +665,20 @@ describe("inbound + reminder e2e (mock DB)", () => {
     });
 
     expect(result.status).toBe(200);
-    expect(result.body.replyText).toContain("Transaksi berhasil dicatat");
-    expect(result.body.replyText).toContain("Warning: budget kategori Food & Drink hampir habis");
+    expect(result.body.replyText).toContain("Draf transaksi belum disimpan");
+    expect(result.body.replyText).toContain("simpan");
+    expect(store.transactions).toHaveLength(4);
+
+    const saved = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "simpan",
+      sentAt: "2026-02-24T12:00:10.000Z"
+    });
+
+    expect(saved.status).toBe(200);
+    expect(saved.body.replyText).toContain("Transaksi berhasil dicatat");
+    expect(saved.body.replyText).toContain("Warning: budget kategori Food & Drink hampir habis");
     expect(store.transactions).toHaveLength(5);
     expect(store.transactions.at(-1)?.amount).toBe(50_000);
     expect(store.transactions.at(-1)?.category).toBe("Food & Drink");
@@ -665,10 +707,39 @@ describe("inbound + reminder e2e (mock DB)", () => {
     expect(result.status).toBe(200);
     expect(result.body.replyText).toContain("Transaksi berhasil dicatat");
     expect(result.body.replyText).toContain("- Tipe: INCOME");
-    expect(result.body.replyText).toContain("- Amount: 5000000.00");
+    expect(result.body.replyText).toContain("- Amount: Rp5.000.000");
+    expect(result.body.replyText).not.toContain("Progress");
+    expect(result.body.replyText).not.toContain("Total sudah ditabung");
     expect(store.transactions.at(-1)?.type).toBe("INCOME");
     expect(store.transactions.at(-1)?.amount).toBe(5_000_000);
     expect(store.transactions.at(-1)?.category).toBe("Salary");
+  });
+
+  it("only updates goal progress from explicit saving transactions", async () => {
+    store.extractionResult = {
+      intent: "UNKNOWN",
+      type: null,
+      amount: null,
+      category: null,
+      merchant: null,
+      note: null,
+      occurredAt: null,
+      reportPeriod: null,
+      adviceQuery: null
+    } as any;
+
+    const result = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "nabung 500 ribu",
+      sentAt: "2026-02-24T12:00:00.000Z"
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.body.replyText).toContain("- Tipe: SAVING");
+    expect(result.body.replyText).toContain("Total sudah ditabung: Rp500.000");
+    expect(store.transactions.at(-1)?.type).toBe("SAVING");
+    expect(store.savingsGoals[0]?.currentProgress).toBe(500_000);
   });
 
   it("normalizes merchant names when fallback transaction parsing is used", async () => {
@@ -692,9 +763,161 @@ describe("inbound + reminder e2e (mock DB)", () => {
     });
 
     expect(result.status).toBe(200);
-    expect(result.body.replyText).toContain("Transaksi berhasil dicatat");
+    expect(result.body.replyText).toContain("Draf transaksi belum disimpan");
+    expect(result.body.replyText).toContain("Spotify");
+    const saved = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "simpan",
+      sentAt: "2026-02-24T12:00:10.000Z"
+    });
+    expect(saved.status).toBe(200);
+    expect(saved.body.replyText).toContain("Transaksi berhasil dicatat");
     expect(store.transactions.at(-1)?.category).toBe("Entertainment");
     expect(store.transactions.at(-1)?.merchant).toBe("Spotify");
+  });
+
+  it("requires an existing budget before accepting an explicit category override", async () => {
+    const result = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "bayar spotify 50000 kategori entertainment",
+      sentAt: "2026-02-24T12:00:00.000Z"
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.body.replyText).toContain("Kategori Entertainment belum punya budget aktif");
+    expect(result.body.replyText).toContain("/budget set");
+    expect(store.transactions).toHaveLength(4);
+  });
+
+  it("collects budget set flow before staging it", async () => {
+    const start = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "/budget set",
+      sentAt: "2026-02-24T12:00:00.000Z"
+    });
+    expect(start.status).toBe(200);
+    expect(start.body.replyText).toContain("Budget kategori apa");
+
+    const category = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "entertainment",
+      sentAt: "2026-02-24T12:00:05.000Z"
+    });
+    expect(category.status).toBe(200);
+    expect(category.body.replyText).toContain("Limit bulanan untuk Entertainment");
+
+    const draft = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "500rb",
+      sentAt: "2026-02-24T12:00:08.000Z"
+    });
+
+    expect(draft.status).toBe(200);
+    expect(draft.body.replyText).toContain("Draf budget belum disimpan");
+    expect(store.budgets).toHaveLength(1);
+
+    const saved = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "simpan",
+      sentAt: "2026-02-24T12:00:10.000Z"
+    });
+
+    expect(saved.status).toBe(200);
+    expect(saved.body.replyText).toContain("Budget kategori berhasil disimpan");
+    expect(store.budgets).toHaveLength(2);
+    expect(store.budgets.at(-1)?.category).toBe("Entertainment");
+  });
+
+  it("collects goal set flow and preserves custom goal names", async () => {
+    const start = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "/set goal",
+      sentAt: "2026-02-24T12:00:00.000Z"
+    });
+    expect(start.status).toBe(200);
+    expect(start.body.replyText).toContain("Nama goal");
+
+    const name = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "dana arisan",
+      sentAt: "2026-02-24T12:00:03.000Z"
+    });
+    expect(name.status).toBe(200);
+    expect(name.body.replyText).toContain("Target Dana Arisan jumlahnya berapa");
+
+    const amount = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "20jt",
+      sentAt: "2026-02-24T12:00:06.000Z"
+    });
+    expect(amount.status).toBe(200);
+    expect(amount.body.replyText).toContain("Mau dicapai kapan");
+
+    const draft = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "juni 2030",
+      sentAt: "2026-02-24T12:00:08.000Z"
+    });
+
+    expect(draft.status).toBe(200);
+    expect(draft.body.replyText).toContain("Draf goal belum disimpan");
+    expect(draft.body.replyText).toContain("Dana Arisan");
+    expect(draft.body.replyText).toContain("Juni 2030");
+    expect(store.savingsGoals[0]?.targetAmount).toBe(1_500_000);
+
+    const saved = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "simpan",
+      sentAt: "2026-02-24T12:00:10.000Z"
+    });
+
+    expect(saved.status).toBe(200);
+    expect(saved.body.replyText).toContain("Status goal");
+    expect(store.savingsGoals[0]?.targetAmount).toBe(20_000_000);
+  });
+
+  it("collects goal add flow and records it as saving cashflow", async () => {
+    const start = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "/goal add",
+      sentAt: "2026-02-24T12:00:00.000Z"
+    });
+    expect(start.status).toBe(200);
+    expect(start.body.replyText).toContain("goal yang mana");
+
+    const goal = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "Target Tabungan",
+      sentAt: "2026-02-24T12:00:03.000Z"
+    });
+    expect(goal.status).toBe(200);
+    expect(goal.body.replyText).toContain("Mau masukin berapa");
+
+    const saved = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "500rb",
+      sentAt: "2026-02-24T12:00:06.000Z"
+    });
+
+    expect(saved.status).toBe(200);
+    expect(saved.body.replyText).toContain("Setoran goal berhasil dicatat");
+    expect(store.savingsGoals[0]?.currentProgress).toBe(500_000);
+    expect(store.transactions.at(-1)?.type).toBe("SAVING");
+    expect(store.transactions.at(-1)?.amount).toBe(500_000);
   });
 
   it("reuses learned merchant aliases from prior user transactions", async () => {
@@ -867,8 +1090,9 @@ describe("inbound + reminder e2e (mock DB)", () => {
 
     expect(result.status).toBe(200);
     expect(result.body.replyText).toContain("Ringkasan Januari 2026:");
-    expect(result.body.replyText).toContain("income 6000000.00");
-    expect(result.body.replyText).toContain("expense 1250000.00");
+    expect(result.body.replyText).toContain("Income: Rp6.000.000");
+    expect(result.body.replyText).toContain("Expense: Rp1.250.000");
+    expect(result.body.replyText).toContain("PDF report bulanan");
   });
 
   it("returns detailed transactions for a requested bucket", async () => {
@@ -1340,7 +1564,7 @@ describe("inbound + reminder e2e (mock DB)", () => {
     });
 
     expect(result.status).toBe(200);
-    expect(result.body.replyText).toContain('Rata-rata pengeluaran Entertainment yang cocok dengan "spotify" per bulan: Rp50.000.');
+    expect(result.body.replyText).toContain('Rata-rata pengeluaran Entertainment yang cocok dengan "spotify" per bulan: Rp50.000');
     expect(result.body.replyText).toContain("Basis perhitungan: 3 bulan data");
     expect(result.body.replyText).toContain("Total tercatat: Rp150.000");
   });
@@ -1403,7 +1627,7 @@ describe("inbound + reminder e2e (mock DB)", () => {
     });
 
     expect(result.status).toBe(200);
-    expect(result.body.replyText).toContain("Rata-rata pengeluaran Bills per minggu: Rp140.000.");
+    expect(result.body.replyText).toContain("Rata-rata pengeluaran Bills per minggu: Rp140.000");
     expect(result.body.replyText).toContain("Basis perhitungan: 3 minggu data");
     expect(result.body.replyText).toContain("Total tercatat: Rp420.000");
   });
@@ -1776,6 +2000,7 @@ describe("inbound + reminder e2e (mock DB)", () => {
     const currentMonthDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 7, 10, 0, 0, 0));
     const previousMonthDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 7, 10, 0, 0, 0));
 
+    store.transactions = [];
     store.transactions.push(
       {
         id: "tx_5",
@@ -2125,6 +2350,7 @@ describe("inbound + reminder e2e (mock DB)", () => {
     const rawQuestion = "yang paling bikin pengeluaran gue meledak merchant apa ya";
     store.semanticCanonicalizations[rawQuestion] = "merchant apa yang paling ngedorong kenaikan spending";
 
+    store.transactions = [];
     store.transactions.push(
       {
         id: "tx_sem_1",
@@ -2318,6 +2544,7 @@ describe("inbound + reminder e2e (mock DB)", () => {
     const currentMonthDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), safeDay, 10, 0, 0, 0));
     const previousMonthDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, safeDay, 10, 0, 0, 0));
 
+    store.transactions = [];
     store.transactions.push(
       {
         id: "tx_5",
@@ -2383,7 +2610,7 @@ describe("inbound + reminder e2e (mock DB)", () => {
     });
 
     expect(result.status).toBe(200);
-    expect(result.body.replyText).toContain("Transaksi berhasil dicatat");
+    expect(result.body.replyText).toContain("Draf transaksi belum disimpan");
     expect(store.users).toHaveLength(1);
     expect(store.users[0]?.id).toBe("user_1");
     expect(store.users[0]?.waNumber).toBe("6281110001");
@@ -2401,13 +2628,13 @@ describe("inbound + reminder e2e (mock DB)", () => {
     });
 
     expect(result.status).toBe(200);
-    expect(result.body.replyText).toContain("Transaksi berhasil dicatat");
+    expect(result.body.replyText).toContain("Draf transaksi belum disimpan");
     expect(store.users).toHaveLength(1);
     expect(store.users[0]?.id).toBe("user_1");
     expect(store.users[0]?.waNumber).toBe("6281110001");
   });
 
-  it("asks phone first on onboarding when sender identity is lid", async () => {
+  it("starts onboarding from goal selection when sender identity is lid", async () => {
     store.users = [];
     store.subscriptions = [];
     store.budgets = [];
@@ -2427,42 +2654,9 @@ describe("inbound + reminder e2e (mock DB)", () => {
       sentAt: "2026-02-24T12:00:00.000Z"
     });
     expect(start.status).toBe(200);
-    expect(start.body.replyText).toContain("kirim nomor WhatsApp aktif Anda dulu");
+    expect(start.body.replyText).toContain("Pilih dulu tujuan keuangan yang lagi pengen kamu capai");
     expect(store.users).toHaveLength(1);
     expect(store.users[0]?.waNumber).toBe("251796920508426");
-
-    const invalidPhone = await processInboundBody({
-      waNumber: "251796920508426",
-      messageType: "TEXT",
-      text: "Haikal",
-      sentAt: "2026-02-24T12:00:10.000Z"
-    });
-    expect(invalidPhone.status).toBe(200);
-    expect(invalidPhone.body.replyText).toContain("Nomor WhatsApp belum valid");
-
-    const unregisteredPhone = await processInboundBody({
-      waNumber: "251796920508426",
-      phoneInput: "6281275167471",
-      phoneInputRegistered: false,
-      messageType: "TEXT",
-      text: "6281275167471",
-      sentAt: "2026-02-24T12:00:15.000Z"
-    });
-    expect(unregisteredPhone.status).toBe(200);
-    expect(unregisteredPhone.body.replyText).toContain("tidak terdaftar di WhatsApp");
-
-    const setPhone = await processInboundBody({
-      waNumber: "251796920508426",
-      phoneInput: "6281275167471",
-      phoneInputRegistered: true,
-      messageType: "TEXT",
-      text: "6281275167471",
-      sentAt: "2026-02-24T12:00:20.000Z"
-    });
-    expect(setPhone.status).toBe(200);
-    expect(setPhone.body.replyText).toContain("Apa tujuan utama kamu pakai AI Finance ini?");
-    expect(store.users[0]?.waNumber).toBe("6281275167471");
-    expect(store.users).toHaveLength(1);
   });
 
   it("accepts short readiness follow-up during onboarding", async () => {
@@ -2486,10 +2680,12 @@ describe("inbound + reminder e2e (mock DB)", () => {
     });
 
     expect(result.status).toBe(200);
-    expect(result.body.replyText).toContain("Apa tujuan utama kamu pakai AI Finance ini?");
+    expect(result.body.replyText).toContain("Pilih dulu tujuan keuangan yang lagi pengen kamu capai");
   });
 
   it("queues budget/goal/weekly reminders, then deduplicates next run", async () => {
+    store.savingsGoals[0].currentProgress = store.savingsGoals[0].targetAmount;
+
     const firstRun = await runProactiveReminders(new Date("2026-02-24T12:00:00.000Z"));
     expect(firstRun.processedUsers).toBe(1);
     expect(firstRun.queuedByType.budget).toBe(1);
@@ -2505,6 +2701,7 @@ describe("inbound + reminder e2e (mock DB)", () => {
   });
 
   it("respects reminder daily cap and prioritizes higher-impact reminders first", async () => {
+    store.savingsGoals[0].currentProgress = store.savingsGoals[0].targetAmount;
     store.reminderPreferences = [
       {
         id: "pref_1",
@@ -2555,7 +2752,46 @@ describe("inbound + reminder e2e (mock DB)", () => {
     expect(result.queued).toBe(0);
   });
 
-  it("queues contextual recurring, cashflow, and goal pace reminders when relevant", async () => {
+  it("only queues salary input reminder on payday", async () => {
+    store.budgets = [];
+    store.transactions = [];
+    store.reminderPreferences = [
+      {
+        id: "pref_1",
+        userId: "user_1",
+        budgetEnabled: false,
+        weeklyEnabled: false,
+        weeklyReviewEnabled: false,
+        recurringEnabled: false,
+        cashflowEnabled: true,
+        goalEnabled: false,
+        monthlyClosingEnabled: false,
+        quietHoursStart: null,
+        quietHoursEnd: null,
+        minIntervalHours: 24,
+        maxPerDay: 3,
+        snoozedUntil: null
+      }
+    ];
+
+    const beforePayday = await runProactiveReminders(new Date("2026-02-24T02:00:00.000Z"));
+    expect(beforePayday.queued).toBe(0);
+
+    const paydayRunAt = new Date("2026-02-25T02:00:00.000Z");
+    vi.setSystemTime(paydayRunAt);
+    const paydayRun = await runProactiveReminders(paydayRunAt);
+    expect(paydayRun.queuedByType.cashflow).toBe(1);
+
+    const claimed = await claimPendingOutboundMessages(10);
+    expect(claimed).toHaveLength(1);
+    expect(claimed[0]?.messageText).toContain("Reminder Gajian");
+    expect(claimed[0]?.messageText).toContain('format "gaji 9.2jt"');
+
+    const duplicateRun = await runProactiveReminders(new Date("2026-02-25T02:10:00.000Z"));
+    expect(duplicateRun.queued).toBe(0);
+  });
+
+  it("queues payday salary input and goal pace reminders when relevant", async () => {
     store.budgets = [];
     store.savingsGoals = [
       {
@@ -2648,27 +2884,26 @@ describe("inbound + reminder e2e (mock DB)", () => {
       }
     ];
 
-    const firstRun = await runProactiveReminders(new Date("2026-02-24T12:00:00.000Z"));
+    const paydayRunAt = new Date("2026-02-25T02:00:00.000Z");
+    vi.setSystemTime(paydayRunAt);
+    const firstRun = await runProactiveReminders(paydayRunAt);
     expect(firstRun.processedUsers).toBe(1);
-    expect(firstRun.queuedByType.recurring).toBe(1);
     expect(firstRun.queuedByType.cashflow).toBe(1);
     expect(firstRun.queuedByType.goalPace).toBe(1);
 
     const claimed = await claimPendingOutboundMessages(10);
-    expect(claimed).toHaveLength(3);
+    expect(claimed).toHaveLength(2);
     const combinedText = claimed.map((item) => item.messageText).join("\n");
-    expect(combinedText).toContain("Reminder Langganan");
-    expect(combinedText).toContain("Spotify");
-    expect(combinedText).toContain("Reminder Cashflow");
-    expect(combinedText).toContain("buffer kamu");
+    expect(combinedText).toContain("Reminder Gajian");
+    expect(combinedText).toContain('format "gaji 9.2jt"');
     expect(combinedText).toContain("Reminder Goal");
     expect(combinedText).toContain("progress Target Tabungan");
 
-    const secondRun = await runProactiveReminders(new Date("2026-02-24T12:10:00.000Z"));
-    expect(secondRun.queued).toBe(0);
   });
 
   it("keeps reminder dedupe persistent through reminder events", async () => {
+    store.savingsGoals[0].currentProgress = store.savingsGoals[0].targetAmount;
+
     const firstRun = await runProactiveReminders(new Date("2026-02-24T12:00:00.000Z"));
     expect(firstRun.queued).toBeGreaterThan(0);
     expect(store.reminderEvents.length).toBe(firstRun.queued);
@@ -2827,5 +3062,4 @@ describe("inbound + reminder e2e (mock DB)", () => {
     expect(habitLeaks.body.replyText).toContain("Kopi Kenangan");
   });
 });
-
 

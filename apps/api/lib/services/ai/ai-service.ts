@@ -2,13 +2,13 @@ import {
   buildAdvicePrompt,
   buildExtractionPrompt,
   buildInsightPrompt,
-  buildOnboardingAnswerCanonicalizationPrompt,
   buildSemanticCanonicalizationPrompt,
   extractJsonObject,
   geminiExtractionSchema
 } from "@finance/shared";
 import { z } from "zod";
 import { env } from "@/lib/env";
+import { applyBossFinanceEmojiStyle } from "@/lib/services/messaging/bot-text-style-service";
 
 const insightSchema = z.object({
   insightText: z.string().min(1)
@@ -23,6 +23,24 @@ const semanticCanonicalizationSchema = z.object({
 });
 
 const GEMINI_MAX_RETRIES = 3;
+const CONTEXTUAL_EMOJI_STYLE_GUIDE = `
+Style:
+- Use contextual emojis across the reply where they help scanning.
+- Default to 1 emoji in one reply.
+- Add a second emoji only if there is a clearly separate warning/risk line that deserves extra emphasis.
+- Do not put emojis on every paragraph.
+- Put emojis near relevant lines or sections, not only on the opening line.
+- Examples: confirmation = checkmark, analysis/report = chart, target/plan = dart, warning/risk = caution, note/question = pin or memo.
+- Do not use random, playful, or excessive emojis.
+- Keep the tone premium, calm, and practical.
+`.trim();
+const BOSS_FINANCE_STYLE_GUIDE = `
+Style:
+- Include 1 subtle monochrome emoji in the whole reply.
+- Prefer classy black-and-white style emojis such as ⚫, ⚪, ▪️, or ◻️.
+- Do not use colorful, playful, or excessive emojis.
+- Keep the tone premium, calm, and practical.
+`.trim();
 
 export class GeminiRateLimitError extends Error {
   constructor(message: string) {
@@ -154,24 +172,32 @@ export const extractIntentAndTransaction = async (rawInput: string) => {
 };
 
 export const generateAIInsight = async (summaryText: string) => {
-  const prompt = buildInsightPrompt(summaryText);
+  const prompt = `
+${buildInsightPrompt(summaryText)}
+
+${CONTEXTUAL_EMOJI_STYLE_GUIDE}
+  `.trim();
   const output = await callGemini(prompt);
   const parsed = extractJsonObject(output);
-  return insightSchema.parse(parsed).insightText;
+  return applyBossFinanceEmojiStyle(insightSchema.parse(parsed).insightText);
 };
 
 export const generateAIFinancialAdvice = async (params: {
   userQuestion: string;
   financialSnapshot: string;
 }) => {
-  const prompt = buildAdvicePrompt({
+  const prompt = `
+${buildAdvicePrompt({
     nowIso: new Date().toISOString(),
     userQuestion: params.userQuestion,
     financialSnapshot: params.financialSnapshot
-  });
+  })}
+
+${CONTEXTUAL_EMOJI_STYLE_GUIDE}
+  `.trim();
   const output = await callGemini(prompt);
   const parsed = extractJsonObject(output);
-  return insightSchema.parse(parsed).insightText;
+  return applyBossFinanceEmojiStyle(insightSchema.parse(parsed).insightText);
 };
 
 export const generateGroundedGeneralChatReply = async (params: {
@@ -202,6 +228,8 @@ Hard safety rules:
 - Keep the answer concise, practical, and conversational.
 - Maximum 4 short sentences.
 
+${CONTEXTUAL_EMOJI_STYLE_GUIDE}
+
 Return STRICT JSON only:
 {
   "replyText": "string"
@@ -222,7 +250,7 @@ ${params.userMessage}
 
   const output = await callGemini(prompt);
   const parsed = extractJsonObject(output);
-  return generalChatSchema.parse(parsed).replyText;
+  return applyBossFinanceEmojiStyle(generalChatSchema.parse(parsed).replyText);
 };
 
 export const canonicalizeSupportedFinanceMessage = async (params: {
@@ -233,20 +261,6 @@ export const canonicalizeSupportedFinanceMessage = async (params: {
     userMessage: params.userMessage,
     recentMessages: params.recentMessages
   });
-  const output = await callGemini(prompt);
-  const parsed = extractJsonObject(output);
-  return semanticCanonicalizationSchema.parse(parsed).normalizedText;
-};
-
-export const canonicalizeOnboardingAnswer = async (params: {
-  stepKey: string;
-  questionTitle: string;
-  questionBody: string;
-  inputType: string;
-  rawAnswer: string;
-  options?: Array<{ value: string; label: string }>;
-}) => {
-  const prompt = buildOnboardingAnswerCanonicalizationPrompt(params);
   const output = await callGemini(prompt);
   const parsed = extractJsonObject(output);
   return semanticCanonicalizationSchema.parse(parsed).normalizedText;

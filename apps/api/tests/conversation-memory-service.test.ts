@@ -174,7 +174,7 @@ describe("conversation memory service", () => {
       userId: "user_1",
       currentMessageId: "msg_current",
       text: "yang tadi",
-      fallbackAssistantText: "Transaksi berhasil dicatat - Tipe: EXPENSE - Amount: 25000.00"
+      fallbackAssistantText: "Transaksi berhasil dicatat - Tipe: EXPENSE - Amount: Rp25.000"
     });
 
     expect(result.kind).toBe("reply");
@@ -272,6 +272,20 @@ describe("conversation memory service", () => {
     expect(result).toMatchObject({
       kind: "rewrite",
       effectiveText: "kalau bayar cicilan 1 juta aman sampai gajian gak"
+    });
+  });
+
+  it("does not clarify explicit finance news requests just because there is prior assistant context", async () => {
+    const result = await resolveConversationMemory({
+      userId: "user_1",
+      text: "berita finance hari ini",
+      fallbackAssistantText:
+        "Saya belum yakin konteks `yang tadi` itu yang mana, jadi saya belum mau asumsi."
+    });
+
+    expect(result).toMatchObject({
+      kind: "none",
+      effectiveText: "berita finance hari ini"
     });
   });
 });

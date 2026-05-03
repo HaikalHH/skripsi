@@ -95,22 +95,41 @@ const tryMigrateWaNumber = async (userId: string, preferredWaNumber: string) => 
   }
 };
 
-export const findOrCreateUserByWaNumber = async (waNumber: string, waLid?: string) => {
+export const findExistingUserByWaNumber = async (waNumber: string, waLid?: string) => {
   const normalized = normalizeWaNumber(waNumber);
   const candidates = buildWaLookupCandidates(waNumber, normalized, waLid ? [waLid] : []);
 
   for (const candidate of candidates) {
     const existing = await prisma.user.findUnique({ where: { waNumber: candidate } });
-    if (!existing) continue;
+    if (existing) {
+      return {
+        user: existing,
+        normalizedWaNumber: normalized || stripWhitespace(waNumber)
+      };
+    }
+  }
 
-    if (normalized && existing.waNumber !== normalized && isLikelyPhoneNumber(normalized)) {
-      const migrated = await tryMigrateWaNumber(existing.id, normalized);
+  return {
+    user: null,
+    normalizedWaNumber: normalized || stripWhitespace(waNumber)
+  };
+};
+
+export const findOrCreateUserByWaNumber = async (waNumber: string, waLid?: string) => {
+  const { user: existingUser, normalizedWaNumber: normalized } = await findExistingUserByWaNumber(
+    waNumber,
+    waLid
+  );
+
+  if (existingUser) {
+    if (normalized && existingUser.waNumber !== normalized && isLikelyPhoneNumber(normalized)) {
+      const migrated = await tryMigrateWaNumber(existingUser.id, normalized);
       if (migrated) {
         return { user: migrated, isNew: false };
       }
     }
 
-    return { user: existing, isNew: false };
+    return { user: existingUser, isNew: false };
   }
 
   const waNumberToStore = normalized || stripWhitespace(waNumber);

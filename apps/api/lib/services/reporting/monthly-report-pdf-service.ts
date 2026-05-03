@@ -4,16 +4,22 @@ import { env } from "@/lib/env";
 import { buildFinancialHealthReply } from "@/lib/services/planning/financial-health-service";
 import { getSavingsGoalStatus } from "@/lib/services/planning/goal-service";
 import { getUserPortfolioValuation } from "@/lib/services/market/portfolio-valuation-service";
-import { formatMoney, formatPercent } from "@/lib/services/shared/money-format";
+import { formatMoney, formatMoneyWhole, formatPercent } from "@/lib/services/shared/money-format";
+import { formatDurationFromMonths } from "@/lib/services/shared/projection-math-service";
 import { analyzeRecurringExpenses } from "@/lib/services/transactions/recurring-expense-service";
 import { normalizeExpenseBucketCategory } from "@/lib/services/transactions/category-override-service";
-import type { ReportDateRange } from "@/lib/services/reporting/report-service";
+import type {
+  ReportDateRange,
+  ReportTransactionItem
+} from "@/lib/services/reporting/report-service";
 
 type MonthlyReportData = {
   periodLabel: string;
   incomeTotal: number;
   expenseTotal: number;
+  savingTotal?: number;
   categoryBreakdown: Array<{ category: string; total: number }>;
+  transactions?: ReportTransactionItem[];
 };
 
 const sanitizeFilePart = (value: string) =>
@@ -39,6 +45,34 @@ const splitReplyLines = (value: string) =>
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
+
+const REPORT_DATE_FORMATTER = new Intl.DateTimeFormat("id-ID", {
+  day: "numeric",
+  month: "long",
+  year: "numeric"
+});
+
+const REPORT_MONTH_FORMATTER = new Intl.DateTimeFormat("id-ID", {
+  month: "long",
+  year: "numeric"
+});
+
+const buildReportRangeLabel = (range: ReportDateRange) => {
+  const sameDay =
+    range.start.getUTCFullYear() === range.end.getUTCFullYear() &&
+    range.start.getUTCMonth() === range.end.getUTCMonth() &&
+    range.start.getUTCDate() === range.end.getUTCDate();
+  if (sameDay) return REPORT_DATE_FORMATTER.format(range.start);
+
+  const sameMonth =
+    range.start.getUTCFullYear() === range.end.getUTCFullYear() &&
+    range.start.getUTCMonth() === range.end.getUTCMonth();
+  if (sameMonth) {
+    return `${range.start.getUTCDate()}-${range.end.getUTCDate()} ${REPORT_MONTH_FORMATTER.format(range.start)}`;
+  }
+
+  return `${REPORT_DATE_FORMATTER.format(range.start)} - ${REPORT_DATE_FORMATTER.format(range.end)}`;
+};
 
 const buildBudgetSection = async (params: {
   userId: string;
@@ -87,9 +121,7 @@ const buildGoalSection = async (userId: string) => {
         (goal, index) =>
           `${index + 1}. ${goal.goalName} | ${formatPercent(goal.progressPercent)} | sisa ${formatMoney(
             goal.remainingAmount
-          )}${goal.estimatedMonthsToGoal != null ? ` | eta ${goal.estimatedMonthsToGoal.toFixed(1)} bln` : ""}${
-            goal.trackingStatus ? ` | ${goal.trackingStatus}` : ""
-          }`
+          )}${goal.estimatedMonthsToGoal != null ? ` | eta ${formatDurationFromMonths(goal.estimatedMonthsToGoal)}` : ""}`
       )
     };
   }
@@ -99,8 +131,7 @@ const buildGoalSection = async (userId: string) => {
     lines: [
       `${goalStatus.goalName ?? "Goal utama"} | ${formatPercent(goalStatus.progressPercent)} | sisa ${formatMoney(
         goalStatus.remainingAmount
-      )}${goalStatus.estimatedMonthsToGoal != null ? ` | eta ${goalStatus.estimatedMonthsToGoal.toFixed(1)} bln` : ""}`,
-      `Status tracking: ${goalStatus.trackingStatus}`,
+      )}${goalStatus.estimatedMonthsToGoal != null ? ` | eta ${formatDurationFromMonths(goalStatus.estimatedMonthsToGoal)}` : ""}`,
       ...(goalStatus.contributionMonthStreak > 0
         ? [`Streak kontribusi: ${goalStatus.contributionMonthStreak} bulan`]
         : [])
@@ -108,21 +139,73 @@ const buildGoalSection = async (userId: string) => {
   };
 };
 
+const ASSET_TYPE_LABELS = {
+  GOLD: "Emas",
+  STOCK: "Saham",
+  MUTUAL_FUND: "Reksa dana",
+  CRYPTO: "Crypto",
+  DEPOSIT: "Tabungan/deposito",
+  PROPERTY: "Properti",
+  BUSINESS: "Bisnis",
+  OTHER: "Aset lain"
+} as const;
+
+const getAssetTypeLabel = (assetType: keyof typeof ASSET_TYPE_LABELS | string) =>
+  ASSET_TYPE_LABELS[assetType as keyof typeof ASSET_TYPE_LABELS] ?? assetType;
+
+const buildPlainRebalanceStatus = (status: "HEALTHY" | "WATCH" | "ACTION") => {
+  if (status === "HEALTHY") return "Aman dipantau. Komposisi aset masih cukup seimbang.";
+  if (status === "ACTION") return "Perlu dicek. Ada aset atau tipe aset yang terlalu dominan.";
+  return "Perlu dipantau. Belum darurat, tapi komposisinya mulai berat di satu sisi.";
+};
+
 const buildPortfolioSection = async (userId: string) => {
   const snapshot = await getUserPortfolioValuation(userId);
   if (!snapshot.items.length) return null;
 
+  const assetRows = snapshot.items.slice(0, 12).map((item, index) => {
+    const share = snapshot.totalCurrentValue > 0 ? (item.currentValue / snapshot.totalCurrentValue) * 100 : 0;
+    const gainText =
+      item.unrealizedGain > 0
+        ? `naik ${formatMoneyWhole(item.unrealizedGain)}`
+        : item.unrealizedGain < 0
+          ? `turun ${formatMoneyWhole(Math.abs(item.unrealizedGain))}`
+          : "belum berubah";
+    const priceNote =
+      item.pricingMode === "market"
+        ? `harga pasar ${formatMoneyWhole(item.currentPrice)}`
+        : `pakai harga input ${formatMoneyWhole(item.currentPrice)}`;
+
+    return `Aset ${index + 1}: ${item.displayName} | Tipe: ${getAssetTypeLabel(item.assetType)} | Nilai: ${formatMoneyWhole(
+      item.currentValue
+    )} | Porsi: ${share.toFixed(1)}% | Jumlah: ${item.quantity} ${item.unit} | ${gainText} dari modal | ${priceNote}`;
+  });
+  const typeBreakdownText = snapshot.typeBreakdown
+    .slice(0, 5)
+    .map((item) => `${getAssetTypeLabel(item.assetType)} ${item.sharePercent.toFixed(1)}%`)
+    .join(", ");
+  const readableReasons = snapshot.rebalanceReasons.length
+    ? snapshot.rebalanceReasons.map((reason) => `Yang perlu diperhatikan: ${reason}.`)
+    : ["Yang perlu diperhatikan: belum ada sinyal besar, cukup lanjut dipantau rutin."];
+
   return {
     title: "Portfolio & Aset",
     lines: [
-      `Nilai saat ini: ${formatMoney(snapshot.totalCurrentValue)}`,
-      `Unrealized P/L: ${snapshot.totalUnrealizedGain >= 0 ? "+" : "-"}${formatMoney(
-        Math.abs(snapshot.totalUnrealizedGain)
-      )}`,
-      `Holding terbesar: ${snapshot.topHoldingName ?? "-"} (${snapshot.largestAssetShare.toFixed(1)}%)`,
-      `Tipe dominan: ${snapshot.dominantType ?? "-"} (${snapshot.dominantTypeShare.toFixed(1)}%)`,
-      `Likuid: ${snapshot.liquidSharePercent.toFixed(1)}% | Diversifikasi: ${snapshot.diversificationScore.toFixed(1)}/100`,
-      `Status rebalance: ${snapshot.rebalanceStatus}`
+      `Total nilai aset sekarang: ${formatMoneyWhole(snapshot.totalCurrentValue)}.`,
+      snapshot.totalUnrealizedGain >= 0
+        ? `Dibanding modal awal, asetmu sedang naik sekitar ${formatMoneyWhole(snapshot.totalUnrealizedGain)}.`
+        : `Dibanding modal awal, asetmu sedang turun sekitar ${formatMoneyWhole(Math.abs(snapshot.totalUnrealizedGain))}.`,
+      `Aset terbesar adalah ${snapshot.topHoldingName ?? "-"}, porsinya ${snapshot.largestAssetShare.toFixed(
+        1
+      )}% dari semua aset. Artinya, kalau aset ini berubah besar, total asetmu ikut cukup terasa.`,
+      `Aset yang mudah dicairkan sekitar ${formatMoneyWhole(snapshot.totalLiquidValue)} atau ${snapshot.liquidSharePercent.toFixed(
+        1
+      )}% dari total aset.`,
+      `Komposisi sederhana: ${typeBreakdownText || "-"}.`,
+      `Kesimpulan singkat: ${buildPlainRebalanceStatus(snapshot.rebalanceStatus)}`,
+      ...readableReasons,
+      "Daftar aset:",
+      ...assetRows
     ]
   };
 };
@@ -160,15 +243,42 @@ const buildRecurringSection = (expenseTransactions: Array<{
   };
 };
 
+const buildTransactionListSection = (transactions: ReportTransactionItem[]) => {
+  if (!transactions.length) return null;
+
+  const dateFormatter = new Intl.DateTimeFormat("id-ID", {
+    day: "2-digit",
+    month: "short"
+  });
+  const visibleTransactions = transactions.slice(0, 35);
+  const hiddenCount = transactions.length - visibleTransactions.length;
+  const lines = visibleTransactions.map((transaction, index) => {
+    const detail = [transaction.category, transaction.detailTag, transaction.merchant]
+      .filter(Boolean)
+      .join(" / ");
+    return `${index + 1}. ${dateFormatter.format(transaction.occurredAt)} | ${transaction.type} | ${detail} | ${formatMoney(
+      transaction.amount
+    )}`;
+  });
+
+  if (hiddenCount > 0) {
+    lines.push(`Dan ${hiddenCount} transaksi lain.`);
+  }
+
+  return {
+    title: "Daftar Transaksi",
+    lines
+  };
+};
+
 export const buildMonthlyReportPdfAttachment = async (params: {
   userId: string;
   dateRange: ReportDateRange;
   reportData: MonthlyReportData;
 }) => {
-  const expenseTransactions = await prisma.transaction.findMany({
+  const fetchedTransactions = await prisma.transaction.findMany({
     where: {
       userId: params.userId,
-      type: "EXPENSE",
       occurredAt: {
         gte: params.dateRange.start,
         lte: params.dateRange.end
@@ -176,6 +286,19 @@ export const buildMonthlyReportPdfAttachment = async (params: {
     },
     orderBy: { occurredAt: "asc" }
   });
+  const transactions =
+    params.reportData.transactions ??
+    fetchedTransactions.map((transaction) => ({
+      id: transaction.id,
+      type: transaction.type,
+      amount: toNumber(transaction.amount),
+      category: transaction.category,
+      detailTag: transaction.detailTag ?? null,
+      merchant: transaction.merchant ?? null,
+      note: transaction.note ?? null,
+      occurredAt: transaction.occurredAt
+    }));
+  const expenseTransactions = fetchedTransactions.filter((transaction) => transaction.type === "EXPENSE");
 
   const healthReply = await buildFinancialHealthReply({
     userId: params.userId,
@@ -184,9 +307,11 @@ export const buildMonthlyReportPdfAttachment = async (params: {
   });
   const topCategory = params.reportData.categoryBreakdown[0] ?? null;
   const totalTransactions = expenseTransactions.length;
-  const balance = params.reportData.incomeTotal - params.reportData.expenseTotal;
+  const savingTotal = params.reportData.savingTotal ?? 0;
+  const balance = params.reportData.incomeTotal - params.reportData.expenseTotal - savingTotal;
   const savingRate =
     params.reportData.incomeTotal > 0 ? (balance / params.reportData.incomeTotal) * 100 : 0;
+  const reportRangeLabel = buildReportRangeLabel(params.dateRange);
 
   const sections = [
     {
@@ -199,6 +324,7 @@ export const buildMonthlyReportPdfAttachment = async (params: {
       userId: params.userId,
       expenseTransactions
     }),
+    buildTransactionListSection(transactions),
     await buildGoalSection(params.userId),
     await buildPortfolioSection(params.userId),
     buildRecurringSection(expenseTransactions),
@@ -210,16 +336,17 @@ export const buildMonthlyReportPdfAttachment = async (params: {
 
   const payload = reportingMonthlyPdfRequestSchema.parse({
     title: "Monthly Finance Report",
-    subtitle: params.reportData.periodLabel,
-    periodLabel: params.reportData.periodLabel,
+    subtitle: reportRangeLabel,
+    periodLabel: reportRangeLabel,
     summaryLines: [
       `Income: ${formatMoney(params.reportData.incomeTotal)}`,
       `Expense: ${formatMoney(params.reportData.expenseTotal)}`,
+      savingTotal > 0 ? `Saving/goal: ${formatMoney(savingTotal)}` : null,
       `Sisa cashflow: ${formatMoney(balance)}`,
       `Saving rate: ${formatPercent(savingRate)}`,
       `Jumlah transaksi expense: ${totalTransactions}`,
       topCategory ? `Top kategori: ${topCategory.category} (${formatMoney(topCategory.total)})` : "Top kategori: -"
-    ],
+    ].filter((line): line is string => Boolean(line)),
     sections
   });
 

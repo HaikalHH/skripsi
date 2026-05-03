@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { normalizeExpenseBucketCategory } from "@/lib/services/transactions/category-override-service";
+import { formatMoney } from "@/lib/services/shared/money-format";
 
 const BUDGET_WARNING_THRESHOLD = 0.8;
 
@@ -60,6 +61,19 @@ const pickMatchingBudget = async (params: { userId: string; category: string }) 
     matchingBudgets.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())[0] ??
     null
   );
+};
+
+export const getMatchingCategoryBudget = async (params: { userId: string; category: string }) => {
+  const category = normalizeCategory(params.category);
+  const budget = await pickMatchingBudget({
+    userId: params.userId,
+    category
+  });
+
+  return {
+    category,
+    budget
+  };
 };
 
 export const upsertCategoryBudget = async (params: {
@@ -124,15 +138,15 @@ export const checkBudgetAlert = async (
   if (limit <= 0) return null;
 
   if (spent >= limit) {
-    return `Alert: budget kategori ${normalizedCategory} terlampaui. Limit ${limit.toFixed(2)}, aktual ${spent.toFixed(2)}.`;
+    return `Alert: budget kategori ${normalizedCategory} terlampaui. Limit ${formatMoney(limit)}, aktual ${formatMoney(spent)}.`;
   }
 
   const usageRatio = spent / limit;
   if (usageRatio >= BUDGET_WARNING_THRESHOLD) {
     const remaining = Math.max(0, limit - spent);
-    return `Warning: budget kategori ${normalizedCategory} hampir habis. Sisa ${remaining.toFixed(
-      2
-    )} dari limit ${limit.toFixed(2)}.`;
+    return `Warning: budget kategori ${normalizedCategory} hampir habis. Sisa ${formatMoney(
+      remaining
+    )} dari limit ${formatMoney(limit)}.`;
   }
 
   return null;

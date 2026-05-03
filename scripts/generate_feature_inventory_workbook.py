@@ -207,39 +207,6 @@ FEATURE_ROWS = [
         "Yes",
         "Butuh entity/symbol matching dan provider news yang lebih akurat.",
     ],
-    [
-        16,
-        "Smart allocation",
-        "Planning",
-        "Partial",
-        "WhatsApp",
-        "Rekomendasi alokasi sisa uang, goal split, dan prioritas tabungan.",
-        "smart-allocation-service.ts; goal-planner-service.ts",
-        "No",
-        "Masih rule-based, belum adaptive / risk-profile driven penuh.",
-    ],
-    [
-        17,
-        "Financial freedom tracker",
-        "Planning",
-        "Partial",
-        "WhatsApp",
-        "Tracker FF, gap analysis, target lean/base/conservative, dan planner dasar.",
-        "financial-freedom-service.ts",
-        "No",
-        "Masih baseline planner, belum simulator asumsi lanjutan penuh.",
-    ],
-    [
-        18,
-        "Wealth projection",
-        "Planning",
-        "Partial",
-        "WhatsApp",
-        "Simulasi nilai masa depan, target reach, compare skenario, dan starting principal.",
-        "wealth-projection-service.ts; projection-math-service.ts",
-        "No",
-        "Belum semua skenario kompleks bertahap dan inflasi detail.",
-    ],
 ]
 
 API_ROWS = [
@@ -318,8 +285,8 @@ MODULE_ROWS = [
     [
         "Planning",
         "apps/api/lib/services/planning",
-        "Goals, contributions, smart allocation, financial freedom, wealth projection.",
-        "goal-service.ts; goal-planner-service.ts; smart-allocation-service.ts; financial-freedom-service.ts; wealth-projection-service.ts",
+        "Goals, contributions, dan goal planning.",
+        "goal-service.ts; goal-planner-service.ts",
     ],
     [
         "Portfolio / Market / News",

@@ -2,11 +2,14 @@ import { FinancialGoalStatus, OnboardingQuestionKey } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getSavingsGoalStatus } from "@/lib/services/planning/goal-service";
 import {
+  getGuidedOtherExpenseState,
   parseManualExpenseBreakdownDetails,
   type ManualExpenseBreakdownDetail
 } from "@/lib/services/onboarding/onboarding-parser-service";
 import { buildTransactionDetailLabel, inferTransactionDetailTag } from "@/lib/services/transactions/detail-tag-service";
 import { formatMoney, formatPercent } from "@/lib/services/shared/money-format";
+import { formatDurationFromMonths } from "@/lib/services/shared/projection-math-service";
+import { normalizeStoredOnboardingAssetValue } from "@/lib/services/onboarding/onboarding-calculation-service";
 
 const toNumber = (value: unknown): number => {
   if (typeof value === "number") return value;
@@ -28,6 +31,7 @@ export type UserFinancialContextData = {
   onboardingStatus: string | null;
   analysisReady: boolean;
   hasAssets: boolean;
+  hasPassiveIncome: boolean | null;
   monthlyIncomeTotal: number | null;
   monthlyExpenseTotal: number | null;
   potentialMonthlySaving: number | null;
@@ -69,7 +73,10 @@ const stringifyGoals = (goals: UserFinancialContextData["goals"]) =>
     .slice(0, 5)
     .map((goal) => {
       const amount = goal.targetAmount !== null ? formatMoney(goal.targetAmount) : "pending";
-      const eta = goal.estimatedMonthsToGoal ? `, eta=${goal.estimatedMonthsToGoal.toFixed(1)} bln` : "";
+      const eta =
+        goal.estimatedMonthsToGoal !== null
+          ? `, eta=${formatDurationFromMonths(goal.estimatedMonthsToGoal)}`
+          : "";
       const progress =
         goal.progressPercent !== null && goal.currentProgress !== null
           ? `, progress=${formatPercent(goal.progressPercent)} (${formatMoney(goal.currentProgress)})`
@@ -93,6 +100,10 @@ export const buildUserFinancialContextSummary = (context: UserFinancialContextDa
     `analysisReady=${context.analysisReady ? "yes" : "no"}`,
     `hasAssets=${context.hasAssets ? "yes" : "no"}`
   ];
+
+  if (context.hasPassiveIncome !== null) {
+    lines.push(`hasPassiveIncome=${context.hasPassiveIncome ? "yes" : "no"}`);
+  }
 
   if (context.monthlyIncomeTotal !== null) {
     lines.push(`monthlyIncomeTotal=${formatMoney(context.monthlyIncomeTotal)}`);
@@ -141,7 +152,7 @@ export const loadUserFinancialContext = async (params: {
 }): Promise<UserFinancialContextData> => {
   const recentMessagesLimit = params.recentMessagesLimit ?? 0;
 
-  const [user, latestManualBreakdownSession, recentMessages, recentExpenseTransactions, goalStatusSummary] = await Promise.all([
+  const [user, latestManualBreakdownSession, guidedOtherExpenseSessions, recentMessages, recentExpenseTransactions, goalStatusSummary] = await Promise.all([
     prisma.user.findUnique({
       where: { id: params.userId },
       select: {
@@ -149,6 +160,7 @@ export const loadUserFinancialContext = async (params: {
         onboardingStatus: true,
         analysisReady: true,
         hasAssets: true,
+        hasPassiveIncome: true,
         financialProfile: {
           select: {
             monthlyIncomeTotal: true,
@@ -205,6 +217,13 @@ export const loadUserFinancialContext = async (params: {
         rawAnswerJson: true
       }
     }),
+    prisma.onboardingSession.findMany({
+      where: {
+        userId: params.userId,
+        questionKey: OnboardingQuestionKey.GUIDED_EXPENSE_OTHERS
+      },
+      orderBy: { createdAt: "asc" }
+    }),
     recentMessagesLimit > 0
       ? prisma.messageLog.findMany({
           where: {
@@ -238,12 +257,21 @@ export const loadUserFinancialContext = async (params: {
     typeof latestManualBreakdownSession?.rawAnswerJson === "string"
       ? latestManualBreakdownSession.rawAnswerJson
       : null;
+  const guidedOtherExpenseDetails = getGuidedOtherExpenseState(guidedOtherExpenseSessions).items.map(
+    (item) =>
+      ({
+        label: item.label,
+        amount: item.amount,
+        bucket: "others"
+      }) satisfies ManualExpenseBreakdownDetail
+  );
 
   return {
     registrationStatus: user?.registrationStatus ?? null,
     onboardingStatus: user?.onboardingStatus ?? null,
     analysisReady: Boolean(user?.analysisReady),
     hasAssets: Boolean(user?.hasAssets),
+    hasPassiveIncome: typeof user?.hasPassiveIncome === "boolean" ? user.hasPassiveIncome : null,
     monthlyIncomeTotal:
       user?.financialProfile?.monthlyIncomeTotal != null
         ? toNumber(user.financialProfile.monthlyIncomeTotal)
@@ -263,7 +291,10 @@ export const loadUserFinancialContext = async (params: {
         categoryKey: item.categoryKey,
         amount: toNumber(item.amount)
       })) ?? [],
-    manualExpenseDetails: manualExpenseRaw ? parseManualExpenseBreakdownDetails(manualExpenseRaw) : [],
+    manualExpenseDetails: [
+      ...(manualExpenseRaw ? parseManualExpenseBreakdownDetails(manualExpenseRaw) : []),
+      ...guidedOtherExpenseDetails
+    ],
     goals:
       goalStatusSummary?.goals.length
         ? goalStatusSummary.goals.map((goal) => ({
@@ -289,7 +320,8 @@ export const loadUserFinancialContext = async (params: {
       user?.assets.map((asset) => ({
         assetName: asset.assetName,
         assetType: asset.assetType,
-        estimatedValue: asset.estimatedValue !== null ? toNumber(asset.estimatedValue) : null
+        estimatedValue:
+          asset.estimatedValue !== null ? normalizeStoredOnboardingAssetValue(asset) : null
       })) ?? [],
     recentExpenseDetailTags: recentExpenseTransactions
       .map((transaction) =>

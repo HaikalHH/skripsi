@@ -8,9 +8,12 @@
     "build": "next build",
     "start": "next start -p 3001",
     "lint": "next lint",
+    "typecheck": "tsc --noEmit",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev --name init",
     "prisma:deploy": "prisma migrate deploy",
+    "prisma:reset": "prisma migrate reset --force --skip-seed",
+    "prisma:reset:seed": "prisma migrate reset --force",
     "prisma:seed": "prisma db seed",
     "test": "vitest run"
   },

@@ -1,12 +1,10 @@
 export type IntentType =
   | "RECORD_TRANSACTION"
   | "REQUEST_REPORT"
-  | "REQUEST_INSIGHT"
-  | "REQUEST_FINANCIAL_ADVICE"
   | "HELP"
   | "UNKNOWN";
 
-export type TransactionType = "INCOME" | "EXPENSE";
+export type TransactionType = "INCOME" | "EXPENSE" | "SAVING";
 export type MessageType = "TEXT" | "IMAGE";
 export type TransactionSource = "TEXT" | "OCR";
 export type ReportPeriod = "daily" | "weekly" | "monthly";

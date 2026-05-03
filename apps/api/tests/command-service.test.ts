@@ -2,74 +2,36 @@ import { describe, expect, it } from "vitest";
 import { parseCommand } from "@/lib/services/assistant/command-service";
 
 describe("command parser", () => {
-  it("parses budget set command", () => {
-    const result = parseCommand("/budget set makan luar 1500000");
-    expect(result).toEqual({
-      kind: "BUDGET_SET",
-      category: "makan luar",
-      monthlyLimit: 1500000
+  it("starts conversational budget and goal command flows", () => {
+    expect(parseCommand("/budget set")).toEqual({ kind: "BUDGET_SET_FLOW_START" });
+    expect(parseCommand("/budget set makan luar 1500000")).toEqual({
+      kind: "BUDGET_SET_FLOW_START"
     });
+    expect(parseCommand("/set goal")).toEqual({ kind: "GOAL_SET_FLOW_START" });
+    expect(parseCommand("/set goal rumah 750jt")).toEqual({ kind: "GOAL_SET_FLOW_START" });
+    expect(parseCommand("/goal add")).toEqual({ kind: "GOAL_ADD_FLOW_START" });
+    expect(parseCommand("/goal status")).toEqual({ kind: "GOAL_STATUS_FLOW_START" });
+    expect(parseCommand("/goal status rumah")).toEqual({ kind: "GOAL_STATUS_FLOW_START" });
   });
 
-  it("parses shorthand amount unit", () => {
-    const result = parseCommand("/goal set 1.5jt");
-    expect(result).toEqual({
-      kind: "GOAL_SET",
-      targetAmount: 1500000,
-      goalName: null,
-      goalType: null
-    });
+  it("starts conversational asset add flow", () => {
+    expect(parseCommand("/tambah aset")).toEqual({ kind: "ASSET_ADD_FLOW_START" });
+    expect(parseCommand("/tambah aset saham")).toEqual({ kind: "ASSET_ADD_FLOW_START" });
   });
 
-  it("parses goal set and status commands", () => {
-    const setCommand = parseCommand("/goal set 5000000");
-    expect(setCommand).toEqual({
-      kind: "GOAL_SET",
-      targetAmount: 5000000,
-      goalName: null,
-      goalType: null
-    });
-
-    const statusCommand = parseCommand("/goal status");
-    expect(statusCommand).toEqual({ kind: "GOAL_STATUS", goalQuery: null, goalType: null });
+  it("keeps report and help slash commands", () => {
+    expect(parseCommand("/help")).toEqual({ kind: "HELP" });
+    expect(parseCommand("/report daily")).toEqual({ kind: "REPORT", period: "daily" });
   });
 
-  it("parses named goal commands", () => {
-    expect(parseCommand("/goal set rumah 750jt")).toEqual({
-      kind: "GOAL_SET",
-      targetAmount: 750000000,
-      goalName: "Beli Rumah",
-      goalType: "HOUSE"
-    });
-
-    expect(parseCommand("/goal status rumah")).toEqual({
-      kind: "GOAL_STATUS",
-      goalQuery: "rumah",
-      goalType: "HOUSE"
-    });
-
-    expect(parseCommand("/goal add rumah 500rb")).toEqual({
-      kind: "GOAL_CONTRIBUTE",
-      amount: 500000,
-      goalQuery: "Beli Rumah",
-      goalType: "HOUSE"
-    });
+  it("does not parse old inline goal set command", () => {
+    expect(parseCommand("/goal set 1.5jt")).toEqual({ kind: "NONE" });
+    expect(parseCommand("/goal set rumah 750jt")).toEqual({ kind: "NONE" });
   });
 
-  it("parses advice command with and without question", () => {
-    const noQuestion = parseCommand("/advice");
-    expect(noQuestion).toEqual({ kind: "ADVICE", question: null });
-
-    const withQuestion = parseCommand("/advice boleh beli hp 3500000 bulan ini?");
-    expect(withQuestion).toEqual({
-      kind: "ADVICE",
-      question: "boleh beli hp 3500000 bulan ini?"
-    });
-  });
-
-  it("returns NONE for invalid budget amount", () => {
-    const result = parseCommand("/budget set transport abc");
-    expect(result).toEqual({ kind: "NONE" });
+  it("does not parse retired insight and advice commands", () => {
+    expect(parseCommand("/insight")).toEqual({ kind: "NONE" });
+    expect(parseCommand("/advice")).toEqual({ kind: "NONE" });
+    expect(parseCommand("/advice boleh beli hp 3500000 bulan ini?")).toEqual({ kind: "NONE" });
   });
 });
-

@@ -1,4 +1,4 @@
-import { buildReportSummaryText, reportPeriodSchema, reportingChartRequestSchema } from "@finance/shared";
+import { reportPeriodSchema, reportingChartRequestSchema } from "@finance/shared";
 import type { ReportPeriod } from "@finance/shared";
 import { prisma } from "@/lib/prisma";
 import { env } from "@/lib/env";
@@ -66,6 +66,17 @@ export type ReportComparisonRange = {
   previous: ReportDateRange;
 };
 
+export type ReportTransactionItem = {
+  id: string;
+  type: "INCOME" | "EXPENSE" | "SAVING";
+  amount: number;
+  category: string;
+  detailTag?: string | null;
+  merchant?: string | null;
+  note?: string | null;
+  occurredAt: Date;
+};
+
 export const getUserReportData = async (
   userId: string,
   period: ReportPeriod,
@@ -99,6 +110,16 @@ export const getUserReportData = async (
   return {
     period,
     periodLabel: range.label,
+    transactions: transactions.map((tx) => ({
+      id: tx.id,
+      type: tx.type,
+      amount: toNumber(tx.amount),
+      category: tx.category,
+      detailTag: tx.detailTag ?? null,
+      merchant: tx.merchant ?? null,
+      note: tx.note ?? null,
+      occurredAt: tx.occurredAt
+    })),
     ...aggregated
   };
 };
@@ -131,21 +152,49 @@ export const buildReportText = (
   incomeTotal: number,
   expenseTotal: number,
   categoryBreakdown: Array<{ category: string; total: number }>,
-  periodLabel?: string | null
+  periodLabel?: string | null,
+  transactions: ReportTransactionItem[] = [],
+  options: { includeTransactions?: boolean; savingTotal?: number } = {}
 ) => {
   const topCategory = categoryBreakdown[0];
-  const topCategoryText = topCategory
-    ? `Top expense category: ${topCategory.category} (${topCategory.total.toFixed(2)}).`
-    : "No expense category data.";
+  const savingTotal = options.savingTotal ?? 0;
+  const balance = incomeTotal - expenseTotal - savingTotal;
+  const title =
+    periodLabel && periodLabel !== PERIOD_LABELS[period]
+      ? `Ringkasan ${periodLabel}`
+      : `Report ${period}`;
+  const visibleTransactions = transactions.slice(0, 15);
+  const hiddenCount = Math.max(0, transactions.length - visibleTransactions.length);
+  const transactionLines = visibleTransactions.map((transaction, index) => {
+    const date = DATE_LABEL_FORMATTER.format(transaction.occurredAt);
+    const detail = [transaction.category, transaction.detailTag, transaction.merchant]
+      .filter(Boolean)
+      .join(" / ");
+    return `${index + 1}. ${date} | ${transaction.type} | ${detail} | ${formatMoney(transaction.amount)}`;
+  });
 
-  if (periodLabel && periodLabel !== PERIOD_LABELS[period]) {
-    const balance = incomeTotal - expenseTotal;
-    return `Ringkasan ${periodLabel}: income ${incomeTotal.toFixed(2)}, expense ${expenseTotal.toFixed(
-      2
-    )}, balance ${balance.toFixed(2)}. ${topCategoryText}`;
-  }
+  const includeTransactions = options.includeTransactions ?? true;
+  const transactionSection = includeTransactions
+    ? [
+        "",
+        "Daftar transaksi:",
+        ...(transactionLines.length ? transactionLines : ["Belum ada transaksi di periode ini."]),
+        hiddenCount > 0 ? `Dan ${hiddenCount} transaksi lain.` : null
+      ]
+    : [];
 
-  return `${buildReportSummaryText(period, incomeTotal, expenseTotal)} ${topCategoryText}`;
+  return [
+    `${title}:`,
+    "",
+    `Income: ${formatMoney(incomeTotal)}`,
+    `Expense: ${formatMoney(expenseTotal)}`,
+    savingTotal > 0 ? `Saving/goal: ${formatMoney(savingTotal)}` : null,
+    `Balance: ${formatMoney(balance)}`,
+    topCategory ? `Top expense: ${topCategory.category} (${formatMoney(topCategory.total)})` : "Top expense: -",
+    ...transactionSection
+  ]
+    .filter(Boolean)
+    .join("\n");
 };
 
 const PERIOD_LABELS: Record<ReportPeriod, string> = {
@@ -939,7 +988,9 @@ export const parseGeneralReportQuery = (rawText: string): GeneralReportQuery | n
   });
 
   const period = dateRange
-    ? inferPeriodFromDateRange(dateRange)
+    ? /\bawal bulan(?: ini)?\b/i.test(text)
+      ? "monthly"
+      : inferPeriodFromDateRange(dateRange)
     : rangeWindow
       ? rangeWindow.unit === "day"
         ? "daily"
@@ -1850,7 +1901,7 @@ export const buildCategoryDetailReport = async (params: {
       `- Total bucket: ${formatMoney(total)}`,
       ...topTransactions.map((transaction, index) => {
         const date = DATE_LABEL_FORMATTER.format(transaction.occurredAt);
-        const amount = formatMoney(toNumber(transaction.amount));
+        const amount = formatMoney(transaction.amount);
         const label = resolveTransactionDetailLabel(transaction);
         return `${index + 1}. ${date} | ${amount} | ${label}`;
       })
@@ -1865,7 +1916,7 @@ export const buildCategoryDetailReport = async (params: {
     `- Total pengeluaran: ${formatMoney(total)}`,
     ...visibleTransactions.map((transaction, index) => {
       const date = DATE_LABEL_FORMATTER.format(transaction.occurredAt);
-      const amount = formatMoney(toNumber(transaction.amount));
+      const amount = formatMoney(transaction.amount);
       const label = resolveTransactionDetailLabel(transaction);
       return `${index + 1}. ${date} | ${amount} | ${label}`;
     })

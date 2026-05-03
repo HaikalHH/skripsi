@@ -1,6 +1,10 @@
 import { PortfolioAssetType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getMarketQuoteBySymbol } from "@/lib/services/market/market-price-service";
+import {
+  getMarketQuoteBySymbol,
+  TROY_OUNCE_TO_GRAM
+} from "@/lib/services/market/market-price-service";
+import { normalizeMarketSymbolForKind } from "@/lib/services/market/market-symbol-normalization";
 
 export type ValuedPortfolioItem = {
   assetType: PortfolioAssetType;
@@ -47,6 +51,10 @@ export type PortfolioValuationSnapshot = {
 };
 
 const getPortfolioModel = () => (prisma as { portfolioAsset?: any }).portfolioAsset;
+const MONEY_EPSILON = 0.5;
+const GOLD_OUNCE_PRICE_THRESHOLD_IDR = 20_000_000;
+const LIQUID_ASSET_PATTERN =
+  /\b(tabungan|saving|savings|cash|kas|dana darurat|emergency|bank|rekening|giro|bca|bri|bni|mandiri|cimb|jago|seabank|sea bank|blu|ocbc|permata|danamon|dana|ovo|gopay|shopeepay|linkaja)\b/i;
 
 const toNumber = (value: unknown): number => {
   if (typeof value === "number") return value;
@@ -61,9 +69,18 @@ const resolveMarketSymbolForAsset = (asset: {
   assetType: PortfolioAssetType;
   symbol: string;
 }) => {
-  if (asset.assetType === PortfolioAssetType.GOLD) return "XAU";
-  if (asset.assetType === PortfolioAssetType.CRYPTO) return asset.symbol;
-  if (asset.assetType === PortfolioAssetType.STOCK) return asset.symbol;
+  if (asset.assetType === PortfolioAssetType.GOLD) {
+    return normalizeMarketSymbolForKind(asset.symbol || "XAU", "gold")?.canonicalSymbol ?? "XAU";
+  }
+
+  if (asset.assetType === PortfolioAssetType.CRYPTO) {
+    return normalizeMarketSymbolForKind(asset.symbol, "crypto")?.canonicalSymbol ?? asset.symbol;
+  }
+
+  if (asset.assetType === PortfolioAssetType.STOCK) {
+    return normalizeMarketSymbolForKind(asset.symbol, "stock")?.canonicalSymbol ?? asset.symbol;
+  }
+
   return null;
 };
 
@@ -75,9 +92,34 @@ const isLikelyLiquidAsset = (asset: {
   if (asset.assetType === PortfolioAssetType.DEPOSIT) return true;
   if (asset.assetType !== PortfolioAssetType.OTHER) return false;
 
-  return /\b(tabungan|saving|savings|cash|kas|dana darurat|emergency)\b/i.test(
-    `${asset.displayName} ${asset.symbol}`
-  );
+  return LIQUID_ASSET_PATTERN.test(`${asset.displayName} ${asset.symbol}`);
+};
+
+const resolveEffectivePortfolioAssetType = (asset: {
+  assetType: PortfolioAssetType;
+  displayName: string;
+  symbol: string;
+}) =>
+  asset.assetType === PortfolioAssetType.OTHER && isLikelyLiquidAsset(asset)
+    ? PortfolioAssetType.DEPOSIT
+    : asset.assetType;
+
+const normalizeMoney = (value: number) => (Math.abs(value) < MONEY_EPSILON ? 0 : value);
+
+const normalizeStoredGoldPrice = (params: {
+  assetType: PortfolioAssetType;
+  unit: string;
+  price: number;
+}) => {
+  if (
+    params.assetType === PortfolioAssetType.GOLD &&
+    params.unit.toLowerCase() === "gram" &&
+    params.price >= GOLD_OUNCE_PRICE_THRESHOLD_IDR
+  ) {
+    return params.price / TROY_OUNCE_TO_GRAM;
+  }
+
+  return params.price;
 };
 
 const calculateDiversificationScore = (shares: number[]) => {
@@ -177,9 +219,14 @@ export const getUserPortfolioValuation = async (
         averageBuyPrice: unknown;
       }): Promise<ValuedPortfolioItem> => {
         const quantity = toNumber(asset.quantity);
-        const averageBuyPrice = toNumber(asset.averageBuyPrice);
+        const averageBuyPrice = normalizeStoredGoldPrice({
+          assetType: asset.assetType,
+          unit: asset.unit,
+          price: toNumber(asset.averageBuyPrice)
+        });
         const bookValue = quantity * averageBuyPrice;
         const marketSymbol = resolveMarketSymbolForAsset(asset);
+        const effectiveAssetType = resolveEffectivePortfolioAssetType(asset);
 
         let currentPrice = averageBuyPrice;
         let pricingMode: "market" | "book" = "book";
@@ -190,19 +237,22 @@ export const getUserPortfolioValuation = async (
             const quote = await getMarketQuoteBySymbol(marketSymbol);
             currentPrice = quote.price;
             pricingMode = "market";
-            priceSource = quote.source;
+            priceSource =
+              quote.status === "stale"
+                ? `${quote.source} [cache ${quote.cachedAt}]`
+                : quote.source;
           } catch {
             pricingMode = "book";
           }
         }
 
         const currentValue = quantity * currentPrice;
-        const unrealizedGain = currentValue - bookValue;
+        const unrealizedGain = normalizeMoney(currentValue - bookValue);
         const unrealizedGainPercent =
           bookValue > 0 ? (unrealizedGain / bookValue) * 100 : null;
 
         return {
-          assetType: asset.assetType,
+          assetType: effectiveAssetType,
           symbol: asset.symbol,
           displayName: asset.displayName,
           quantity,
@@ -240,8 +290,8 @@ export const getUserPortfolioValuation = async (
       : 0;
   const topHoldingName = sortedItems[0]?.displayName ?? null;
   const concentrationRisk = largestAssetShare >= 60 ? "HIGH" : largestAssetShare >= 35 ? "MEDIUM" : "LOW";
-  const profitableAssetCount = sortedItems.filter((item) => item.unrealizedGain > 0).length;
-  const losingAssetCount = sortedItems.filter((item) => item.unrealizedGain < 0).length;
+  const profitableAssetCount = sortedItems.filter((item) => item.unrealizedGain > MONEY_EPSILON).length;
+  const losingAssetCount = sortedItems.filter((item) => item.unrealizedGain < -MONEY_EPSILON).length;
   const typeBreakdownMap = new Map<PortfolioAssetType, number>();
   for (const item of sortedItems) {
     typeBreakdownMap.set(item.assetType, (typeBreakdownMap.get(item.assetType) ?? 0) + item.currentValue);
@@ -272,7 +322,7 @@ export const getUserPortfolioValuation = async (
     items: sortedItems,
     totalBookValue,
     totalCurrentValue,
-    totalUnrealizedGain: totalCurrentValue - totalBookValue,
+    totalUnrealizedGain: normalizeMoney(totalCurrentValue - totalBookValue),
     totalLiquidValue,
     liquidSharePercent,
     marketValuedCount,

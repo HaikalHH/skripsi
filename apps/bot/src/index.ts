@@ -31,7 +31,9 @@ const env = envSchema.parse(process.env);
 const lidMapFilePath = resolve(env.BAILEYS_AUTH_DIR, "lid-phone-map.json");
 
 const inboundResponseSchema = z.object({
-  replyText: z.string(),
+  replyText: z.string().optional(),
+  replyTexts: z.array(z.string()).optional(),
+  preserveReplyTextBubbles: z.boolean().optional(),
   imageBase64: z.string().optional(),
   imageMimeType: z.string().optional(),
   documentBase64: z.string().optional(),
@@ -48,6 +50,8 @@ const outboundClaimSchema = z.object({
     })
   )
 });
+
+type InboundResponsePayload = z.infer<typeof inboundResponseSchema>;
 
 let heartbeatTimer: NodeJS.Timeout | null = null;
 let outboundPollTimer: NodeJS.Timeout | null = null;
@@ -152,6 +156,42 @@ const trySendOutboundMessage = async (
     lastError instanceof Error ? lastError.message.slice(0, 180) : "Unknown send failure";
 
   return { sent: false as const, jid: jids[0] ?? null, errorMessage };
+};
+
+const sendInboundReplyPayload = async (
+  sock: ReturnType<typeof makeWASocket>,
+  remoteJid: string,
+  payload: InboundResponsePayload
+) => {
+  const replyTexts =
+    payload.replyTexts?.map((item) => item.trim()).filter(Boolean) ??
+    (payload.replyText?.trim() ? [payload.replyText.trim()] : []);
+  const outboundReplyTexts =
+    payload.preserveReplyTextBubbles === true
+      ? replyTexts
+      : replyTexts.length > 1
+        ? [replyTexts.join("\n\n")]
+        : replyTexts;
+
+  for (const replyText of outboundReplyTexts) {
+    await sock.sendMessage(remoteJid, { text: replyText });
+  }
+
+  if (payload.imageBase64) {
+    await sock.sendMessage(remoteJid, {
+      image: Buffer.from(payload.imageBase64, "base64"),
+      mimetype: payload.imageMimeType ?? "image/png",
+      caption: "Report chart"
+    });
+  }
+
+  if (payload.documentBase64) {
+    await sock.sendMessage(remoteJid, {
+      document: Buffer.from(payload.documentBase64, "base64"),
+      mimetype: payload.documentMimeType ?? "application/pdf",
+      fileName: payload.documentFileName ?? "report.pdf"
+    });
+  }
 };
 
 const pollOutboundMessages = async (sock: ReturnType<typeof makeWASocket>) => {
@@ -534,23 +574,7 @@ const processIncomingMessage = async (sock: ReturnType<typeof makeWASocket>, msg
     }
 
     const parsed = inboundResponseSchema.parse(await response.json());
-    await sock.sendMessage(remoteJid, { text: parsed.replyText });
-
-    if (parsed.imageBase64) {
-      await sock.sendMessage(remoteJid, {
-        image: Buffer.from(parsed.imageBase64, "base64"),
-        mimetype: parsed.imageMimeType ?? "image/png",
-        caption: "Report chart"
-      });
-    }
-
-    if (parsed.documentBase64) {
-      await sock.sendMessage(remoteJid, {
-        document: Buffer.from(parsed.documentBase64, "base64"),
-        mimetype: parsed.documentMimeType ?? "application/pdf",
-        fileName: parsed.documentFileName ?? "report.pdf"
-      });
-    }
+    await sendInboundReplyPayload(sock, remoteJid, parsed);
   } catch (error) {
     logger.error({ err: error }, "Failed to process incoming message");
     await sock.sendMessage(remoteJid, {

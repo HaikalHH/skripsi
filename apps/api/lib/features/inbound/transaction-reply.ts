@@ -4,7 +4,7 @@ import { createAIAnalysisLog } from "@/lib/services/ai/ai-log-service";
 import { checkBudgetAlert } from "@/lib/services/transactions/budget-service";
 import { buildSavingsProgressUpdateText } from "@/lib/services/planning/savings-progress-service";
 import { checkUnusualExpenseAlert } from "@/lib/services/transactions/spending-anomaly-service";
-import { refreshSavingsGoalProgress } from "@/lib/services/planning/goal-service";
+import { syncSavingTransactionGoalProgress } from "@/lib/services/planning/saving-transaction-service";
 import { createTransactionFromExtraction } from "@/lib/services/transactions/transaction-service";
 import { confirmTransactionText } from "./formatters";
 import { ok, type InboundHandlerResult } from "./result";
@@ -27,7 +27,14 @@ export const saveTransactionAndBuildReply = async (
     source: TransactionSource.TEXT,
     rawText: params.rawText
   });
-  const goalStatus = await refreshSavingsGoalProgress(params.userId);
+  const goalStatus =
+    transaction.type === "SAVING"
+      ? await syncSavingTransactionGoalProgress({
+          userId: params.userId,
+          amount: Number(transaction.amount),
+          rawText: params.rawText
+        })
+      : null;
 
   await createAIAnalysisLog({
     userId: params.userId,
@@ -37,11 +44,16 @@ export const saveTransactionAndBuildReply = async (
   });
 
   const amountNumber = Number(transaction.amount);
-  const alertText = await checkBudgetAlert(params.userId, transaction.category, transaction.occurredAt);
-  const goalProgressText = await buildSavingsProgressUpdateText({
-    userId: params.userId,
-    goalStatus
-  });
+  const alertText =
+    transaction.type === "EXPENSE"
+      ? await checkBudgetAlert(params.userId, transaction.category, transaction.occurredAt)
+      : null;
+  const goalProgressText = goalStatus
+    ? await buildSavingsProgressUpdateText({
+        userId: params.userId,
+        goalStatus
+      })
+    : null;
   const anomalyText =
     transaction.type === "EXPENSE"
       ? await checkUnusualExpenseAlert({

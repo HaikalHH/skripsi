@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { env } from "@/lib/env";
 import { claimPendingOutboundMessages } from "@/lib/services/messaging/outbound-message-service";
+import { applyBossFinanceEmojiStyle } from "@/lib/services/messaging/bot-text-style-service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
     messages: messages.map((item) => ({
       id: item.id,
       waNumber: item.waNumber,
-      messageText: item.messageText
+      messageText: applyBossFinanceEmojiStyle(item.messageText, { preserveLeadingMarker: true })
     }))
   });
 }

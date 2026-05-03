@@ -1,4 +1,3 @@
-import type { GeminiExtraction } from "@finance/shared";
 import { AnalysisType } from "@prisma/client";
 import { HELP_TEXT } from "@/lib/constants";
 import { logger } from "@/lib/logger";
@@ -11,18 +10,19 @@ import {
 import { extractForcedCategory } from "@/lib/services/transactions/category-override-service";
 import { parseFallbackTransactionExtraction } from "@/lib/services/transactions/fallback-transaction-parser";
 import { tryHandleGeneralChat } from "@/lib/services/assistant/general-chat-service";
-import { generateUserFinancialAdvice } from "@/lib/services/assistant/advice-service";
 import {
   loadRecentConversationTurns,
   resolveConversationMemory
 } from "@/lib/services/assistant/conversation-memory-service";
 import { routeGlobalTextContext } from "@/lib/services/assistant/global-context-router-service";
 import { recordIntentObservation } from "@/lib/services/observability/observability-service";
-import { getSavingsGoalStatus } from "@/lib/services/planning/goal-service";
-import { generateUserInsight } from "@/lib/services/reporting/insight-service";
 import { parseReportPeriod } from "@/lib/services/reporting/report-service";
-import { createTransactionFromExtraction, isTransactionExtractable } from "@/lib/services/transactions/transaction-service";
-import { saveTransactionAndBuildReply } from "./transaction-reply";
+import { isTransactionExtractable } from "@/lib/services/transactions/transaction-service";
+import {
+  stageExpenseTransactionAndBuildReply,
+  tryHandlePendingAction
+} from "@/lib/services/assistant/pending-action-service";
+import { tryHandleCommandFlowAnswer } from "@/lib/services/assistant/command-flow-service";
 import { buildReportResponse, toReportReplyBody } from "./report";
 import { tryHandleStructuredText } from "./structured-text-handler";
 import { ok, type InboundHandlerResult } from "./result";
@@ -37,6 +37,50 @@ export const handleTextMessage = async (
 ): Promise<InboundHandlerResult> => {
   const textInput = params.text ?? "";
   const rawRoute = routeGlobalTextContext(textInput);
+  const pendingActionResult = await tryHandlePendingAction({
+    userId: params.userId,
+    messageId: params.messageId,
+    text: textInput
+  });
+  if (pendingActionResult) {
+    await recordIntentObservation({
+      userId: params.userId,
+      messageId: params.messageId,
+      rawText: textInput,
+      effectiveText: textInput,
+      commandKind: rawRoute.command.kind,
+      topModule: rawRoute.moduleOrder[0] ?? null,
+      moduleOrder: rawRoute.moduleOrder,
+      resolutionKind: "none",
+      resolutionSource: null,
+      handledBy: "pending_action",
+      fallbackStage: "pending_confirmation",
+      ambiguityFlag: false
+    });
+    return pendingActionResult;
+  }
+  const commandFlowResult = await tryHandleCommandFlowAnswer({
+    userId: params.userId,
+    messageId: params.messageId,
+    text: textInput
+  });
+  if (commandFlowResult) {
+    await recordIntentObservation({
+      userId: params.userId,
+      messageId: params.messageId,
+      rawText: textInput,
+      effectiveText: textInput,
+      commandKind: rawRoute.command.kind,
+      topModule: rawRoute.moduleOrder[0] ?? null,
+      moduleOrder: rawRoute.moduleOrder,
+      resolutionKind: "none",
+      resolutionSource: null,
+      handledBy: "command_flow",
+      fallbackStage: "command_flow_answer",
+      ambiguityFlag: false
+    });
+    return commandFlowResult;
+  }
   const memoryResolution = await resolveConversationMemory({
     userId: params.userId,
     currentMessageId: params.messageId,
@@ -190,7 +234,7 @@ export const handleTextMessage = async (
       const extractionWithCategory = forcedCategory
         ? { ...fallbackExtraction, category: forcedCategory }
         : fallbackExtraction;
-      return saveTransactionAndBuildReply({
+      return stageExpenseTransactionAndBuildReply({
         userId: params.userId,
         messageId: params.messageId,
         extraction: extractionWithCategory,
@@ -265,33 +309,6 @@ export const handleTextMessage = async (
     });
   }
 
-  if (extraction.intent === "REQUEST_INSIGHT") {
-    const insightText = await generateUserInsight(params.userId);
-    await createAIAnalysisLog({
-      userId: params.userId,
-      messageId: params.messageId,
-      analysisType: AnalysisType.INSIGHT,
-      payload: { insightText, source: "intent" }
-    });
-    return observeAndReturn(ok({ replyText: insightText }), {
-      handledBy: "ai_intent_insight"
-    });
-  }
-
-  if (extraction.intent === "REQUEST_FINANCIAL_ADVICE") {
-    const userQuestion = extraction.adviceQuery ?? effectiveText;
-    const insightText = await generateUserFinancialAdvice(params.userId, userQuestion);
-    await createAIAnalysisLog({
-      userId: params.userId,
-      messageId: params.messageId,
-      analysisType: AnalysisType.INSIGHT,
-      payload: { insightText, source: "intent_advice", userQuestion }
-    });
-    return observeAndReturn(ok({ replyText: insightText }), {
-      handledBy: "ai_intent_advice"
-    });
-  }
-
   if (extraction.intent === "UNKNOWN") {
     const fallbackExtraction = parseFallbackTransactionExtraction(transactionInput);
     if (fallbackExtraction) {
@@ -299,7 +316,7 @@ export const handleTextMessage = async (
         ? { ...fallbackExtraction, category: forcedCategory }
         : fallbackExtraction;
 
-      return saveTransactionAndBuildReply({
+      return stageExpenseTransactionAndBuildReply({
         userId: params.userId,
         messageId: params.messageId,
         extraction: fallbackWithCategory,
@@ -375,7 +392,7 @@ export const handleTextMessage = async (
       ? { ...fallbackExtraction, category: forcedCategory }
       : fallbackExtraction;
 
-    return saveTransactionAndBuildReply({
+    return stageExpenseTransactionAndBuildReply({
       userId: params.userId,
       messageId: params.messageId,
       extraction: fallbackWithCategory,
@@ -394,7 +411,7 @@ export const handleTextMessage = async (
     );
   }
 
-  return saveTransactionAndBuildReply({
+  return stageExpenseTransactionAndBuildReply({
     userId: params.userId,
     messageId: params.messageId,
     extraction: extractionWithCategory,

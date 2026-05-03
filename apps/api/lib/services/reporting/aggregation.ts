@@ -1,7 +1,7 @@
 import type { ReportPeriod } from "@finance/shared";
 
 export type AggregationTransaction = {
-  type: "INCOME" | "EXPENSE";
+  type: "INCOME" | "EXPENSE" | "SAVING";
   amount: number;
   category: string;
   occurredAt: Date;
@@ -37,6 +37,7 @@ export const aggregateTransactions = (
 ) => {
   let incomeTotal = 0;
   let expenseTotal = 0;
+  let savingTotal = 0;
   const expenseCategoryMap = new Map<string, number>();
   const trendMap = new Map<string, { income: number; expense: number }>();
 
@@ -49,16 +50,18 @@ export const aggregateTransactions = (
   for (const tx of transactions) {
     if (tx.type === "INCOME") {
       incomeTotal += tx.amount;
-    } else {
+    } else if (tx.type === "EXPENSE") {
       expenseTotal += tx.amount;
       expenseCategoryMap.set(tx.category, (expenseCategoryMap.get(tx.category) ?? 0) + tx.amount);
+    } else if (tx.type === "SAVING") {
+      savingTotal += tx.amount;
     }
 
     const key = dateKey(tx.occurredAt);
     const current = trendMap.get(key) ?? { income: 0, expense: 0 };
     if (tx.type === "INCOME") {
       current.income += tx.amount;
-    } else {
+    } else if (tx.type === "EXPENSE") {
       current.expense += tx.amount;
     }
     trendMap.set(key, current);
@@ -75,6 +78,7 @@ export const aggregateTransactions = (
   return {
     incomeTotal,
     expenseTotal,
+    savingTotal,
     categoryBreakdown,
     trend
   };

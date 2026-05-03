@@ -3,9 +3,9 @@ import { MessageType } from "@prisma/client";
 import { env } from "@/lib/env";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { createMessageLog } from "@/lib/services/messaging/message-service";
-import { buildSubscriptionRequiredText, handleOnboarding } from "@/lib/services/onboarding/onboarding-service";
+import { handleOnboarding } from "@/lib/services/onboarding/onboarding-service";
 import { logDirectAssistantReply } from "@/lib/services/messaging/outbound-message-service";
-import { hasUsableSubscription } from "@/lib/services/payments/subscription-service";
+import { ensureUsableSubscription } from "@/lib/services/payments/subscription-service";
 import { findOrCreateUserByWaNumber, normalizeWaNumber } from "@/lib/services/user/user-service";
 import { parseSentAt } from "./formatters";
 import { handleImageMessage } from "./image-handler";
@@ -16,12 +16,17 @@ const withReplyLog = async (
   user: { id: string; waNumber: string },
   result: InboundHandlerResult
 ) => {
-  const replyText = typeof result.body.replyText === "string" ? result.body.replyText.trim() : "";
-  if (replyText) {
+  const replyTexts = Array.isArray(result.body.replyTexts)
+    ? result.body.replyTexts.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean)
+    : [];
+  const fallbackReplyText = typeof result.body.replyText === "string" ? result.body.replyText.trim() : "";
+  const messagesToLog = replyTexts.length ? replyTexts : fallbackReplyText ? [fallbackReplyText] : [];
+
+  for (const messageText of messagesToLog) {
     await logDirectAssistantReply({
       userId: user.id,
       waNumber: user.waNumber,
-      messageText: replyText
+      messageText
     }).catch(() => null);
   }
 
@@ -73,13 +78,25 @@ export const processInboundBody = async (body: unknown): Promise<InboundHandlerR
     phoneInputRegistered: payload.phoneInputRegistered
   });
   if (onboardingResult.handled) {
-    return withReplyLog(user, ok({ replyText: onboardingResult.replyText }));
+    return withReplyLog(
+      user,
+      ok({
+        replyText: onboardingResult.replyText,
+        replyTexts: onboardingResult.replyTexts,
+        preserveReplyTextBubbles: onboardingResult.preserveReplyTextBubbles
+      })
+    );
   }
 
-  const canUseSubscription = await hasUsableSubscription(user.id);
+  const canUseSubscription = await ensureUsableSubscription(user.id);
   if (!canUseSubscription) {
-    const replyText = await buildSubscriptionRequiredText(user.id);
-    return withReplyLog(user, ok({ replyText }));
+    return withReplyLog(
+      user,
+      ok({
+        replyText:
+          "Akun belum aktif karena onboarding belum selesai. Ketik lanjut untuk menyelesaikan onboarding dulu ya Boss."
+      })
+    );
   }
 
   if (payload.messageType === "TEXT") {

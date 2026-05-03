@@ -34,6 +34,12 @@ export async function GET(request: NextRequest) {
       userId: sub.userId,
       waNumber: sub.user.waNumber,
       status: sub.status,
+      provider: sub.provider,
+      providerStatus: sub.providerStatus ?? null,
+      currentPeriodStartAt: sub.currentPeriodStartAt?.toISOString() ?? null,
+      currentPeriodEndAt: sub.currentPeriodEndAt?.toISOString() ?? null,
+      cancelAt: sub.cancelAt?.toISOString() ?? null,
+      cancelAtPeriodEnd: sub.cancelAtPeriodEnd,
       createdAt: sub.createdAt.toISOString(),
       updatedAt: sub.updatedAt.toISOString()
     }))

@@ -32,17 +32,12 @@ const MEMORY_WINDOW_HOURS = 24;
 const SAFE_REPLAY_MODULES = new Set<GlobalContextModule>([
   "MARKET",
   "NEWS",
-  "SMART_ALLOCATION",
-  "FINANCIAL_FREEDOM",
-  "WEALTH_PROJECTION",
   "PRIVACY"
 ]);
 
 const SAFE_REPLAY_COMMANDS = new Set([
   "HELP",
   "REPORT",
-  "INSIGHT",
-  "ADVICE",
   "GOAL_STATUS",
   "CATEGORY_DETAIL_REPORT",
   "GENERAL_ANALYTICS_REPORT",
@@ -262,12 +257,10 @@ const buildGoalPlanFollowUpText = (
       ? "rumah"
       : command.goalType === "VEHICLE"
         ? "kendaraan"
-        : command.goalType === "VACATION"
-          ? "liburan"
-          : command.goalType === "EMERGENCY_FUND"
-            ? "dana darurat"
-            : command.goalType === "FINANCIAL_FREEDOM"
-              ? "financial freedom"
+            : command.goalType === "VACATION"
+              ? "liburan"
+            : command.goalType === "EMERGENCY_FUND"
+              ? "dana darurat"
               : null);
   const ratioMatch = currentText.match(RATIO_PATTERN);
   if (ratioMatch) {
@@ -386,11 +379,27 @@ const isSafeReplayRoute = (route: GlobalContextRoute) => {
   return SAFE_REPLAY_MODULES.has(route.moduleOrder[0] ?? "TRANSACTION");
 };
 
+const EXPLICIT_CONTEXT_MODULES = new Set<GlobalContextModule>([
+  "PORTFOLIO",
+  "MARKET",
+  "NEWS",
+  "PRIVACY"
+]);
+
 const isContextDependentText = (text: string) => {
   const normalized = normalizeText(text);
   if (!normalized) return false;
   if (CONTEXT_REFERENCE_PATTERN.test(normalized)) return true;
   if (ACK_ONLY_PATTERN.test(normalized)) return true;
+
+  const route = routeGlobalTextContext(normalized);
+  if (route.command.kind !== "NONE") return false;
+
+  const topModule = route.moduleOrder[0];
+  if (topModule && EXPLICIT_CONTEXT_MODULES.has(topModule) && normalized.split(" ").length >= 2) {
+    return false;
+  }
+
   return detectRequestedReportPeriod(normalized) !== null && normalized.split(" ").length <= 4;
 };
 

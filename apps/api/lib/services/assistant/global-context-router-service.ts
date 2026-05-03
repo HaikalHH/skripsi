@@ -1,6 +1,5 @@
 import type { ReportPeriod } from "@finance/shared";
 import { FinancialGoalType } from "@prisma/client";
-import { parsePositiveAmount } from "@/lib/services/transactions/amount-parser";
 import {
   parseCashflowForecastQuery,
   type CashflowForecastHorizon,
@@ -25,15 +24,13 @@ import {
 } from "@/lib/services/reminders/reminder-preference-service";
 import { parseCommand, type ParsedCommand } from "@/lib/services/assistant/command-service";
 import { parsePlainTextCommand } from "@/lib/services/assistant/plain-command-service";
+import { isLikelySavingTransactionText } from "@/lib/services/transactions/saving-intent-service";
 
 export type GlobalContextModule =
   | "TRANSACTION_MUTATION"
   | "PORTFOLIO"
   | "MARKET"
   | "NEWS"
-  | "SMART_ALLOCATION"
-  | "FINANCIAL_FREEDOM"
-  | "WEALTH_PROJECTION"
   | "PRIVACY"
   | "TRANSACTION";
 
@@ -110,36 +107,17 @@ export const ALL_GLOBAL_CONTEXT_MODULES: GlobalContextModule[] = [
   "PORTFOLIO",
   "MARKET",
   "NEWS",
-  "SMART_ALLOCATION",
-  "FINANCIAL_FREEDOM",
-  "WEALTH_PROJECTION",
   "PRIVACY",
   "TRANSACTION"
 ];
 
 const normalizeText = (value: string) => value.trim().replace(/\s+/g, " ");
 
-const parseFlexibleBudgetCommand = (text: string): GlobalContextCommand => {
-  const match = text.match(
-    /^(?:set\s+)?(?:budget|anggaran|alokasi|limit)\s+(.+?)\s+(?:jadi\s+|sebesar\s+)?(\d[\d.,]*(?:\s*(?:jt|juta|rb|ribu|k))?)(?:\s*(?:\/\s*bulan|per\s*bulan|bulan|bln))?$/i
-  );
-  if (!match) return { kind: "NONE" };
-
-  const category = normalizeText(match[1])
-    .replace(/\buntuk\b/i, "")
-    .replace(/\b(?:sekitar|kurang lebih)\b$/i, "")
-    .trim();
-  const monthlyLimit = parsePositiveAmount(match[2]);
-  if (!category || !monthlyLimit) return { kind: "NONE" };
-
-  return {
-    kind: "BUDGET_SET",
-    category,
-    monthlyLimit
-  };
-};
-
 const parseFlexibleGoalCommand = (text: string): GlobalContextCommand => {
+  if (isLikelySavingTransactionText(text)) {
+    return { kind: "NONE" };
+  }
+
   const goalIntent = buildGoalIntentDetails(text);
   const focusDurationMatch = text.match(/\b(\d{1,2})\s*(?:bulan|bln)\b/i);
   const ratioMatch = text.match(/\b(\d{1,2})\s*[:/-]\s*(\d{1,2})\b/);
@@ -210,31 +188,12 @@ const parseFlexibleGoalCommand = (text: string): GlobalContextCommand => {
     };
   }
 
-  if (/(kalau|jika).*(nabung|invest).*(jadi berapa|hasilnya berapa|berapa nanti)/i.test(text)) {
+  if (
+    /(kalau|jika).*(nabung|invest|investasi).*(jadi berapa|hasilnya berapa|berapa nanti|berapa lama|kapan tercapai)/i.test(
+      text
+    )
+  ) {
     return { kind: "NONE" };
-  }
-
-  const contributionAmountMatch = text.match(/(\d[\d.,]*(?:\s*(?:jt|juta|rb|ribu|k))?)/i);
-  const contributionAmount = contributionAmountMatch ? parsePositiveAmount(contributionAmountMatch[1]) : null;
-  const contributionIntent =
-    contributionAmount &&
-    (goalIntent.goalType !== null || goalIntent.goalQuery) &&
-    !/\b(target|goal)\b.*\b(set|pasang|buat)\b/i.test(text) &&
-    !/\b(mau|ingin|pengen)\s+(?:nabung|tabung)\b/i.test(text) &&
-    (
-      /\b(setor|top\s?up|topup|masukin|masukkan|alokasi(?:kan)?|tambahkan?|isi)\b/i.test(text) ||
-      (/\b(nabung|tabung)\b/i.test(text) && /\b(ke|buat|untuk)\b/i.test(text)) ||
-      (/^\s*(nabung|tabung)\b/i.test(text) && !/\b(target|goal)\b/i.test(text)) ||
-      /\b(progress|progres)\b/i.test(text)
-    );
-
-  if (contributionIntent) {
-    return {
-      kind: "GOAL_CONTRIBUTE",
-      amount: contributionAmount,
-      goalQuery: goalIntent.goalQuery,
-      goalType: goalIntent.goalType
-    };
   }
 
   if (/(status target|status goal|goal status|status tabungan|progress tabungan|progress goal)/i.test(text)) {
@@ -246,23 +205,7 @@ const parseFlexibleGoalCommand = (text: string): GlobalContextCommand => {
     };
   }
 
-  const hasGoalIntent =
-    /\b(target|goal|tabungan|saving|dp)\b/i.test(text) ||
-    /\b(mau|ingin|pengen)\s+(?:nabung|tabung)\b/i.test(text);
-  if (!hasGoalIntent) return { kind: "NONE" };
-
-  const amountMatch = text.match(/(\d[\d.,]*(?:\s*(?:jt|juta|rb|ribu|k))?)/i);
-  if (!amountMatch) return { kind: "NONE" };
-
-  const targetAmount = parsePositiveAmount(amountMatch[1]);
-  if (!targetAmount) return { kind: "NONE" };
-
-  return {
-    kind: "GOAL_SET",
-    targetAmount,
-    goalName: goalIntent.goalName,
-    goalType: goalIntent.goalType
-  };
+  return { kind: "NONE" };
 };
 
 const parseFlexibleReportCommand = (text: string): GlobalContextCommand => {
@@ -330,29 +273,6 @@ const parseFlexibleCashflowForecastCommand = (text: string): GlobalContextComman
   };
 };
 
-const parseFlexibleInsightCommand = (text: string): GlobalContextCommand => {
-  if (!/\b(pola pengeluaran|kategori paling boros|tren pengeluaran|kebiasaan|insight)\b/i.test(text)) {
-    return { kind: "NONE" };
-  }
-
-  return { kind: "INSIGHT" };
-};
-
-const parseFlexibleAdviceCommand = (text: string): GlobalContextCommand => {
-  if (
-    !/\b(keuangan .* sehat|sehat gak|boros gak|aman gak|boleh beli|boleh gak|saran keuangan|menurut kamu|sebaiknya)\b/i.test(
-      text
-    )
-  ) {
-    return { kind: "NONE" };
-  }
-
-  return {
-    kind: "ADVICE",
-    question: normalizeText(text)
-  };
-};
-
 const parseFlexibleReminderPreferenceCommand = (text: string): GlobalContextCommand => {
   const parsed = parseReminderPreferenceCommand(text);
   if (!parsed) return { kind: "NONE" };
@@ -413,20 +333,11 @@ const parseNaturalLanguageCommand = (rawText: string): GlobalContextCommand => {
   const report = parseFlexibleReportCommand(text);
   if (report.kind !== "NONE") return report;
 
-  const insight = parseFlexibleInsightCommand(text);
-  if (insight.kind !== "NONE") return insight;
-
-  const advice = parseFlexibleAdviceCommand(text);
-  if (advice.kind !== "NONE") return advice;
-
   const financialHealth = parseFlexibleFinancialHealthCommand(text);
   if (financialHealth.kind !== "NONE") return financialHealth;
 
   const reminderPreference = parseFlexibleReminderPreferenceCommand(text);
   if (reminderPreference.kind !== "NONE") return reminderPreference;
-
-  const budget = parseFlexibleBudgetCommand(text);
-  if (budget.kind !== "NONE") return budget;
 
   const goal = parseFlexibleGoalCommand(text);
   if (goal.kind !== "NONE") return goal;
@@ -459,7 +370,7 @@ const looksLikeTransactionMutation = (text: string) =>
   /\b(hapus|delete|ubah|edit|ganti|koreksi)\b/i.test(text);
 
 const looksLikePortfolio = (text: string) =>
-  /\b(portfolio|portofolio|aset investasi|nilai aset|komposisi aset|risiko portfolio|risiko portofolio|rebalance|rebalancing|aset paling dominan|holding terbesar|aset terbesar|portfolio terlalu numpuk|portofolio terlalu numpuk|aset paling cuan|aset paling rugi|performa portfolio|performa portofolio|profit portfolio|rugi portfolio|diversifikasi portfolio|diversifikasi portofolio|portfolio terdiversifikasi|portofolio terdiversifikasi|tambah emas|tambah saham|tambah crypto|tambah kripto|tambah reksa dana|tambah reksadana|tambah properti|tambah deposito|tambah bisnis|tambah tabungan|tambah cash|tambah kas|catat emas|catat saham|catat crypto|catat kripto|catat tabungan)\b/i.test(
+  /\b(portfolio|portofolio|aset investasi|aset saya|asetku|nilai aset|berapa aset|komposisi aset|risiko portfolio|risiko portofolio|rebalance|rebalancing|aset paling dominan|holding terbesar|aset terbesar|portfolio terlalu numpuk|portofolio terlalu numpuk|aset paling cuan|aset paling rugi|performa portfolio|performa portofolio|profit portfolio|rugi portfolio|diversifikasi portfolio|diversifikasi portofolio|portfolio terdiversifikasi|portofolio terdiversifikasi|tambah emas|beli emas|tambah saham|tambah crypto|tambah kripto|tambah reksa dana|tambah reksadana|tambah properti|tambah deposito|tambah bisnis|tambah tabungan|tambah cash|tambah kas|catat emas|catat saham|catat crypto|catat kripto|catat tabungan)\b/i.test(
     text
   );
 
@@ -473,23 +384,12 @@ const looksLikeMarket = (text: string) =>
 const looksLikeNews = (text: string) =>
   /\b(berita|news|headline|digest|update ekonomi|update finance|ringkas berita)\b/i.test(text);
 
-const looksLikeSmartAllocation = (text: string) =>
-  /\b(sisa uang|alokasi|invest berapa|nabung berapa|smart allocation)\b/i.test(text);
-
-const looksLikeFinancialFreedom = (text: string) =>
-  /\b(financial freedom|bebas finansial|pensiun dini)\b/i.test(text);
-
-const looksLikeWealthProjection = (text: string) =>
-  /\b(kalau|jika)\b.*\b(nabung|invest|investasi)\b.*\b(jadi berapa|hasilnya berapa|berapa nanti|berapa lama|kapan tercapai)\b/i.test(
-    text
-  );
-
 const looksLikePrivacy = (text: string) =>
   /\b(privasi|data aku aman|export data|download data|minta export)\b/i.test(text);
 
 const looksLikeTransaction = (text: string) =>
   hasMoneyLikeText(text) &&
-  /\b(beli|bayar|masuk|gaji|transfer|top up|topup|nabung|belanja|makan|minum|kopi|parkir|listrik|internet|qr|qris|ongkir|transport|pulsa)\b/i.test(
+  /\b(beli|bayar|masuk|gaji|transfer|top up|topup|nabung|menabung|setor tabungan|simpan|saving|belanja|makan|minum|kopi|parkir|listrik|internet|qr|qris|ongkir|transport|pulsa)\b/i.test(
     text
   );
 
@@ -498,12 +398,9 @@ const detectModuleOrder = (rawText: string): GlobalContextModule[] => {
   const candidates: Array<{ module: GlobalContextModule; score: number }> = [];
 
   if (looksLikeTransactionMutation(text)) addModuleCandidate(candidates, "TRANSACTION_MUTATION", 100);
-  if (looksLikeWealthProjection(text)) addModuleCandidate(candidates, "WEALTH_PROJECTION", 95);
-  if (looksLikeFinancialFreedom(text)) addModuleCandidate(candidates, "FINANCIAL_FREEDOM", 90);
   if (looksLikePortfolio(text)) addModuleCandidate(candidates, "PORTFOLIO", 88);
   if (looksLikeMarket(text)) addModuleCandidate(candidates, "MARKET", 86);
   if (looksLikeNews(text)) addModuleCandidate(candidates, "NEWS", 84);
-  if (looksLikeSmartAllocation(text)) addModuleCandidate(candidates, "SMART_ALLOCATION", 82);
   if (looksLikePrivacy(text)) addModuleCandidate(candidates, "PRIVACY", 80);
   if (looksLikeTransaction(text)) addModuleCandidate(candidates, "TRANSACTION", 40);
 

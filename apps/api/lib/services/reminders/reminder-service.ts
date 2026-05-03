@@ -20,8 +20,6 @@ const WEEKLY_MIN_CURRENT_EXPENSE = 300_000;
 const WEEKLY_MIN_INCREASE = 100_000;
 const RECURRING_LOOKAHEAD_DAYS = 3;
 const RECURRING_MIN_CONFIDENCE = 0.55;
-const PAYDAY_LOOKAHEAD_DAYS = 5;
-const PAYDAY_MIN_SAFE_BUFFER = 150_000;
 const GOAL_OFF_TRACK_MIN_MONTHS = 12;
 const GOAL_OFF_TRACK_MAX_PROGRESS_PERCENT = 80;
 
@@ -45,6 +43,7 @@ type ReminderCandidate = {
 };
 
 const DIGEST_PREVIEW_LIMIT = 3;
+const CRITICAL_REMINDER_PRIORITY = 90;
 
 const toNumber = (value: unknown): number => {
   if (typeof value === "number") return value;
@@ -195,37 +194,6 @@ const getMonthlyClosingAlert = async (
   };
 };
 
-const getFinancialProfileModel = () =>
-  (prisma as unknown as {
-    financialProfile?: {
-      findUnique: (args: {
-        where: { userId: string };
-        select: {
-          activeIncomeMonthly: true;
-          monthlyIncomeTotal: true;
-          monthlyExpenseTotal: true;
-        };
-      }) => Promise<{
-        activeIncomeMonthly: bigint | null;
-        monthlyIncomeTotal: bigint | null;
-        monthlyExpenseTotal: bigint | null;
-      } | null>;
-    };
-  }).financialProfile;
-
-const getAssetModel = () =>
-  (prisma as unknown as {
-    asset?: {
-      findMany: (args: {
-        where: { userId: string; assetType: { in: string[] } };
-        select: { estimatedValue: true };
-      }) => Promise<Array<{ estimatedValue: bigint | null }>>;
-    };
-  }).asset;
-
-const wholeDayDiff = (start: Date, end: Date) =>
-  Math.max(0, Math.ceil((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000)));
-
 const signedDayDiff = (start: Date, end: Date) =>
   Math.round((startOfUtcDay(end).getTime() - startOfUtcDay(start).getTime()) / (24 * 60 * 60 * 1000));
 
@@ -236,24 +204,6 @@ const clampDayOfMonth = (year: number, month: number, dayOfMonth: number) => {
 
 const createMonthDate = (year: number, month: number, dayOfMonth: number) =>
   new Date(Date.UTC(year, month, clampDayOfMonth(year, month, dayOfMonth), 0, 0, 0, 0));
-
-const getLastPayday = (now: Date, salaryDate: number) => {
-  const currentMonthPayday = createMonthDate(now.getUTCFullYear(), now.getUTCMonth(), salaryDate);
-  if (currentMonthPayday.getTime() <= now.getTime()) {
-    return currentMonthPayday;
-  }
-
-  return createMonthDate(now.getUTCFullYear(), now.getUTCMonth() - 1, salaryDate);
-};
-
-const getNextPayday = (now: Date, salaryDate: number) => {
-  const currentMonthPayday = createMonthDate(now.getUTCFullYear(), now.getUTCMonth(), salaryDate);
-  if (currentMonthPayday.getTime() > now.getTime()) {
-    return currentMonthPayday;
-  }
-
-  return createMonthDate(now.getUTCFullYear(), now.getUTCMonth() + 1, salaryDate);
-};
 
 const getRecurringDueSoonAlert = async (
   userId: string,
@@ -310,117 +260,38 @@ const getRecurringDueSoonAlert = async (
   };
 };
 
-const getPaydayBufferAlert = async (
+const getJakartaDateParts = (date: Date) => {
+  const jakartaDate = new Date(date.getTime() + 7 * 60 * 60 * 1000);
+  return {
+    year: jakartaDate.getUTCFullYear(),
+    month: jakartaDate.getUTCMonth(),
+    day: jakartaDate.getUTCDate()
+  };
+};
+
+const getPaydaySalaryInputAlert = async (
   userId: string,
   baseDate = new Date()
 ): Promise<{ marker: string; message: string } | null> => {
-  const financialProfileModel = getFinancialProfileModel();
-  const assetModel = getAssetModel();
-  const [user, financialProfile, liquidAssets] = await Promise.all([
-    prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        salaryDate: true
-      }
-    }),
-    financialProfileModel?.findUnique({
-      where: { userId },
-      select: {
-        activeIncomeMonthly: true,
-        monthlyIncomeTotal: true,
-        monthlyExpenseTotal: true
-      }
-    }) ?? Promise.resolve(null),
-    assetModel?.findMany({
-      where: {
-        userId,
-        assetType: {
-          in: ["CASH", "SAVINGS"]
-        }
-      },
-      select: {
-        estimatedValue: true
-      }
-    }) ?? Promise.resolve([])
-  ]);
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      salaryDate: true
+    }
+  });
 
   if (!user?.salaryDate) return null;
 
-  const nextPayday = getNextPayday(baseDate, user.salaryDate);
-  const daysUntilPayday = wholeDayDiff(baseDate, nextPayday);
-  if (daysUntilPayday <= 0 || daysUntilPayday > PAYDAY_LOOKAHEAD_DAYS) return null;
+  const jakartaToday = getJakartaDateParts(baseDate);
+  const currentMonthPayday = clampDayOfMonth(jakartaToday.year, jakartaToday.month, user.salaryDate);
+  if (jakartaToday.day !== currentMonthPayday) return null;
 
-  const cycleStart = getLastPayday(baseDate, user.salaryDate);
-  const rollingExpenseStart = new Date(baseDate.getTime() - 29 * 24 * 60 * 60 * 1000);
-  const [cycleTransactions, rollingExpenses] = await Promise.all([
-    prisma.transaction.findMany({
-      where: {
-        userId,
-        occurredAt: {
-          gte: cycleStart,
-          lte: baseDate
-        }
-      },
-      orderBy: { occurredAt: "asc" }
-    }),
-    prisma.transaction.findMany({
-      where: {
-        userId,
-        type: "EXPENSE",
-        occurredAt: {
-          gte: rollingExpenseStart,
-          lte: baseDate
-        }
-      },
-      orderBy: { occurredAt: "asc" }
-    })
-  ]);
-
-  const cycleIncome = cycleTransactions
-    .filter((transaction) => transaction.type === "INCOME")
-    .reduce((sum, transaction) => sum + toNumber(transaction.amount), 0);
-  const cycleExpense = cycleTransactions
-    .filter((transaction) => transaction.type === "EXPENSE")
-    .reduce((sum, transaction) => sum + toNumber(transaction.amount), 0);
-  const rollingExpense = rollingExpenses.reduce((sum, transaction) => sum + toNumber(transaction.amount), 0);
-  const liquidAssetValue = liquidAssets.reduce((sum, asset) => sum + toNumber(asset.estimatedValue), 0);
-
-  const activeIncomeMonthly = toNumber(financialProfile?.activeIncomeMonthly ?? 0);
-  const monthlyIncomeProfile = toNumber(financialProfile?.monthlyIncomeTotal ?? 0);
-  const monthlyExpenseProfile = toNumber(financialProfile?.monthlyExpenseTotal ?? 0);
-  const cycleDays = Math.max(1, wholeDayDiff(cycleStart, baseDate) + 1);
-  const rollingDays = Math.max(1, wholeDayDiff(rollingExpenseStart, baseDate) + 1);
-  const daysInCurrentMonth = new Date(
-    Date.UTC(baseDate.getUTCFullYear(), baseDate.getUTCMonth() + 1, 0)
-  ).getUTCDate();
-
-  const currentIncomeEstimate =
-    cycleIncome > 0 ? cycleIncome : activeIncomeMonthly || monthlyIncomeProfile;
-  const expenseRunRate =
-    cycleExpense > 0 && cycleDays >= 3
-      ? cycleExpense / cycleDays
-      : rollingExpense > 0
-        ? rollingExpense / rollingDays
-        : monthlyExpenseProfile > 0
-          ? monthlyExpenseProfile / Math.max(1, daysInCurrentMonth)
-          : 0;
-
-  if (expenseRunRate <= 0) return null;
-
-  const bufferNow = currentIncomeEstimate - cycleExpense + liquidAssetValue;
-  const projectedNeed = Math.round(expenseRunRate * daysUntilPayday);
-  const projectedEndingBalance = bufferNow - projectedNeed;
-
-  if (projectedEndingBalance > Math.max(PAYDAY_MIN_SAFE_BUFFER, Math.round(expenseRunRate * 2))) {
-    return null;
-  }
-
+  const paydayDate = createMonthDate(jakartaToday.year, jakartaToday.month, user.salaryDate);
   return {
-    marker: `Reminder Cashflow ${nextPayday.toISOString().slice(0, 10)}`,
+    marker: `Reminder Gajian ${paydayDate.toISOString().slice(0, 10)}`,
     message:
-      `Reminder Cashflow: menuju gajian ${DATE_LABEL_FORMATTER.format(nextPayday)}, buffer kamu ` +
-      `${projectedEndingBalance < 0 ? "berisiko minus" : "mulai tipis"}. ` +
-      `Estimasi sisa ${formatMoney(projectedEndingBalance)} dengan kebutuhan sekitar ${formatMoney(projectedNeed)} sampai gajian.`
+      `Reminder Gajian: hari ini jadwal gajian (${DATE_LABEL_FORMATTER.format(paydayDate)}). ` +
+      'Kalau gaji sudah masuk, catat dengan format "gaji 9.2jt" atau "gaji 9200000" ya Boss.'
   };
 };
 
@@ -503,10 +374,10 @@ export const getWeeklySpendingAlert = async (
 
   const marker = `Reminder Mingguan ${ranges.currentStart.toISOString().slice(0, 10)}`;
   const message =
-    `Reminder Mingguan: pengeluaran 7 hari terakhir Anda meningkat ke ${currentExpense.toFixed(
-      2
-    )} dari periode sebelumnya ${previousExpense.toFixed(
-      2
+    `Reminder Mingguan: pengeluaran 7 hari terakhir Anda meningkat ke ${formatMoney(
+      currentExpense
+    )} dari periode sebelumnya ${formatMoney(
+      previousExpense
     )}. Cek kategori pengeluaran terbesar minggu ini agar tidak kebablasan.`;
 
   return { marker, message };
@@ -523,9 +394,7 @@ export const buildGoalReachedAlertText = (goalStatus: {
 }) => {
   if (goalStatus.targetAmount <= 0) return null;
   if (goalStatus.currentProgress < goalStatus.targetAmount) return null;
-  return `Target tabungan tercapai: ${goalStatus.currentProgress.toFixed(
-    2
-  )} dari target ${goalStatus.targetAmount.toFixed(2)}.`;
+  return `Target tabungan tercapai: ${formatMoney(goalStatus.currentProgress)} dari target ${formatMoney(goalStatus.targetAmount)}.`;
 };
 
 const getReminderEventModel = () =>
@@ -572,6 +441,9 @@ const summarizeReminderCandidate = (candidate: ReminderCandidate) =>
     .replace(/^Closing Bulanan:\s*/i, "")
     .trim();
 
+const isCriticalReminderCandidate = (candidate: ReminderCandidate) =>
+  candidate.priority >= CRITICAL_REMINDER_PRIORITY;
+
 const buildReminderDigestCandidate = (params: {
   candidates: ReminderCandidate[];
   baseDate: Date;
@@ -615,7 +487,7 @@ export const buildReminderDispatchPlan = (params: {
 
   if (params.remainingDailyCapacity === 1) {
     const secondPriority = sortedCandidates[1]?.priority ?? 0;
-    if (sortedCandidates[0].priority >= 90 && secondPriority <= 75) {
+    if (sortedCandidates[0].priority >= CRITICAL_REMINDER_PRIORITY && secondPriority <= 75) {
       return [sortedCandidates[0]];
     }
 
@@ -627,8 +499,27 @@ export const buildReminderDispatchPlan = (params: {
     ];
   }
 
-  const directCandidates = sortedCandidates.slice(0, params.remainingDailyCapacity - 1);
-  const deferredCandidates = sortedCandidates.slice(params.remainingDailyCapacity - 1);
+  const criticalCandidates = sortedCandidates
+    .filter((candidate) => isCriticalReminderCandidate(candidate))
+    .slice(0, params.remainingDailyCapacity);
+  if (criticalCandidates.length >= params.remainingDailyCapacity) {
+    return criticalCandidates;
+  }
+
+  const directMarkers = new Set(criticalCandidates.map((candidate) => candidate.marker));
+  const remainingCandidates = sortedCandidates.filter(
+    (candidate) => !directMarkers.has(candidate.marker)
+  );
+  const remainingSlots = params.remainingDailyCapacity - criticalCandidates.length;
+  if (remainingCandidates.length <= remainingSlots) {
+    return [...criticalCandidates, ...remainingCandidates];
+  }
+
+  const directCandidates = [
+    ...criticalCandidates,
+    ...remainingCandidates.slice(0, Math.max(0, remainingSlots - 1))
+  ];
+  const deferredCandidates = remainingCandidates.slice(Math.max(0, remainingSlots - 1));
   if (deferredCandidates.length < 2) {
     return [...directCandidates, ...deferredCandidates];
   }
@@ -853,12 +744,10 @@ export const runProactiveReminders = async (baseDate = new Date()) => {
         const overLimit = spent >= limit;
         const marker = `Reminder Budget ${budget.category}`;
         const message = overLimit
-          ? `Kategori ${budget.category} sudah melewati budget bulanan. Limit ${limit.toFixed(
-              2
-            )}, aktual ${spent.toFixed(2)}.`
-          : `Kategori ${budget.category} hampir habis. Terpakai ${spent.toFixed(
-              2
-            )} dari limit ${limit.toFixed(2)}.`;
+          ? `Kategori ${budget.category} sudah melewati budget bulanan. Limit ${formatMoney(
+              limit
+            )}, aktual ${formatMoney(spent)}.`
+          : `Kategori ${budget.category} hampir habis. Terpakai ${formatMoney(spent)} dari limit ${formatMoney(limit)}.`;
         candidates.push({
           reminderType: "budget",
           marker,
@@ -917,7 +806,7 @@ export const runProactiveReminders = async (baseDate = new Date()) => {
       });
     }
 
-    const paydayAlert = reminderPreference.cashflowEnabled ? await getPaydayBufferAlert(user.id, baseDate) : null;
+    const paydayAlert = reminderPreference.cashflowEnabled ? await getPaydaySalaryInputAlert(user.id, baseDate) : null;
     if (paydayAlert) {
       candidates.push({
         reminderType: "cashflow_buffer",

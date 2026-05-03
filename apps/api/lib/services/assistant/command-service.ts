@@ -1,14 +1,15 @@
 import type { ReportPeriod } from "@finance/shared";
 import { FinancialGoalType } from "@prisma/client";
-import { parsePositiveAmount } from "@/lib/services/transactions/amount-parser";
-import { buildGoalIntentDetails } from "@/lib/services/planning/goal-intent-service";
 import { parseReportPeriod } from "@/lib/services/reporting/report-service";
 
 export type ParsedCommand =
   | { kind: "HELP" }
-  | { kind: "INSIGHT" }
-  | { kind: "ADVICE"; question: string | null }
   | { kind: "REPORT"; period: ReportPeriod }
+  | { kind: "BUDGET_SET_FLOW_START" }
+  | { kind: "GOAL_SET_FLOW_START" }
+  | { kind: "GOAL_ADD_FLOW_START" }
+  | { kind: "GOAL_STATUS_FLOW_START" }
+  | { kind: "ASSET_ADD_FLOW_START" }
   | { kind: "BUDGET_SET"; category: string; monthlyLimit: number }
   | {
       kind: "GOAL_SET";
@@ -34,71 +35,25 @@ export const parseCommand = (rawText: string | undefined): ParsedCommand => {
   const lowerText = text.toLowerCase();
 
   if (lowerText === "/help") return { kind: "HELP" };
-  if (lowerText === "/insight") return { kind: "INSIGHT" };
-  if (lowerText === "/advice") return { kind: "ADVICE", question: null };
-  if (lowerText === "/goal status") return { kind: "GOAL_STATUS", goalQuery: null, goalType: null };
-
-  if (lowerText.startsWith("/advice ")) {
-    const question = normalizeText(text.slice("/advice ".length));
-    if (!question) return { kind: "ADVICE", question: null };
-    return { kind: "ADVICE", question };
+  if (lowerText === "/set goal" || lowerText.startsWith("/set goal ")) {
+    return { kind: "GOAL_SET_FLOW_START" };
+  }
+  if (lowerText === "/goal add" || lowerText.startsWith("/goal add ")) {
+    return { kind: "GOAL_ADD_FLOW_START" };
+  }
+  if (lowerText === "/goal status" || lowerText.startsWith("/goal status ")) {
+    return { kind: "GOAL_STATUS_FLOW_START" };
+  }
+  if (lowerText === "/budget set" || lowerText.startsWith("/budget set ")) {
+    return { kind: "BUDGET_SET_FLOW_START" };
+  }
+  if (lowerText === "/tambah aset" || lowerText.startsWith("/tambah aset ")) {
+    return { kind: "ASSET_ADD_FLOW_START" };
   }
 
   if (lowerText.startsWith("/report")) {
     const [, periodText] = lowerText.split(/\s+/);
     return { kind: "REPORT", period: parseReportPeriod(periodText) };
-  }
-
-  if (lowerText.startsWith("/goal status ")) {
-    const goalQuery = normalizeText(text.slice("/goal status ".length));
-    const goalIntent = buildGoalIntentDetails(goalQuery);
-    return {
-      kind: "GOAL_STATUS",
-      goalQuery: goalQuery || goalIntent.goalQuery,
-      goalType: goalIntent.goalType
-    };
-  }
-
-  if (lowerText.startsWith("/goal set ")) {
-    const remainder = normalizeText(text.slice("/goal set ".length));
-    const amountMatch = remainder.match(/(\d[\d.,]*(?:\s*(?:jt|juta|rb|ribu|k))?)/i);
-    const amount = amountMatch ? parsePositiveAmount(amountMatch[1]) : null;
-    if (!amount) return { kind: "NONE" };
-    const goalIntent = buildGoalIntentDetails(remainder);
-    return {
-      kind: "GOAL_SET",
-      targetAmount: amount,
-      goalName: goalIntent.goalName,
-      goalType: goalIntent.goalType
-    };
-  }
-
-  if (lowerText.startsWith("/goal add ")) {
-    const remainder = normalizeText(text.slice("/goal add ".length));
-    const amountMatch = remainder.match(/(\d[\d.,]*(?:\s*(?:jt|juta|rb|ribu|k))?)/i);
-    const amount = amountMatch ? parsePositiveAmount(amountMatch[1]) : null;
-    if (!amount) return { kind: "NONE" };
-    const goalIntent = buildGoalIntentDetails(remainder);
-    return {
-      kind: "GOAL_CONTRIBUTE",
-      amount,
-      goalQuery: goalIntent.goalQuery,
-      goalType: goalIntent.goalType
-    };
-  }
-
-  if (lowerText.startsWith("/budget set ")) {
-    const parts = text.split(/\s+/);
-    if (parts.length < 4) return { kind: "NONE" };
-
-    const amountRaw = parts.at(-1) ?? "";
-    const monthlyLimit = parsePositiveAmount(amountRaw);
-    if (!monthlyLimit) return { kind: "NONE" };
-
-    const category = normalizeText(parts.slice(2, -1).join(" "));
-    if (!category) return { kind: "NONE" };
-
-    return { kind: "BUDGET_SET", category, monthlyLimit };
   }
 
   return { kind: "NONE" };

@@ -1,13 +1,13 @@
 ﻿# WhatsApp Finance Assistant MVP (Monorepo)
 
-MVP chatbot keuangan pribadi berbasis WhatsApp dengan AI (Gemini + Vision OCR), penyimpanan MySQL (Prisma), admin monitoring web, dan chart PNG dari Python service.
+MVP chatbot keuangan pribadi berbasis WhatsApp dengan AI (Gemini + Vision OCR), penyimpanan MySQL (Prisma), web customer + admin monitoring, dan chart PNG dari Python service.
 
 ## Architecture
 
-- End-user interface: **WhatsApp only**
-- Bot: **Baileys multi-device** (`apps/bot`)
+- End-user interface: **WhatsApp + Web**
+- Bot channel: **Meta WhatsApp Cloud API** (`apps/api` webhook + `apps/bot` outbound worker)
 - Backend API: **Next.js 14 route handlers** (`apps/api`)
-- Admin panel (admin-only): **Next.js 14** (`apps/admin-web`)
+- Web app (customer + admin): **Next.js 14** (`apps/web`)
 - Reporting image: **FastAPI + Matplotlib PNG** (`services/reporting`)
 - Shared schemas/types/prompts: `packages/shared`
 - Database: MySQL + Prisma
@@ -17,7 +17,7 @@ MVP chatbot keuangan pribadi berbasis WhatsApp dengan AI (Gemini + Vision OCR), 
 ```text
 .
 |- apps/
-|  |- admin-web/
+|  |- web/
 |  |- api/
 |  `- bot/
 |- packages/
@@ -45,9 +45,11 @@ MVP chatbot keuangan pribadi berbasis WhatsApp dengan AI (Gemini + Vision OCR), 
    - savings goal (`SavingsGoal`)
    - budget near-limit/exceed alert message
    - natural text support: `budget makan 2 juta/bulan`, `mau nabung 50 juta`
-6. Admin web:
-   - env password login
-   - Users list, Transactions table + filters, Subscriptions status update, System health
+6. Web app:
+   - public landing page + start flow
+   - onboarding web yang sinkron dengan flow WhatsApp
+   - dashboard customer untuk trend, report, goal, asset, dan personalization
+   - admin login + Users list, Transactions table + filters, Subscriptions status update, System health
 7. Security/config:
    - secrets in env
    - zod validation for payloads + AI output
@@ -56,11 +58,12 @@ MVP chatbot keuangan pribadi berbasis WhatsApp dengan AI (Gemini + Vision OCR), 
 8. Tests:
    - extraction parsing
    - aggregation logic
-9. New user onboarding + dummy payment:
+9. New user onboarding + payment/subscription:
    - unregistered users must type `register` to start registration Q&A
    - other messages from unregistered users are blocked with register prompt
-   - bot sends dummy payment link (`/pay/{token}`)
-   - payment confirmation activates subscription
+   - bot sends payment link (`/pay/{token}`)
+   - supports `DUMMY` provider for local/dev and `AIRWALLEX` for real hosted checkout
+   - Airwallex payment confirmation is driven by webhook, not manual button
    - bot sends activation notification automatically
 10. Proactive reminders:
    - budget reminder (near limit / exceeded)
@@ -74,6 +77,7 @@ MVP chatbot keuangan pribadi berbasis WhatsApp dengan AI (Gemini + Vision OCR), 
 - pnpm 9+
 - MySQL 8+
 - Python 3.11+
+- ngrok CLI (optional, for exposing API/web locally over HTTPS)
 - Google Gemini API key
 - Google Cloud Vision credential (API key **or** service account JSON)
 
@@ -82,7 +86,7 @@ MVP chatbot keuangan pribadi berbasis WhatsApp dengan AI (Gemini + Vision OCR), 
 Copy and edit:
 
 - `apps/api/.env.example` -> `apps/api/.env`
-- `apps/admin-web/.env.example` -> `apps/admin-web/.env`
+- `apps/web/.env.example` -> `apps/web/.env`
 - `apps/bot/.env.example` -> `apps/bot/.env`
 - `services/reporting/.env.example` -> `services/reporting/.env` (optional)
 
@@ -94,15 +98,31 @@ Important:
   - `GCP_VISION_CREDENTIALS_PATH` (optional, for service-account JSON mode)
   - `ADMIN_API_TOKEN`
   - `BOT_INTERNAL_TOKEN`
+  - `PUBLIC_API_BASE_URL`
   - `PAYMENT_WEB_BASE_URL`
+  - `PAYMENT_PROVIDER`
+  - `AIRWALLEX_CLIENT_ID`
+  - `AIRWALLEX_API_KEY`
+  - `AIRWALLEX_LEGAL_ENTITY_ID`
+  - `AIRWALLEX_LINKED_PAYMENT_ACCOUNT_ID`
+  - `AIRWALLEX_SUBSCRIPTION_PRICE_ID`
+  - `AIRWALLEX_WEBHOOK_SECRET`
+  - `WHATSAPP_ACCESS_TOKEN`
+  - `WHATSAPP_PHONE_NUMBER_ID`
+  - `WHATSAPP_BUSINESS_ACCOUNT_ID`
+  - `WHATSAPP_WEBHOOK_VERIFY_TOKEN`
+  - `WHATSAPP_APP_SECRET` (optional but recommended)
   - `DATABASE_URL`
-- `apps/admin-web/.env`
+- `apps/web/.env`
   - `ADMIN_PASSWORD`
   - `ADMIN_API_TOKEN` (must match API)
   - `API_BASE_URL`
 - `apps/bot/.env`
   - `API_BASE_URL` (usually `http://localhost:3001`)
   - `BOT_INTERNAL_TOKEN` (must match API)
+  - `WHATSAPP_ACCESS_TOKEN`
+  - `WHATSAPP_PHONE_NUMBER_ID`
+  - `WHATSAPP_BUSINESS_ACCOUNT_ID`
 
 ## Local Development (No Docker)
 
@@ -147,37 +167,124 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
 
-### 5) Run API + Admin + Bot (separate terminals)
+### 5) Run API + Web + Bot (separate terminals)
 
 ```bash
 pnpm dev:api
-pnpm dev:admin
+pnpm dev:web
 pnpm dev:bot
 ```
 
-On first bot run, QR appears in terminal.
+### 5a) Airwallex checkout/webhook setup
 
-### 6) Scan QR (Baileys session)
+If you want real subscription billing instead of local dummy mode:
 
-In WhatsApp mobile:
+- set `PAYMENT_PROVIDER=AIRWALLEX` in `apps/api/.env`
+- fill the Airwallex credentials and IDs from `apps/api/.env.example`
+- register webhook URL to `POST /api/public/payment/airwallex/webhook`
+- keep `PAYMENT_WEB_BASE_URL` pointed to the public web domain that serves `/pay/{token}`
 
-1. Open WhatsApp Settings
-2. Linked Devices
-3. Link a Device
-4. Scan QR shown in terminal (`apps/bot`)
+### 5b) Meta WhatsApp webhook setup
 
-Auth state is stored in `apps/bot/.baileys_auth`.
+Fill these values first:
+
+- `apps/api/.env`
+  - `WHATSAPP_ACCESS_TOKEN`
+  - `WHATSAPP_PHONE_NUMBER_ID`
+  - `WHATSAPP_BUSINESS_ACCOUNT_ID`
+  - `WHATSAPP_WEBHOOK_VERIFY_TOKEN`
+- `apps/bot/.env`
+  - `WHATSAPP_ACCESS_TOKEN`
+  - `WHATSAPP_PHONE_NUMBER_ID`
+  - `WHATSAPP_BUSINESS_ACCOUNT_ID`
+
+Webhook endpoint:
+
+- `GET/POST /api/public/whatsapp/webhook`
+- callback URL formula: `{PUBLIC_API_BASE_URL}/api/public/whatsapp/webhook`
+
+If you are running locally and need a public HTTPS callback URL for Meta:
+
+```bash
+pnpm tunnel:api
+```
+
+Or start API + tunnel together:
+
+```bash
+pnpm dev:api:ngrok
+```
+
+The command prints the public callback URL to use in Meta App Dashboard.
+
+In Meta App Dashboard:
+
+1. Set callback URL to the printed HTTPS URL ending with `/api/public/whatsapp/webhook`
+2. Set verify token to the value of `WHATSAPP_WEBHOOK_VERIFY_TOKEN`
+3. Subscribe the webhook to `messages`
+4. Make sure the connected phone number matches `WHATSAPP_PHONE_NUMBER_ID`
+
+### 5c) Open web on phone via ngrok
+
+If you want to open the local web app from your phone:
+
+1. Install and authenticate ngrok once:
+
+```bash
+brew install ngrok/ngrok/ngrok
+ngrok config add-authtoken <YOUR_NGROK_AUTHTOKEN>
+```
+
+2. Start API as usual:
+
+```bash
+pnpm dev:api
+```
+
+3. Start web + ngrok in one command:
+
+```bash
+pnpm dev:web:ngrok
+```
+
+The command will:
+
+- run `apps/web` on port `3000`
+- start an `ngrok` tunnel to that web server
+- print the public HTTPS URL you can open from your phone
+
+If your web server is already running in another terminal, just create the tunnel:
+
+```bash
+pnpm tunnel:web
+```
+
+Optional env overrides:
+
+- `WEB_PORT=3000` to change the local web port
+- `NGROK_URL=https://your-reserved-domain.ngrok.app` if you use a reserved ngrok URL
 
 ## Admin Login
 
 - Open `http://localhost:3000/login`
-- Login with `ADMIN_PASSWORD` from `apps/admin-web/.env`
+- Login with `ADMIN_PASSWORD` from `apps/web/.env`
+
+## Customer Web
+
+- Open `http://localhost:3000/`
+- Start with WhatsApp number on `/start`
+- Continue onboarding on `/onboarding`
+- View dashboard, trend, goals, assets, and personalization on `/dashboard`
 
 ## Useful Commands
 
 ```bash
 pnpm dev:api
-pnpm dev:admin
+pnpm dev:api:ngrok
+pnpm dev:web
+pnpm dev:web:ngrok
+pnpm tunnel:api
+pnpm tunnel:web
 pnpm dev:bot
 pnpm --filter @finance/api test
 ```
@@ -218,13 +325,19 @@ pnpm --filter @finance/api test
 1. User sends any message and gets prompt to type `register`.
 2. User types `register`.
 3. Bot asks registration questions (Q&A).
-4. After registration complete, bot sends dummy payment link.
-5. User opens payment page and clicks `Paid`.
-6. Subscription becomes active and bot sends activation notification.
+4. After registration complete, bot sends payment link.
+5. User opens payment page:
+   - `DUMMY`: click `Paid`
+   - `AIRWALLEX`: continue to hosted checkout and finish payment there
+6. Subscription becomes active after confirmation:
+   - `DUMMY`: via manual confirm endpoint
+   - `AIRWALLEX`: via webhook
+7. Bot sends activation notification.
 
 ## API Notes
 
-- Main bot ingress: `POST /api/bot/inbound`
+- Main WhatsApp ingress: `GET/POST /api/public/whatsapp/webhook`
+- Internal bot ingress used by business logic: `POST /api/bot/inbound`
 - Heartbeat: `POST /api/bot/heartbeat`
 - Reminder sweep trigger (internal): `POST /api/bot/reminders/run`
 - Bot outbound queue:
@@ -232,7 +345,9 @@ pnpm --filter @finance/api test
   - `POST /api/bot/outbound/ack`
 - Public payment endpoints:
   - `GET /api/public/payment/session?token=...`
+  - `POST /api/public/payment/session`
   - `POST /api/public/payment/confirm`
+  - `POST /api/public/payment/airwallex/webhook`
 - Admin endpoints (require header `x-admin-token`):
   - `GET /api/admin/users`
   - `GET /api/admin/transactions`
@@ -245,10 +360,7 @@ pnpm --filter @finance/api test
 pnpm --filter @finance/api test
 ```
 
-Current tests:
-
-- `apps/api/tests/ai-parsing.test.ts`
-- `apps/api/tests/aggregation.test.ts`
+Current coverage includes parsing, aggregation, onboarding, reminders, planning, portfolio, reporting insight, and payment/subscription services under `apps/api/tests/`.
 
 ## Assumptions
 
@@ -257,7 +369,7 @@ Current tests:
 3. Admin auth is env-password + cookie session (no RBAC/JWT/OAuth yet).
 4. Amount/category extraction relies on Gemini strict JSON response.
 5. If OCR/Gemini/reporting fails, bot returns fallback message and does not store partial transaction data.
-6. End-user dashboard is intentionally omitted; admin-web is monitoring-only.
+6. End-user dashboard now lives in `apps/web` and shares the same user state as WhatsApp onboarding.
 
 ## Production Hardening (Next Steps)
 

@@ -1,4 +1,4 @@
-import { SubscriptionStatus } from "@prisma/client";
+import { OnboardingStatus, RegistrationStatus, SubscriptionStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 const USABLE_SUBSCRIPTION_STATUSES: SubscriptionStatus[] = [
@@ -33,4 +33,29 @@ export const activateSubscription = async (userId: string) => {
       status: SubscriptionStatus.ACTIVE
     }
   });
+};
+
+export const ensureUsableSubscription = async (userId: string): Promise<boolean> => {
+  if (await hasUsableSubscription(userId)) {
+    return true;
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      onboardingStatus: true,
+      registrationStatus: true
+    }
+  });
+
+  const isOnboardingComplete =
+    user?.onboardingStatus === OnboardingStatus.COMPLETED ||
+    user?.registrationStatus === RegistrationStatus.COMPLETED;
+
+  if (!isOnboardingComplete) {
+    return false;
+  }
+
+  await activateSubscription(userId);
+  return true;
 };

@@ -19,7 +19,7 @@ const CAPABILITY_PATTERN =
 const OUT_OF_SCOPE_PATTERN =
   /\b(cuaca|weather|film|lagu|musik|game|bola|skor|berita artis|coding|programming|kode program)\b/i;
 const FINANCE_RELATED_PATTERN =
-  /\b(keuangan|uang|transaksi|pengeluaran|pemasukan|income|expense|budget|anggaran|laporan|report|insight|goal|target|tabungan|saving|investasi|investment|portfolio|portofolio|aset|asset|saham|crypto|kripto|emas|harga|market|financial freedom|dana darurat|nabung)\b/i;
+  /\b(keuangan|uang|transaksi|pengeluaran|pemasukan|income|expense|budget|anggaran|laporan|report|goal|target|tabungan|saving|investasi|investment|portfolio|portofolio|aset|asset|saham|crypto|kripto|emas|harga|market|dana darurat|nabung)\b/i;
 
 const normalizeText = (value: string) => value.trim().replace(/\s+/g, " ");
 
@@ -30,10 +30,10 @@ const buildThanksReply = () =>
   "Siap Boss. Kalau ada yang mau dicek lagi, tinggal chat aja dengan bahasa biasa.";
 
 const buildOutOfScopeReply = () =>
-  "Untuk itu saya belum bantu ya Boss, karena fokus saya di urusan keuangan pribadi dan penggunaan Finance AI ini. Kalau mau, saya bisa bantu catat transaksi, cek laporan, budget, target, portfolio, atau kasih insight keuangan.";
+  "Untuk itu saya belum bantu ya Boss, karena fokus saya di urusan keuangan pribadi dan penggunaan Finance AI ini. Kalau mau, saya bisa bantu catat transaksi, cek laporan, budget, target, portfolio, market, atau news finance.";
 
 const buildLowContextReply = () =>
-  "Saya belum cukup paham maksud Boss dari pesan ini, jadi saya belum mau jawab ngawur. Kalau maksudnya terkait transaksi, laporan, budget, target, portfolio, market, atau advice keuangan, tulis aja dengan bahasa bebas dan saya bantu arahkan.";
+  "Saya belum cukup paham maksud Boss dari pesan ini, jadi saya belum mau jawab ngawur. Kalau maksudnya terkait transaksi, laporan, budget, target, portfolio, market, atau news finance, tulis aja dengan bahasa bebas dan saya bantu arahkan.";
 
 const buildCapabilityReply = () =>
   [
@@ -42,8 +42,7 @@ const buildCapabilityReply = () =>
     "- edit atau hapus transaksi",
     "- laporan harian/mingguan/bulanan",
     "- budget dan target tabungan",
-    "- portfolio, harga market, finance news",
-    "- insight, advice, financial freedom, dan simulasi wealth projection"
+    "- portfolio, harga market, finance news"
   ].join("\n");
 
 const buildUserContextSummary = async (userId: string) => {

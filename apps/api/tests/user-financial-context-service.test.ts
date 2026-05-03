@@ -8,6 +8,7 @@ describe("user financial context service", () => {
       onboardingStatus: "COMPLETED",
       analysisReady: true,
       hasAssets: true,
+      hasPassiveIncome: false,
       monthlyIncomeTotal: 10000000,
       monthlyExpenseTotal: 4000000,
       potentialMonthlySaving: 6000000,
@@ -47,6 +48,7 @@ describe("user financial context service", () => {
     expect(summary).toContain("->entertainment");
     expect(summary).toContain("assets=");
     expect(summary).toContain("goals=");
+    expect(summary).toContain("hasPassiveIncome=no");
   });
 });
 
