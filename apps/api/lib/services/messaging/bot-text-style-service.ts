@@ -62,12 +62,12 @@ const styleLine = (line: string, emoji: string) => {
   if (listPrefixMatch) {
     const prefix = listPrefixMatch[1];
     const content = line.slice(prefix.length).trimStart();
-    return `${prefix}${emoji} ${content}`;
+    return `${prefix}${content}`;
   }
 
   const leadingWhitespace = line.match(/^\s*/)?.[0] ?? "";
   const content = line.trimStart();
-  return `${leadingWhitespace}${emoji} ${content}`;
+  return `${leadingWhitespace}${content}`;
 };
 
 export const applyBossFinanceEmojiStyle = (
@@ -166,8 +166,8 @@ export const styleBotReplyPayload = <
     typeof body.replyText === "string" ? applyBossFinanceEmojiStyle(body.replyText) : body.replyText;
   const styledReplyTexts = Array.isArray(body.replyTexts)
     ? body.replyTexts.map((item) =>
-        typeof item === "string" ? applyBossFinanceEmojiStyle(item) : item
-      )
+      typeof item === "string" ? applyBossFinanceEmojiStyle(item) : item
+    )
     : body.replyTexts;
 
   return {
