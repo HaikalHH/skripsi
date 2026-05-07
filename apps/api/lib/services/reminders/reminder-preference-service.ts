@@ -27,17 +27,17 @@ export type ReminderPreferenceCommand =
     };
 
 const DEFAULT_REMINDER_PREFERENCE: ReminderPreferenceState = {
-  budgetEnabled: true,
-  weeklyEnabled: true,
+  budgetEnabled: false,
+  weeklyEnabled: false,
   weeklyReviewEnabled: true,
-  recurringEnabled: true,
-  cashflowEnabled: true,
-  goalEnabled: true,
-  monthlyClosingEnabled: true,
+  recurringEnabled: false,
+  cashflowEnabled: false,
+  goalEnabled: false,
+  monthlyClosingEnabled: false,
   quietHoursStart: null,
   quietHoursEnd: null,
   minIntervalHours: 24,
-  maxPerDay: 3,
+  maxPerDay: 1,
   snoozedUntil: null
 };
 
@@ -216,7 +216,7 @@ export const isReminderSnoozed = (baseDate: Date, preference: ReminderPreference
 const toggleLabelMap = {
   budgetEnabled: "budget",
   weeklyEnabled: "spending mingguan",
-  weeklyReviewEnabled: "review mingguan",
+  weeklyReviewEnabled: "recap harian jam 7 pagi",
   recurringEnabled: "langganan",
   cashflowEnabled: "cashflow",
   goalEnabled: "goal",
@@ -256,7 +256,7 @@ export const buildReminderPreferenceText = (
     "Pengaturan reminder kamu sekarang:",
     `- Budget: ${preference.budgetEnabled ? "aktif" : "mati"}`,
     `- Spending mingguan: ${preference.weeklyEnabled ? "aktif" : "mati"}`,
-    `- Review mingguan: ${preference.weeklyReviewEnabled ? "aktif" : "mati"}`,
+    `- Recap harian jam 07.00: ${preference.weeklyReviewEnabled ? "aktif" : "mati"}`,
     `- Langganan/recurring: ${preference.recurringEnabled ? "aktif" : "mati"}`,
     `- Cashflow: ${preference.cashflowEnabled ? "aktif" : "mati"}`,
     `- Goal: ${preference.goalEnabled ? "aktif" : "mati"}`,
@@ -366,7 +366,7 @@ export const parseReminderPreferenceCommand = (rawText: string): ReminderPrefere
     if (/\b(?:weekly|spending mingguan|lonjakan mingguan|reminder mingguan)\b/i.test(text)) {
       updates.weeklyEnabled = toggleValue;
     }
-    if (/\b(review mingguan|weekly review|ringkasan mingguan|digest mingguan)\b/i.test(text)) {
+    if (/\b(review mingguan|weekly review|ringkasan mingguan|digest mingguan|recap harian|rekap harian|recap pagi|jam 7)\b/i.test(text)) {
       updates.weeklyReviewEnabled = toggleValue;
     }
     if (/\b(recurring|langganan|subscription)\b/i.test(text)) updates.recurringEnabled = toggleValue;

@@ -92,6 +92,18 @@ describe("onboarding web parity", () => {
         },
         [EmploymentType.EMPLOYEE]
       )
+    ).toBe("ASK_ACTIVE_INCOME_COUNT");
+    expect(
+      getNextOnboardingStep(
+        "ASK_ACTIVE_INCOME_COUNT" as OnboardingStep,
+        {
+          ...afterGoals,
+          budgetMode: BudgetMode.GUIDED_PLAN,
+          employmentTypes: [EmploymentType.EMPLOYEE],
+          activeIncomeCount: 1
+        },
+        1
+      )
     ).toBe(OnboardingStep.ASK_ACTIVE_INCOME);
     expect(
       getNextOnboardingStep(

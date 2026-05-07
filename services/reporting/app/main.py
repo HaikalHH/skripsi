@@ -6,7 +6,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter
-from matplotlib.patches import Rectangle
+from matplotlib.patches import FancyBboxPatch, Rectangle
 from matplotlib.backends.backend_pdf import PdfPages
 from fastapi import FastAPI
 from fastapi.responses import Response
@@ -103,6 +103,10 @@ TOP = 0.93
 BLUE = "#2563eb"
 RED = "#dc2626"
 GREEN = "#16a34a"
+PURPLE = "#6366e8"
+LAVENDER = "#dfe2ff"
+PALE_LAVENDER = "#f0f1ff"
+TRACK = "#dddddd"
 INK = "#111827"
 MUTED = "#6b7280"
 LINE = "#e5e7eb"
@@ -158,8 +162,9 @@ def _draw_summary_cards(fig: plt.Figure, summary_lines: list[str]) -> None:
 
     columns = 3
     card_width = (RIGHT - LEFT - 0.03) / columns
-    card_height = 0.085
-    start_y = 0.79
+    card_height = 0.078
+    header_height = 0.026
+    start_y = 0.855
 
     for index, line in enumerate(cards):
         row = index // columns
@@ -168,18 +173,39 @@ def _draw_summary_cards(fig: plt.Figure, summary_lines: list[str]) -> None:
         y = start_y - row * (card_height + 0.018)
         label, value = _split_label_value(line)
         fig.patches.append(
-            Rectangle(
+            FancyBboxPatch(
                 (x, y - card_height),
                 card_width,
                 card_height,
                 transform=fig.transFigure,
-                facecolor=SOFT,
-                edgecolor=LINE,
-                linewidth=0.8,
+                boxstyle="round,pad=0.002,rounding_size=0.006",
+                facecolor=LAVENDER,
+                edgecolor="none",
+                linewidth=0,
             )
         )
-        fig.text(x + 0.015, y - 0.02, label.upper(), fontsize=7.5, color=MUTED, ha="left", va="top")
-        fig.text(x + 0.015, y - 0.047, value or label, fontsize=10.5, fontweight="bold", color=INK, ha="left", va="top")
+        fig.patches.append(
+            Rectangle(
+                (x, y - header_height),
+                card_width,
+                header_height,
+                transform=fig.transFigure,
+                facecolor=PURPLE,
+                edgecolor="none",
+                linewidth=0,
+            )
+        )
+        fig.text(x + card_width / 2, y - 0.009, label, fontsize=6.8, fontweight="bold", color="white", ha="center", va="top")
+        fig.text(
+            x + card_width / 2,
+            y - header_height - 0.028,
+            value or label,
+            fontsize=7.3,
+            fontweight="bold",
+            color=PURPLE,
+            ha="center",
+            va="top",
+        )
 
 
 def _parse_category_rows(section: MonthlyPdfSection | None) -> list[tuple[str, float, str]]:
@@ -198,51 +224,44 @@ def _parse_category_rows(section: MonthlyPdfSection | None) -> list[tuple[str, f
     return rows
 
 
-def _draw_category_chart(fig: plt.Figure, rows: list[tuple[str, float, str]]) -> None:
-    fig.text(LEFT, 0.58, "Top Expense Categories", fontsize=12, fontweight="bold", color=INK, ha="left", va="top")
+def _draw_category_chart(fig: plt.Figure, rows: list[tuple[str, float, str]], period_label: str) -> None:
+    fig.text(LEFT, 0.62, "Top Expense Categories", fontsize=18, fontweight="bold", color=INK, ha="left", va="top")
+    fig.text(LEFT, 0.587, period_label, fontsize=8, color=INK, ha="left", va="top")
     if not rows:
-        fig.text(LEFT, 0.545, "Belum ada pengeluaran per kategori di periode ini.", fontsize=9, color=MUTED, ha="left")
+        fig.text(LEFT, 0.575, "Belum ada pengeluaran per kategori di periode ini.", fontsize=9, color=MUTED, ha="left")
         return
 
-    chart_ax = fig.add_axes([LEFT, 0.35, 0.48, 0.18])
+    chart_ax = fig.add_axes([LEFT + 0.075, 0.44, 0.73, 0.14])
     top_rows = rows[:6]
     labels = [row[0] for row in top_rows][::-1]
     values = [row[1] for row in top_rows][::-1]
     positions = list(range(len(top_rows)))
     max_value = max(values) if values else 0
-    chart_ax.barh(positions, values, color=BLUE)
+    chart_ax.barh(positions, values, color=[PURPLE if index == len(values) - 1 else "#a9acf4" for index in range(len(values))])
     chart_ax.set_yticks(positions)
-    chart_ax.set_yticklabels([])
-    chart_ax.tick_params(axis="y", length=0)
-    chart_ax.tick_params(axis="x", labelsize=8)
-    chart_ax.grid(axis="x", color=LINE, linewidth=0.7)
+    chart_ax.set_yticklabels(labels, fontsize=6.4, color=PURPLE)
+    chart_ax.tick_params(axis="y", length=0, pad=4)
+    chart_ax.tick_params(axis="x", labelsize=6.4, colors=PURPLE)
+    chart_ax.xaxis.set_major_formatter(FuncFormatter(_format_short_rupiah))
+    chart_ax.get_xaxis().get_offset_text().set_visible(False)
+    chart_ax.set_xlim(0, max_value * 1.12 if max_value > 0 else 1)
+    chart_ax.grid(axis="x", color=LINE, linewidth=0.5)
     chart_ax.spines[["top", "right", "left"]].set_visible(False)
     chart_ax.spines["bottom"].set_color(LINE)
 
-    for position, label, value in zip(positions, labels, values):
-        display_label = label if len(label) <= 26 else f"{label[:23]}..."
-        x = max_value * 0.02 if max_value > 0 else 0
-        chart_ax.text(
-            x,
-            position,
-            display_label,
-            va="center",
-            ha="left",
-            fontsize=8,
-            color="white",
-            fontweight="bold",
-            clip_on=True,
-        )
-
     total = sum(row[1] for row in rows)
-    table_x = 0.62
-    y = 0.525
-    for category, amount, amount_text in top_rows[:5]:
+    detail_top = 0.395
+    column_width = 0.39
+    row_gap = 0.052
+    for index, (category, amount, amount_text) in enumerate(top_rows[:6]):
+        col = index % 2
+        row = index // 2
+        x = LEFT + col * (column_width + 0.055)
+        y = detail_top - row * row_gap
         share = (amount / total * 100) if total > 0 else 0
-        fig.text(table_x, y, category, fontsize=8.5, color=INK, ha="left", va="top")
-        fig.text(RIGHT, y, amount_text, fontsize=8.5, color=INK, ha="right", va="top")
-        fig.text(table_x, y - 0.018, f"{share:.1f}% dari total kategori", fontsize=7.5, color=MUTED, ha="left", va="top")
-        y -= 0.055
+        fig.text(x, y, category[:30], fontsize=7.1, color=PURPLE, fontweight="bold", ha="left", va="top")
+        fig.text(x + column_width, y, amount_text, fontsize=7.1, color=PURPLE, fontweight="bold", ha="right", va="top")
+        fig.text(x, y - 0.017, f"{share:.1f}% dari total kategori", fontsize=6.6, color=PURPLE, ha="left", va="top")
 
 
 def _draw_section_preview(fig: plt.Figure, section: MonthlyPdfSection | None, x: float, y: float) -> None:
@@ -287,39 +306,50 @@ def _strip_order_prefix(text: str) -> str:
 
 def _draw_progress_bar(fig: plt.Figure, x: float, y: float, width: float, percent: float, color: str) -> None:
     clamped = max(0, min(100, percent))
-    height = 0.012
+    height = 0.017
     fig.patches.append(
-        Rectangle((x, y - height), width, height, transform=fig.transFigure, facecolor=LINE, edgecolor="none")
-    )
-    fig.patches.append(
-        Rectangle(
+        FancyBboxPatch(
             (x, y - height),
-            width * (clamped / 100),
+            width,
             height,
             transform=fig.transFigure,
-            facecolor=color,
+            boxstyle="round,pad=0,rounding_size=0.006",
+            facecolor=TRACK,
             edgecolor="none",
         )
     )
+    fill_width = width * (clamped / 100)
+    if fill_width > 0:
+        fig.patches.append(
+            FancyBboxPatch(
+                (x, y - height),
+                max(fill_width, height),
+                height,
+                transform=fig.transFigure,
+                boxstyle="round,pad=0,rounding_size=0.006",
+                facecolor=color,
+                edgecolor="none",
+            )
+        )
 
 
 def _draw_budget_progress_preview(fig: plt.Figure, section: MonthlyPdfSection | None, x: float, y: float) -> None:
     if not section:
         return
 
-    fig.text(x, y, section.title, fontsize=11, fontweight="bold", color=INK, ha="left", va="top")
-    cursor_y = y - 0.029
+    fig.text(x, y, section.title, fontsize=10, fontweight="bold", color=PURPLE, ha="left", va="top")
+    cursor_y = y - 0.033
     width = 0.35
     for line in section.lines[:5]:
         name = line.split(":", 1)[0].strip()
         percent = _parse_ratio_percent(line)
         amount = line.split(":", 1)[1].split("(", 1)[0].strip() if ":" in line else ""
-        fig.text(x, cursor_y, name[:28], fontsize=7.6, fontweight="bold", color=INK, ha="left", va="top")
-        fig.text(x + width, cursor_y, f"{percent:.1f}%", fontsize=7.4, color=MUTED, ha="right", va="top")
-        cursor_y -= 0.013
-        _draw_progress_bar(fig, x, cursor_y, width, percent, BLUE if percent < 80 else RED)
-        fig.text(x, cursor_y - 0.015, amount[:42], fontsize=6.8, color=MUTED, ha="left", va="top")
-        cursor_y -= 0.036
+        fig.text(x, cursor_y, name[:28], fontsize=6.9, fontweight="bold", color=PURPLE, ha="left", va="top")
+        fig.text(x + width, cursor_y, f"{percent:.1f}%", fontsize=6.9, color=PURPLE, ha="right", va="top")
+        cursor_y -= 0.014
+        _draw_progress_bar(fig, x, cursor_y, width, percent, PURPLE if percent < 80 else RED)
+        fig.text(x, cursor_y - 0.019, amount[:42], fontsize=6.4, color=PURPLE, ha="left", va="top")
+        cursor_y -= 0.046
         if cursor_y < 0.055:
             break
 
@@ -328,8 +358,8 @@ def _draw_goal_progress_preview(fig: plt.Figure, section: MonthlyPdfSection | No
     if not section:
         return
 
-    fig.text(x, y, section.title, fontsize=11, fontweight="bold", color=INK, ha="left", va="top")
-    cursor_y = y - 0.029
+    fig.text(x, y, section.title, fontsize=10, fontweight="bold", color=PURPLE, ha="left", va="top")
+    cursor_y = y - 0.033
     width = 0.35
     for line in section.lines[:5]:
         parts = [part.strip() for part in _strip_order_prefix(line).split("|")]
@@ -338,29 +368,43 @@ def _draw_goal_progress_preview(fig: plt.Figure, section: MonthlyPdfSection | No
         remaining = next((part for part in parts if part.lower().startswith("sisa ")), "")
         eta = next((part for part in parts if part.lower().startswith("eta ")), "")
         detail = " | ".join(part for part in [remaining, eta] if part)
-        fig.text(x, cursor_y, name[:28], fontsize=7.6, fontweight="bold", color=INK, ha="left", va="top")
-        fig.text(x + width, cursor_y, f"{percent:.1f}%", fontsize=7.4, color=MUTED, ha="right", va="top")
-        cursor_y -= 0.013
-        _draw_progress_bar(fig, x, cursor_y, width, percent, GREEN)
-        fig.text(x, cursor_y - 0.015, detail[:46], fontsize=6.8, color=MUTED, ha="left", va="top")
-        cursor_y -= 0.036
+        fig.text(x, cursor_y, name[:28], fontsize=6.9, fontweight="bold", color=PURPLE, ha="left", va="top")
+        fig.text(x + width, cursor_y, f"{percent:.1f}%", fontsize=6.9, color=PURPLE, ha="right", va="top")
+        cursor_y -= 0.014
+        _draw_progress_bar(fig, x, cursor_y, width, percent, PURPLE)
+        fig.text(x, cursor_y - 0.019, detail[:46], fontsize=6.4, color=PURPLE, ha="left", va="top")
+        cursor_y -= 0.046
         if cursor_y < 0.055:
             break
 
 
+def _draw_budget_goal_page(
+    pdf: PdfPages,
+    payload: MonthlyPdfRequest,
+    budget_section: MonthlyPdfSection | None,
+    goal_section: MonthlyPdfSection | None,
+    page_number: int,
+) -> bool:
+    if not budget_section and not goal_section:
+        return False
+
+    fig, _ = _make_page()
+    fig.text(LEFT, 0.93, "Budget & Progress Goal", fontsize=18, fontweight="bold", color=INK, ha="left", va="top")
+    fig.text(LEFT, 0.895, payload.periodLabel, fontsize=9, color=MUTED, ha="left", va="top")
+    _draw_budget_progress_preview(fig, budget_section, LEFT, 0.82)
+    _draw_goal_progress_preview(fig, goal_section, 0.54, 0.82)
+    _draw_footer(fig, page_number)
+    pdf.savefig(fig)
+    plt.close(fig)
+    return True
+
+
 def _draw_cover_page(pdf: PdfPages, payload: MonthlyPdfRequest, page_number: int) -> None:
     fig, _ = _make_page()
-    fig.patches.append(
-        Rectangle((0, 0.86), 1, 0.14, transform=fig.transFigure, facecolor="#eff6ff", edgecolor="none")
-    )
-    _draw_title(fig, payload)
-    fig.text(LEFT, 0.855, f"Periode: {payload.periodLabel}", fontsize=10, color=MUTED, ha="left", va="top")
+    fig.text(LEFT, 0.965, payload.title, fontsize=20, fontweight="bold", color="#050505", ha="left", va="top")
+    fig.text(LEFT, 0.925, payload.periodLabel, fontsize=8.8, color="#050505", ha="left", va="top")
     _draw_summary_cards(fig, payload.summaryLines)
-    _draw_category_chart(fig, _parse_category_rows(_find_section(payload, "Ringkasan Pengeluaran")))
-
-    _draw_budget_progress_preview(fig, _find_section(payload, "Budget Bulanan"), LEFT, 0.315)
-    _draw_goal_progress_preview(fig, _find_section(payload, "Progress Goal"), 0.54, 0.315)
-    _draw_footer(fig, page_number)
+    _draw_category_chart(fig, _parse_category_rows(_find_section(payload, "Ringkasan Pengeluaran")), payload.periodLabel)
     pdf.savefig(fig)
     plt.close(fig)
 
@@ -833,7 +877,16 @@ def generate_monthly_pdf(payload: MonthlyPdfRequest):
     buffer = BytesIO()
     with PdfPages(buffer) as pdf:
         _draw_cover_page(pdf, payload, page_number=1)
-        _render_detail_pages(pdf, payload, start_page_number=2)
+        next_page_number = 2
+        if _draw_budget_goal_page(
+            pdf,
+            payload,
+            _find_section(payload, "Budget Bulanan"),
+            _find_section(payload, "Progress Goal"),
+            page_number=next_page_number,
+        ):
+            next_page_number += 1
+        _render_detail_pages(pdf, payload, start_page_number=next_page_number)
 
     buffer.seek(0)
     return Response(content=buffer.getvalue(), media_type="application/pdf")

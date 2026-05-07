@@ -144,9 +144,33 @@ export const tryHandleStructuredText = async (
     return ok({ replyText: HELP_TEXT });
   }
 
+  if (routedContext.command.kind === "REPORT_MENU") {
+    return ok({
+      replyText: [
+        "Mau lihat report yang mana Boss?",
+        "",
+        "1. Bulan kalender",
+        "Contoh: 1 Mei - hari ini",
+        "",
+        "2. Siklus gajian",
+        "Contoh: 28 April - 27 Mei",
+        "",
+        "3. Mingguan",
+        "4. Hari ini",
+        "",
+        "Command cepat:",
+        "- /calendar report",
+        "- /cashflow report",
+        "- /weekly report",
+        "- /daily report"
+      ].join("\n")
+    });
+  }
+
   if (routedContext.command.kind === "REPORT") {
     const report = await buildReportResponse(params.userId, {
       period: routedContext.command.period,
+      reportMode: routedContext.command.reportMode,
       dateRange: routedContext.command.dateRange ?? null,
       comparisonRange: routedContext.command.comparisonRange ?? null
     });

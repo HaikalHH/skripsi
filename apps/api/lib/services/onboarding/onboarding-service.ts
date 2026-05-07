@@ -204,6 +204,10 @@ const getOnboardingSessionModel = () => (prisma as { onboardingSession?: any }).
 const getFinancialProfileModel = () => (prisma as { financialProfile?: any }).financialProfile;
 const getExpensePlanModel = () => (prisma as { expensePlan?: any }).expensePlan;
 const getFinancialGoalModel = () => (prisma as { financialGoal?: any }).financialGoal;
+const STEP_ACTIVE_INCOME_COUNT = "ASK_ACTIVE_INCOME_COUNT" as OnboardingStep;
+const STEP_ACTIVE_INCOME_CYCLE_CONFIRM = "ASK_ACTIVE_INCOME_CYCLE_CONFIRM" as OnboardingStep;
+const QUESTION_ACTIVE_INCOME_COUNT = "ACTIVE_INCOME_COUNT" as OnboardingQuestionKey;
+const QUESTION_ACTIVE_INCOME_CYCLE_CONFIRM = "ACTIVE_INCOME_CYCLE_CONFIRM" as OnboardingQuestionKey;
 const ASSET_ONBOARDING_QUESTION_KEYS = new Set<OnboardingQuestionKey>([
   OnboardingQuestionKey.ASSET_SELECTION,
   OnboardingQuestionKey.ASSET_ADD_MORE,
@@ -375,6 +379,63 @@ const getOnboardingStepRedirect = (error: unknown): OnboardingStepRedirect | nul
 
 const getLatestAnswerValue = <T>(context: RuntimeContext, questionKey: OnboardingQuestionKey) =>
   getSessionNormalizedValue<T>(latestSessionForQuestion(context.sessions, questionKey));
+
+const getConfirmedSessionValues = <T>(
+  sessions: OnboardingSession[],
+  questionKey: OnboardingQuestionKey
+) =>
+  sessions
+    .filter((session) => session.isCompleted === true && session.questionKey === questionKey)
+    .map((session) => getSessionNormalizedValue<T>(session))
+    .filter((value): value is T => value !== null && value !== undefined);
+
+const getActiveIncomeOnboardingState = (params: {
+  sessions: OnboardingSession[];
+  salaryDate: number | null;
+}) => {
+  const activeIncomeCount =
+    getSessionNormalizedValue<number>(
+      latestSessionForQuestion(
+        params.sessions.filter((session) => session.isCompleted === true),
+        QUESTION_ACTIVE_INCOME_COUNT
+      )
+    ) ?? null;
+  const activeIncomeAmounts = getConfirmedSessionValues<number>(
+    params.sessions,
+    OnboardingQuestionKey.ACTIVE_INCOME_MONTHLY
+  );
+  const activeIncomePaydays = getConfirmedSessionValues<number>(
+    params.sessions,
+    OnboardingQuestionKey.SALARY_DATE
+  );
+  const activeIncomeLatestPayday = activeIncomePaydays.at(-1) ?? null;
+
+  return {
+    activeIncomeCount,
+    activeIncomeAmounts,
+    activeIncomePaydays,
+    activeIncomeLatestPayday,
+    activeIncomeCycleStartDay: params.salaryDate
+  };
+};
+
+const syncActiveIncomeProfileFromSessions = async (userId: string) => {
+  const onboardingSessionModel = getOnboardingSessionModel();
+  if (!onboardingSessionModel) return;
+  const sessions = (await onboardingSessionModel.findMany({
+    where: {
+      userId,
+      questionKey: OnboardingQuestionKey.ACTIVE_INCOME_MONTHLY,
+      isCompleted: true
+    },
+    orderBy: { createdAt: "asc" }
+  })) as OnboardingSession[];
+  const total = sessions
+    .map((session) => getSessionNormalizedValue<number>(session))
+    .filter((value): value is number => typeof value === "number" && Number.isFinite(value))
+    .reduce((sum, value) => sum + value, 0);
+  await upsertIncomeProfile({ userId, activeIncomeMonthly: total });
+};
 
 const buildGuidedExpenseSummaryItems = (
   sessions: OnboardingSession[],
@@ -2278,6 +2339,10 @@ const buildRuntimeContext = async (userId: string, existingUser?: User): Promise
   const pendingGoalDetail = getPendingGoalDetail(confirmedSessions);
   const pendingAssetDetail = getPendingAssetDetail(confirmedSessions);
   const guidedOtherExpenseState = getGuidedOtherExpenseState(confirmedSessions);
+  const activeIncomeState = getActiveIncomeOnboardingState({
+    sessions: confirmedSessions,
+    salaryDate: user.salaryDate ?? null
+  });
   const goalExecutionModeSession = latestSessionForQuestion(
     confirmedSessions,
     OnboardingQuestionKey.GOAL_ALLOCATION_MODE
@@ -2440,6 +2505,11 @@ const buildRuntimeContext = async (userId: string, existingUser?: User): Promise
     hasExpenseDependentGoal: hasExpenseDependentGoalSelection(confirmedSessions),
     hasFinancialFreedomGoal: selectedGoalTypes.includes(FinancialGoalType.FINANCIAL_FREEDOM),
     goalExpenseStrategy: getGoalExpenseStrategy(confirmedSessions),
+    activeIncomeCount: activeIncomeState.activeIncomeCount,
+    activeIncomeAmountCount: activeIncomeState.activeIncomeAmounts.length,
+    activeIncomePaydayCount: activeIncomeState.activeIncomePaydays.length,
+    activeIncomeLatestPayday: activeIncomeState.activeIncomeLatestPayday,
+    activeIncomeCycleStartDay: activeIncomeState.activeIncomeCycleStartDay,
     monthlyIncomeTotal,
     monthlyExpenseTotal,
     potentialMonthlySaving,
@@ -2478,8 +2548,6 @@ const ANSWERED_PROGRESS_STEPS = new Set<OnboardingStep>([
   OnboardingStep.ASK_BUDGET_MODE,
   OnboardingStep.ASK_EMPLOYMENT_TYPES,
   OnboardingStep.ASK_HAS_ACTIVE_INCOME,
-  OnboardingStep.ASK_ACTIVE_INCOME,
-  OnboardingStep.ASK_SALARY_DATE,
   OnboardingStep.ASK_HAS_PASSIVE_INCOME,
   OnboardingStep.ASK_PASSIVE_INCOME,
   OnboardingStep.ASK_ESTIMATED_MONTHLY_INCOME,
@@ -3838,10 +3906,16 @@ const describeStoredAnswer = (
       return (normalizedAnswer as boolean)
         ? "sekarang ada income aktif rutin"
         : "sekarang belum ada income aktif rutin";
+    case STEP_ACTIVE_INCOME_COUNT:
+      return `income aktif rutin masuk ${normalizedAnswer as number} kali sebulan`;
     case OnboardingStep.ASK_ACTIVE_INCOME:
       return `income aktifnya sekitar ${formatMoney(normalizedAnswer as number)} per bulan`;
     case OnboardingStep.ASK_SALARY_DATE:
       return `tanggal gajiannya di tanggal ${normalizedAnswer as number}`;
+    case STEP_ACTIVE_INCOME_CYCLE_CONFIRM:
+      return (normalizedAnswer as boolean)
+        ? "tanggal ini dipakai sebagai awal periode report"
+        : "tanggal ini belum dipakai sebagai awal periode report";
     case OnboardingStep.ASK_HAS_PASSIVE_INCOME:
       return (normalizedAnswer as boolean)
         ? "selain itu ada income pasif juga"
@@ -4475,6 +4549,18 @@ const validateAnswerForStep = (context: RuntimeContext, rawAnswer: unknown) => {
         ? buildValidationReply(prompt, "Balas dengan `Ada` atau `Ga ada` ya Boss.")
         : { value: parsed };
     }
+    case STEP_ACTIVE_INCOME_CYCLE_CONFIRM: {
+      const parsed = parseBooleanAnswer(rawAnswer);
+      return parsed === null
+        ? buildValidationReply(prompt, "Balas `iya` kalau tanggal ini mau jadi awal periode report, atau `bukan` kalau mau lanjut ke income berikutnya ya Boss.")
+        : { value: parsed };
+    }
+    case STEP_ACTIVE_INCOME_COUNT: {
+      const parsed = parseDayOfMonth(rawAnswer);
+      return parsed === null || parsed < 1 || parsed > 12
+        ? buildValidationReply(prompt, "Jumlah gajian per bulan harus angka 1-12 ya Boss.")
+        : { value: parsed };
+    }
     case OnboardingStep.ASK_GOAL_ADD_MORE:
     case OnboardingStep.ASK_ASSET_ADD_MORE: {
       const parsed = parseAddMoreAnswer(rawAnswer);
@@ -4818,10 +4904,23 @@ const persistConfirmedAnswerEffects = async (
       break;
     }
     case OnboardingStep.ASK_ACTIVE_INCOME:
-      await upsertIncomeProfile({ userId: context.user.id, activeIncomeMonthly: normalizedAnswer as number });
+      await syncActiveIncomeProfileFromSessions(context.user.id);
       break;
-    case OnboardingStep.ASK_SALARY_DATE:
-      await prisma.user.update({ where: { id: context.user.id }, data: { salaryDate: normalizedAnswer as number } });
+    case OnboardingStep.ASK_SALARY_DATE: {
+      const incomeCount = context.activeIncomeCount ?? 1;
+      const paydayIndex = (context.activeIncomePaydayCount ?? 0) + 1;
+      const shouldUseAsCycleStart =
+        incomeCount <= 1 ||
+        (!context.activeIncomeCycleStartDay && paydayIndex >= incomeCount);
+      if (shouldUseAsCycleStart) {
+        await prisma.user.update({ where: { id: context.user.id }, data: { salaryDate: normalizedAnswer as number } });
+      }
+      break;
+    }
+    case STEP_ACTIVE_INCOME_CYCLE_CONFIRM:
+      if ((normalizedAnswer as boolean) === true && context.activeIncomeLatestPayday) {
+        await prisma.user.update({ where: { id: context.user.id }, data: { salaryDate: context.activeIncomeLatestPayday } });
+      }
       break;
     case OnboardingStep.ASK_HAS_PASSIVE_INCOME:
       await prisma.user.update({ where: { id: context.user.id }, data: { hasPassiveIncome: normalizedAnswer as boolean } });

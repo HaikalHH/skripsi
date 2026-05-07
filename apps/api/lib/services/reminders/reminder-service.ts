@@ -44,6 +44,7 @@ type ReminderCandidate = {
 
 const DIGEST_PREVIEW_LIMIT = 3;
 const CRITICAL_REMINDER_PRIORITY = 90;
+const JAKARTA_UTC_OFFSET_HOURS = 7;
 
 const toNumber = (value: unknown): number => {
   if (typeof value === "number") return value;
@@ -57,6 +58,36 @@ const toNumber = (value: unknown): number => {
 
 const startOfUtcDay = (date: Date) =>
   new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 0, 0, 0, 0));
+
+const getJakartaDayBounds = (baseDate: Date, offsetDays = 0) => {
+  const jakartaDate = new Date(baseDate.getTime() + JAKARTA_UTC_OFFSET_HOURS * 60 * 60 * 1000);
+  const start = new Date(
+    Date.UTC(
+      jakartaDate.getUTCFullYear(),
+      jakartaDate.getUTCMonth(),
+      jakartaDate.getUTCDate() + offsetDays,
+      -JAKARTA_UTC_OFFSET_HOURS,
+      0,
+      0,
+      0
+    )
+  );
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000 - 1);
+  return { start, end };
+};
+
+const isWithinJakartaHour = (baseDate: Date, targetHour: number) => {
+  const jakartaDate = new Date(baseDate.getTime() + JAKARTA_UTC_OFFSET_HOURS * 60 * 60 * 1000);
+  return jakartaDate.getUTCHours() === targetHour;
+};
+
+const formatJakartaDateKey = (date: Date) => {
+  const jakartaDate = new Date(date.getTime() + JAKARTA_UTC_OFFSET_HOURS * 60 * 60 * 1000);
+  const year = jakartaDate.getUTCFullYear();
+  const month = String(jakartaDate.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(jakartaDate.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 const DATE_LABEL_FORMATTER = new Intl.DateTimeFormat("id-ID", {
   day: "numeric",
@@ -191,6 +222,63 @@ const getMonthlyClosingAlert = async (
   return {
     marker: `Closing Bulanan ${previousMonthRange.start.toISOString().slice(0, 7)}`,
     message: closingText
+  };
+};
+
+const getYesterdayRecapAlert = async (
+  userId: string,
+  baseDate = new Date()
+): Promise<{ marker: string; message: string } | null> => {
+  if (!isWithinJakartaHour(baseDate, 7)) return null;
+
+  const yesterdayRange = getJakartaDayBounds(baseDate, -1);
+  const transactions = await prisma.transaction.findMany({
+    where: {
+      userId,
+      occurredAt: {
+        gte: yesterdayRange.start,
+        lte: yesterdayRange.end
+      }
+    },
+    orderBy: { occurredAt: "asc" }
+  });
+
+  if (!transactions.length) return null;
+
+  let income = 0;
+  let expense = 0;
+  const expenseByCategory = new Map<string, number>();
+
+  for (const transaction of transactions) {
+    const amount = toNumber(transaction.amount);
+    if (transaction.type === "INCOME") {
+      income += amount;
+      continue;
+    }
+    if (transaction.type !== "EXPENSE") continue;
+
+    expense += amount;
+    const category = normalizeExpenseBucketCategory(transaction.category);
+    expenseByCategory.set(category, (expenseByCategory.get(category) ?? 0) + amount);
+  }
+
+  const topExpense = Array.from(expenseByCategory.entries()).sort((left, right) => right[1] - left[1])[0] ?? null;
+  const expenseCount = transactions.filter((transaction) => transaction.type === "EXPENSE").length;
+  const dateLabel = DATE_LABEL_FORMATTER.format(yesterdayRange.start);
+
+  return {
+    marker: `Recap Harian ${formatJakartaDateKey(yesterdayRange.start)}`,
+    message: [
+      `Ringkasan kemarin (${dateLabel}):`,
+      `- Uang masuk: ${formatMoney(income)}`,
+      `- Uang keluar: ${formatMoney(expense)}`,
+      `- Selisih hari itu: ${formatMoney(income - expense)}`,
+      `- Total transaksi: ${transactions.length} transaksi`,
+      expenseCount > 0 ? `- Transaksi pengeluaran: ${expenseCount} transaksi` : null,
+      topExpense ? `- Pengeluaran terbesar: ${topExpense[0]} (${formatMoney(topExpense[1])})` : null
+    ]
+      .filter(Boolean)
+      .join("\n")
   };
 };
 
@@ -590,7 +678,7 @@ const getReminderCountSentToday = async (params: {
       }
     }
   });
-  return outboundToday.filter((item) => /^Reminder |^Review Mingguan|^Closing Bulanan/.test(item.messageText)).length;
+  return outboundToday.filter((item) => /^Reminder |^Review Mingguan|^Closing Bulanan|^Recap Harian/.test(item.messageText)).length;
 };
 
 const queueReminderOnce = async (params: {
@@ -600,6 +688,7 @@ const queueReminderOnce = async (params: {
   marker: string;
   message: string;
   since: Date;
+  sentAt: Date;
 }): Promise<boolean> => {
   const alreadySent = await hasReminderSentSince({
     userId: params.userId,
@@ -623,7 +712,7 @@ const queueReminderOnce = async (params: {
         reminderType: params.reminderType,
         marker: params.marker,
         messageText,
-        sentAt: new Date()
+        sentAt: params.sentAt
       }
     });
   }
@@ -668,10 +757,7 @@ export const runProactiveReminders = async (baseDate = new Date()) => {
     }
   });
 
-  const dayStart = startOfUtcDay(baseDate);
-  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000 - 1);
-  const monthRange = getMonthRange(baseDate);
-  const weekRange = getRollingWeekRanges(baseDate);
+  const { start: dayStart, end: dayEnd } = getJakartaDayBounds(baseDate);
 
   let budgetCount = 0;
   let goalCount = 0;
@@ -700,149 +786,16 @@ export const runProactiveReminders = async (baseDate = new Date()) => {
     }
 
     const candidates: ReminderCandidate[] = [];
-
-    const budgets = await prisma.budget.findMany({
-      where: { userId: user.id }
-    });
-
-    if (budgets.length && reminderPreference.budgetEnabled) {
-      const monthlyExpenses = await prisma.transaction.findMany({
-        where: {
-          userId: user.id,
-          type: "EXPENSE",
-          occurredAt: {
-            gte: monthRange.start,
-            lte: monthRange.end
-          }
-        }
-      });
-      const spentMap = new Map<string, number>();
-      for (const transaction of monthlyExpenses) {
-        const category = normalizeBudgetCategory(transaction.category);
-        spentMap.set(category, (spentMap.get(category) ?? 0) + toNumber(transaction.amount));
-      }
-
-      const budgetMap = new Map<string, (typeof budgets)[number]>();
-      for (const budget of budgets) {
-        const category = normalizeBudgetCategory(budget.category);
-        const existing = budgetMap.get(category);
-        if (!existing || existing.updatedAt.getTime() < budget.updatedAt.getTime()) {
-          budgetMap.set(category, {
-            ...budget,
-            category
-          });
-        }
-      }
-
-      for (const budget of budgetMap.values()) {
-        const limit = toNumber(budget.monthlyLimit);
-        if (limit <= 0) continue;
-
-        const spent = spentMap.get(budget.category) ?? 0;
-        if (spent < limit * BUDGET_WARNING_THRESHOLD) continue;
-
-        const overLimit = spent >= limit;
-        const marker = `Reminder Budget ${budget.category}`;
-        const message = overLimit
-          ? `Kategori ${budget.category} sudah melewati budget bulanan. Limit ${formatMoney(
-              limit
-            )}, aktual ${formatMoney(spent)}.`
-          : `Kategori ${budget.category} hampir habis. Terpakai ${formatMoney(spent)} dari limit ${formatMoney(limit)}.`;
-        candidates.push({
-          reminderType: "budget",
-          marker,
-          message,
-          since: resolveReminderCooldownSince(baseDate, dayStart, reminderPreference),
-          priority: getReminderTypePriority("budget")
-        });
-      }
-    }
-
-    const goalStatus = reminderPreference.goalEnabled ? await getSavingsGoalStatus(user.id) : null;
-    const goalMessage = goalStatus ? buildGoalReachedAlertText(goalStatus) : null;
-    if (goalMessage && goalStatus) {
-      const marker = "Reminder Goal Tabungan";
-      candidates.push({
-        reminderType: "goal_reached",
-        marker,
-        message: goalMessage,
-        since: resolveReminderCooldownSince(baseDate, dayStart, reminderPreference),
-        priority: getReminderTypePriority("goal_reached")
-      });
-    }
-
-    const goalOffTrack = reminderPreference.goalEnabled ? await getGoalOffTrackAlert(user.id) : null;
-    if (goalOffTrack) {
-      candidates.push({
-        reminderType: "goal_off_track",
-        marker: goalOffTrack.marker,
-        message: goalOffTrack.message,
-        since: resolveReminderCooldownSince(baseDate, weekRange.currentStart, reminderPreference),
-        priority: getReminderTypePriority("goal_off_track")
-      });
-    }
-
-    const weeklyAlert = reminderPreference.weeklyEnabled ? await getWeeklySpendingAlert(user.id, baseDate) : null;
-    if (weeklyAlert) {
-      candidates.push({
-        reminderType: "weekly_spike",
-        marker: weeklyAlert.marker,
-        message: weeklyAlert.message,
-        since: resolveReminderCooldownSince(baseDate, weekRange.currentStart, reminderPreference),
-        priority: getReminderTypePriority("weekly_spike")
-      });
-    }
-
-    const recurringAlert = reminderPreference.recurringEnabled
-      ? await getRecurringDueSoonAlert(user.id, baseDate)
+    const dailyRecapAlert = reminderPreference.weeklyReviewEnabled
+      ? await getYesterdayRecapAlert(user.id, baseDate)
       : null;
-    if (recurringAlert) {
-      candidates.push({
-        reminderType: "recurring_due",
-        marker: recurringAlert.marker,
-        message: recurringAlert.message,
-        since: resolveReminderCooldownSince(baseDate, dayStart, reminderPreference),
-        priority: getReminderTypePriority("recurring_due")
-      });
-    }
-
-    const paydayAlert = reminderPreference.cashflowEnabled ? await getPaydaySalaryInputAlert(user.id, baseDate) : null;
-    if (paydayAlert) {
-      candidates.push({
-        reminderType: "cashflow_buffer",
-        marker: paydayAlert.marker,
-        message: paydayAlert.message,
-        since: resolveReminderCooldownSince(baseDate, dayStart, reminderPreference),
-        priority: getReminderTypePriority("cashflow_buffer")
-      });
-    }
-
-    const weeklyReviewAlert = reminderPreference.weeklyReviewEnabled
-      ? await getWeeklyReviewAlert(user.id, baseDate)
-      : null;
-    if (weeklyReviewAlert) {
+    if (dailyRecapAlert) {
       candidates.push({
         reminderType: "weekly_review",
-        marker: weeklyReviewAlert.marker,
-        message: weeklyReviewAlert.message,
-        since: resolveReminderCooldownSince(baseDate, weekRange.currentStart, reminderPreference),
+        marker: dailyRecapAlert.marker,
+        message: dailyRecapAlert.message,
+        since: resolveReminderCooldownSince(baseDate, dayStart, reminderPreference),
         priority: getReminderTypePriority("weekly_review")
-      });
-    }
-
-    const monthlyClosingAlert = reminderPreference.monthlyClosingEnabled
-      ? await getMonthlyClosingAlert(user.id, baseDate)
-      : null;
-    if (monthlyClosingAlert) {
-      const monthlySince = startOfUtcDay(
-        new Date(Date.UTC(baseDate.getUTCFullYear(), baseDate.getUTCMonth(), 1, 0, 0, 0, 0))
-      );
-      candidates.push({
-        reminderType: "monthly_closing",
-        marker: monthlyClosingAlert.marker,
-        message: monthlyClosingAlert.message,
-        since: resolveReminderCooldownSince(baseDate, monthlySince, reminderPreference),
-        priority: getReminderTypePriority("monthly_closing")
       });
     }
 
@@ -860,7 +813,8 @@ export const runProactiveReminders = async (baseDate = new Date()) => {
         reminderType: candidate.reminderType,
         marker: candidate.marker,
         message: candidate.message,
-        since: candidate.since
+        since: candidate.since,
+        sentAt: baseDate
       });
       if (!queued) continue;
 

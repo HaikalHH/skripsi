@@ -14,27 +14,32 @@ import { analyzeRecurringExpenses } from "@/lib/services/transactions/recurring-
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const DATE_LABEL_FORMATTER = new Intl.DateTimeFormat("id-ID", {
+  timeZone: "UTC",
   day: "2-digit",
   month: "short"
 });
 
 const LONG_DATE_LABEL_FORMATTER = new Intl.DateTimeFormat("id-ID", {
+  timeZone: "UTC",
   day: "numeric",
   month: "long",
   year: "numeric"
 });
 
 const MONTH_LABEL_FORMATTER = new Intl.DateTimeFormat("id-ID", {
+  timeZone: "UTC",
   month: "short",
   year: "numeric"
 });
 
 const LONG_MONTH_LABEL_FORMATTER = new Intl.DateTimeFormat("id-ID", {
+  timeZone: "UTC",
   month: "long",
   year: "numeric"
 });
 
 const RECURRING_DATE_LABEL_FORMATTER = new Intl.DateTimeFormat("id-ID", {
+  timeZone: "UTC",
   day: "numeric",
   month: "short"
 });
@@ -42,6 +47,7 @@ const RECURRING_DATE_LABEL_FORMATTER = new Intl.DateTimeFormat("id-ID", {
 const toNumber = (value: unknown): number => {
   if (typeof value === "number") return value;
   if (typeof value === "string") return Number(value);
+  if (typeof value === "bigint") return Number(value);
   if (value && typeof value === "object" && "toString" in value) {
     return Number((value as { toString: () => string }).toString());
   }
@@ -519,7 +525,7 @@ const startOfUtcYear = (year: number) => new Date(Date.UTC(year, 0, 1, 0, 0, 0, 
 
 const endOfUtcYear = (year: number) => new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
 
-const buildExplicitRangeLabel = (start: Date, end: Date) => {
+export const buildExplicitRangeLabel = (start: Date, end: Date) => {
   const sameDay =
     start.getUTCFullYear() === end.getUTCFullYear() &&
     start.getUTCMonth() === end.getUTCMonth() &&
@@ -583,13 +589,41 @@ const buildYearToDateRange = (now = new Date()): ReportDateRange => {
   };
 };
 
-const buildMonthToDateRange = (now = new Date()): ReportDateRange => {
+export const buildMonthToDateRange = (now = new Date()): ReportDateRange => {
   const start = startOfUtcMonth(now.getUTCFullYear(), now.getUTCMonth());
   const end = endOfUtcDay(now);
   return {
     start,
     end,
     label: buildExplicitRangeLabel(start, end)
+  };
+};
+
+const getClampedUtcMonthDay = (year: number, month: number, day: number) => {
+  const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  return Math.max(1, Math.min(lastDay, day));
+};
+
+export const buildFinancialCycleDateRange = (cycleStartDay: number, now = new Date()): ReportDateRange => {
+  const normalizedStartDay = Math.max(1, Math.min(31, Math.round(cycleStartDay)));
+  const currentYear = now.getUTCFullYear();
+  const currentMonth = now.getUTCMonth();
+  const currentDay = now.getUTCDate();
+  const startsThisMonth = currentDay >= normalizedStartDay;
+  const startMonth = startsThisMonth ? currentMonth : currentMonth - 1;
+  const endMonth = startMonth + 1;
+  const startDay = getClampedUtcMonthDay(currentYear, startMonth, normalizedStartDay);
+  const endDay = getClampedUtcMonthDay(currentYear, endMonth, normalizedStartDay) - 1;
+  const start = new Date(Date.UTC(currentYear, startMonth, startDay, 0, 0, 0, 0));
+  const endDate =
+    endDay >= 1
+      ? new Date(Date.UTC(currentYear, endMonth, endDay, 23, 59, 59, 999))
+      : new Date(Date.UTC(currentYear, endMonth, 0, 23, 59, 59, 999));
+
+  return {
+    start,
+    end: endDate,
+    label: buildExplicitRangeLabel(start, endDate)
   };
 };
 

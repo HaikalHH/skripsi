@@ -103,15 +103,17 @@ export const buildFinancialHealthReply = async (params: {
     }) ?? Promise.resolve([])
   ]);
 
-  const income = transactions
+  const transactionIncome = transactions
     .filter((transaction) => transaction.type === "INCOME")
     .reduce((sum, transaction) => sum + toNumber(transaction.amount), 0);
-  const expense = transactions
+  const transactionExpense = transactions
     .filter((transaction) => transaction.type === "EXPENSE")
     .reduce((sum, transaction) => sum + toNumber(transaction.amount), 0);
+  const income = transactionIncome;
+  const expense = transactionExpense;
   const balance = income - expense;
   const savingsRate = income > 0 ? (balance / income) * 100 : 0;
-  const topCategory = getTopExpenseCategory(
+  const transactionTopCategory = getTopExpenseCategory(
     transactions.filter((transaction) => transaction.type === "EXPENSE")
   );
 
@@ -124,7 +126,6 @@ export const buildFinancialHealthReply = async (params: {
       });
     }
   }
-
   const overspentCategories = Array.from(latestBudgetByCategory.values())
     .map((budget) => {
       const spent = transactions
@@ -143,7 +144,7 @@ export const buildFinancialHealthReply = async (params: {
     (sum: number, asset) => sum + toNumber(asset.estimatedValue),
     0
   );
-  const monthlyExpenseBaseline = toNumber(financialProfile?.monthlyExpenseTotal ?? expense);
+  const monthlyExpenseBaseline = expense;
   const emergencyFundTarget = toNumber(financialProfile?.emergencyFundTarget ?? 0);
   const emergencyFundProgress =
     goalStatus.goals.find((goal) => goal.goalType === "EMERGENCY_FUND")?.currentProgress ??
@@ -191,8 +192,8 @@ export const buildFinancialHealthReply = async (params: {
           )}.`
         ]
       : []),
-    ...(topCategory
-      ? [`Kategori pengeluaran terbesar masih ${topCategory[0]} sebesar ${formatMoney(topCategory[1])}.`]
+    ...(transactionTopCategory
+      ? [`Kategori pengeluaran terbesar masih ${transactionTopCategory[0]} sebesar ${formatMoney(transactionTopCategory[1])}.`]
       : []),
     ...(emergencyFundTarget > 0 && emergencyFundRatio < 0.5
       ? [`Dana darurat baru ${formatPercent(emergencyFundRatio * 100, 1)} dari target.`]
@@ -223,7 +224,7 @@ export const buildFinancialHealthReply = async (params: {
     `- Net saving: ${formatMoney(balance)}`,
     `- Saving rate: ${formatPercent(savingsRate, 1)}`,
     `- Health score: ${healthScore}/100 (grade ${grade})`,
-    ...(topCategory ? [`- Kategori terbesar: ${topCategory[0]} (${formatMoney(topCategory[1])})`] : []),
+    ...(transactionTopCategory ? [`- Kategori terbesar: ${transactionTopCategory[0]} (${formatMoney(transactionTopCategory[1])})`] : []),
     ...(strengths.length ? ["- Highlight positif:", ...strengths.map((item) => `  - ${item}`)] : []),
     ...(watchouts.length ? ["- Fokus bulan berikutnya:", ...watchouts.map((item) => `  - ${item}`)] : [])
   ].join("\n");

@@ -22,7 +22,7 @@ import {
   parseReminderPreferenceCommand,
   type ReminderPreferenceCommand
 } from "@/lib/services/reminders/reminder-preference-service";
-import { parseCommand, type ParsedCommand } from "@/lib/services/assistant/command-service";
+import { parseCommand, type ParsedCommand, type ReportRangeMode } from "@/lib/services/assistant/command-service";
 import { parsePlainTextCommand } from "@/lib/services/assistant/plain-command-service";
 import { isLikelySavingTransactionText } from "@/lib/services/transactions/saving-intent-service";
 
@@ -39,6 +39,7 @@ export type GlobalContextCommand =
   | {
       kind: "REPORT";
       period: ReportPeriod;
+      reportMode?: ReportRangeMode;
       dateRange?: ReportDateRange | null;
       comparisonRange?: ReportComparisonRange | null;
     }

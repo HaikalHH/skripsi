@@ -341,12 +341,11 @@ export const buildMonthlyReportPdfAttachment = async (params: {
     summaryLines: [
       `Income: ${formatMoney(params.reportData.incomeTotal)}`,
       `Expense: ${formatMoney(params.reportData.expenseTotal)}`,
-      savingTotal > 0 ? `Saving/goal: ${formatMoney(savingTotal)}` : null,
-      `Sisa cashflow: ${formatMoney(balance)}`,
-      `Saving rate: ${formatPercent(savingRate)}`,
-      `Jumlah transaksi expense: ${totalTransactions}`,
-      topCategory ? `Top kategori: ${topCategory.category} (${formatMoney(topCategory.total)})` : "Top kategori: -"
-    ].filter((line): line is string => Boolean(line)),
+      `Net Cashflow: ${formatMoney(balance)}`,
+      `Saving Rate: ${formatPercent(savingRate)}`,
+      `Jumlah Transaksi Expense: ${totalTransactions}`,
+      topCategory ? `Top Kategori: ${topCategory.category} (${formatMoney(topCategory.total)})` : "Top Kategori: -"
+    ],
     sections
   });
 

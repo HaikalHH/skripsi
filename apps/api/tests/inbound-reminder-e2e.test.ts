@@ -994,7 +994,8 @@ describe("inbound + reminder e2e (mock DB)", () => {
       sentAt: secondSentAt.toISOString()
     });
     expect(second.status).toBe(200);
-    expect(second.body.replyText).toContain("Report monthly:");
+    expect(second.body.replyText).toContain("Ringkasan");
+    expect(second.body.replyText).toContain("Income:");
   });
 
   it("clarifies ambiguous delete requests and resolves numbered follow-up", async () => {
@@ -2683,49 +2684,42 @@ describe("inbound + reminder e2e (mock DB)", () => {
     expect(result.body.replyText).toContain("Pilih dulu tujuan keuangan yang lagi pengen kamu capai");
   });
 
-  it("queues budget/goal/weekly reminders, then deduplicates next run", async () => {
-    store.savingsGoals[0].currentProgress = store.savingsGoals[0].targetAmount;
+  it("queues daily recap at 7 pagi WIB for yesterday and deduplicates next run", async () => {
+    store.transactions.push({
+      id: "tx_daily_1",
+      userId: "user_1",
+      type: "EXPENSE",
+      amount: 125_000,
+      category: "Food & Drink",
+      merchant: null,
+      note: null,
+      occurredAt: new Date("2026-02-24T10:00:00.000Z"),
+      source: "TEXT",
+      rawText: "makan kemarin",
+      createdAt: new Date("2026-02-24T10:00:00.000Z")
+    });
 
-    const firstRun = await runProactiveReminders(new Date("2026-02-24T12:00:00.000Z"));
+    const firstRun = await runProactiveReminders(new Date("2026-02-25T00:05:00.000Z"));
     expect(firstRun.processedUsers).toBe(1);
-    expect(firstRun.queuedByType.budget).toBe(1);
-    expect(firstRun.queuedByType.goal).toBe(1);
-    expect(firstRun.queuedByType.weekly).toBe(1);
+    expect(firstRun.queued).toBe(1);
+    expect(firstRun.queuedByType.weeklyReview).toBe(1);
 
     const claimed = await claimPendingOutboundMessages(10);
-    expect(claimed).toHaveLength(3);
-    expect(claimed.map((item) => item.status)).toEqual(["PROCESSING", "PROCESSING", "PROCESSING"]);
+    expect(claimed).toHaveLength(1);
+    expect(claimed[0]?.status).toBe("PROCESSING");
+    expect(claimed[0]?.messageText).toContain("Recap Harian 2026-02-24");
+    expect(claimed[0]?.messageText).toContain("Ringkasan kemarin");
+    expect(claimed[0]?.messageText).toContain("Uang masuk");
+    expect(claimed[0]?.messageText).toContain("Uang keluar");
 
-    const secondRun = await runProactiveReminders(new Date("2026-02-24T12:10:00.000Z"));
+    const secondRun = await runProactiveReminders(new Date("2026-02-25T00:10:00.000Z"));
     expect(secondRun.queued).toBe(0);
   });
 
-  it("respects reminder daily cap and prioritizes higher-impact reminders first", async () => {
-    store.savingsGoals[0].currentProgress = store.savingsGoals[0].targetAmount;
-    store.reminderPreferences = [
-      {
-        id: "pref_1",
-        userId: "user_1",
-        budgetEnabled: true,
-        weeklyEnabled: true,
-        weeklyReviewEnabled: true,
-        recurringEnabled: true,
-        cashflowEnabled: true,
-        goalEnabled: true,
-        monthlyClosingEnabled: true,
-        quietHoursStart: null,
-        quietHoursEnd: null,
-        minIntervalHours: 24,
-        maxPerDay: 1,
-        snoozedUntil: null
-      }
-    ];
-
+  it("does not queue recap outside jam 7 pagi WIB", async () => {
     const result = await runProactiveReminders(new Date("2026-02-24T12:00:00.000Z"));
-    expect(result.queued).toBe(1);
-    expect(result.queuedByType.goal).toBe(1);
-    expect(result.queuedByType.budget).toBe(0);
-    expect(result.queuedByType.weekly).toBe(0);
+    expect(result.queued).toBe(0);
+    expect(store.outboundMessages).toHaveLength(0);
   });
 
   it("skips proactive reminders while snooze is active", async () => {
@@ -2733,184 +2727,62 @@ describe("inbound + reminder e2e (mock DB)", () => {
       {
         id: "pref_1",
         userId: "user_1",
-        budgetEnabled: true,
-        weeklyEnabled: true,
-        weeklyReviewEnabled: true,
-        recurringEnabled: true,
-        cashflowEnabled: true,
-        goalEnabled: true,
-        monthlyClosingEnabled: true,
-        quietHoursStart: null,
-        quietHoursEnd: null,
-        minIntervalHours: 24,
-        maxPerDay: 3,
-        snoozedUntil: new Date("2026-02-25T12:00:00.000Z")
-      }
-    ];
-
-    const result = await runProactiveReminders(new Date("2026-02-24T12:00:00.000Z"));
-    expect(result.queued).toBe(0);
-  });
-
-  it("only queues salary input reminder on payday", async () => {
-    store.budgets = [];
-    store.transactions = [];
-    store.reminderPreferences = [
-      {
-        id: "pref_1",
-        userId: "user_1",
         budgetEnabled: false,
         weeklyEnabled: false,
-        weeklyReviewEnabled: false,
+        weeklyReviewEnabled: true,
         recurringEnabled: false,
-        cashflowEnabled: true,
+        cashflowEnabled: false,
         goalEnabled: false,
         monthlyClosingEnabled: false,
         quietHoursStart: null,
         quietHoursEnd: null,
         minIntervalHours: 24,
-        maxPerDay: 3,
-        snoozedUntil: null
+        maxPerDay: 1,
+        snoozedUntil: new Date("2026-02-25T12:00:00.000Z")
       }
     ];
 
-    const beforePayday = await runProactiveReminders(new Date("2026-02-24T02:00:00.000Z"));
-    expect(beforePayday.queued).toBe(0);
-
-    const paydayRunAt = new Date("2026-02-25T02:00:00.000Z");
-    vi.setSystemTime(paydayRunAt);
-    const paydayRun = await runProactiveReminders(paydayRunAt);
-    expect(paydayRun.queuedByType.cashflow).toBe(1);
-
-    const claimed = await claimPendingOutboundMessages(10);
-    expect(claimed).toHaveLength(1);
-    expect(claimed[0]?.messageText).toContain("Reminder Gajian");
-    expect(claimed[0]?.messageText).toContain('format "gaji 9.2jt"');
-
-    const duplicateRun = await runProactiveReminders(new Date("2026-02-25T02:10:00.000Z"));
-    expect(duplicateRun.queued).toBe(0);
+    const result = await runProactiveReminders(new Date("2026-02-25T00:05:00.000Z"));
+    expect(result.queued).toBe(0);
   });
 
-  it("queues payday salary input and goal pace reminders when relevant", async () => {
+  it("does not queue legacy proactive reminders by default", async () => {
     store.budgets = [];
-    store.savingsGoals = [
-      {
-        id: "goal_1",
-        userId: "user_1",
-        targetAmount: 12_000_000,
-        currentProgress: 100_000,
-        createdAt: new Date("2026-01-01T00:00:00.000Z"),
-        updatedAt: new Date("2026-02-24T00:00:00.000Z")
-      }
-    ];
-    store.transactions = [
-      {
-        id: "tx_ctx_1",
-        userId: "user_1",
-        type: "EXPENSE",
-        amount: 50_000,
-        category: "Entertainment",
-        merchant: "Spotify",
-        note: null,
-        occurredAt: new Date("2025-11-25T10:00:00.000Z"),
-        source: "TEXT",
-        rawText: "spotify premium",
-        createdAt: new Date("2025-11-25T10:00:00.000Z")
-      },
-      {
-        id: "tx_ctx_2",
-        userId: "user_1",
-        type: "EXPENSE",
-        amount: 55_000,
-        category: "Entertainment",
-        merchant: "Spotify",
-        note: null,
-        occurredAt: new Date("2025-12-25T10:00:00.000Z"),
-        source: "TEXT",
-        rawText: "spotify family",
-        createdAt: new Date("2025-12-25T10:00:00.000Z")
-      },
-      {
-        id: "tx_ctx_3",
-        userId: "user_1",
-        type: "EXPENSE",
-        amount: 53_000,
-        category: "Entertainment",
-        merchant: "Spotify",
-        note: null,
-        occurredAt: new Date("2026-01-25T10:00:00.000Z"),
-        source: "TEXT",
-        rawText: "spotify duo",
-        createdAt: new Date("2026-01-25T10:00:00.000Z")
-      },
-      {
-        id: "tx_ctx_4",
-        userId: "user_1",
-        type: "INCOME",
-        amount: 1_120_000,
-        category: "salary",
-        merchant: null,
-        note: null,
-        occurredAt: new Date("2026-01-26T09:00:00.000Z"),
-        source: "TEXT",
-        rawText: "gaji bulanan",
-        createdAt: new Date("2026-01-26T09:00:00.000Z")
-      },
-      {
-        id: "tx_ctx_5",
-        userId: "user_1",
-        type: "EXPENSE",
-        amount: 700_000,
-        category: "Bills",
-        merchant: "Kontrakan",
-        note: null,
-        occurredAt: new Date("2026-02-01T09:00:00.000Z"),
-        source: "TEXT",
-        rawText: "bayar kontrakan",
-        createdAt: new Date("2026-02-01T09:00:00.000Z")
-      },
-      {
-        id: "tx_ctx_6",
-        userId: "user_1",
-        type: "EXPENSE",
-        amount: 250_000,
-        category: "Transport",
-        merchant: "Bensin",
-        note: null,
-        occurredAt: new Date("2026-02-20T09:00:00.000Z"),
-        source: "TEXT",
-        rawText: "isi bensin",
-        createdAt: new Date("2026-02-20T09:00:00.000Z")
-      }
-    ];
+    store.reminderPreferences = [];
 
-    const paydayRunAt = new Date("2026-02-25T02:00:00.000Z");
-    vi.setSystemTime(paydayRunAt);
-    const firstRun = await runProactiveReminders(paydayRunAt);
-    expect(firstRun.processedUsers).toBe(1);
-    expect(firstRun.queuedByType.cashflow).toBe(1);
-    expect(firstRun.queuedByType.goalPace).toBe(1);
-
-    const claimed = await claimPendingOutboundMessages(10);
-    expect(claimed).toHaveLength(2);
-    const combinedText = claimed.map((item) => item.messageText).join("\n");
-    expect(combinedText).toContain("Reminder Gajian");
-    expect(combinedText).toContain('format "gaji 9.2jt"');
-    expect(combinedText).toContain("Reminder Goal");
-    expect(combinedText).toContain("progress Target Tabungan");
-
+    const firstRun = await runProactiveReminders(new Date("2026-02-24T12:00:00.000Z"));
+    expect(firstRun.queued).toBe(0);
+    expect(firstRun.queuedByType.budget).toBe(0);
+    expect(firstRun.queuedByType.goal).toBe(0);
+    expect(firstRun.queuedByType.weekly).toBe(0);
+    expect(firstRun.queuedByType.recurring).toBe(0);
+    expect(firstRun.queuedByType.cashflow).toBe(0);
+    expect(firstRun.queuedByType.goalPace).toBe(0);
+    expect(firstRun.queuedByType.monthlyClosing).toBe(0);
   });
 
   it("keeps reminder dedupe persistent through reminder events", async () => {
-    store.savingsGoals[0].currentProgress = store.savingsGoals[0].targetAmount;
+    store.transactions.push({
+      id: "tx_daily_2",
+      userId: "user_1",
+      type: "EXPENSE",
+      amount: 150_000,
+      category: "Transport",
+      merchant: null,
+      note: null,
+      occurredAt: new Date("2026-02-24T08:00:00.000Z"),
+      source: "TEXT",
+      rawText: "ojol kemarin",
+      createdAt: new Date("2026-02-24T08:00:00.000Z")
+    });
 
-    const firstRun = await runProactiveReminders(new Date("2026-02-24T12:00:00.000Z"));
-    expect(firstRun.queued).toBeGreaterThan(0);
+    const firstRun = await runProactiveReminders(new Date("2026-02-25T00:05:00.000Z"));
+    expect(firstRun.queued).toBe(1);
     expect(store.reminderEvents.length).toBe(firstRun.queued);
 
     store.outboundMessages = [];
 
-    const secondRun = await runProactiveReminders(new Date("2026-02-24T12:10:00.000Z"));
+    const secondRun = await runProactiveReminders(new Date("2026-02-25T00:10:00.000Z"));
     expect(secondRun.queued).toBe(0);
     expect(store.reminderEvents.length).toBe(firstRun.queued);
   });

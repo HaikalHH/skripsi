@@ -1,14 +1,18 @@
 import type { ReportPeriod } from "@finance/shared";
 import { logger } from "@/lib/logger";
+import { prisma } from "@/lib/prisma";
 import { formatMoney } from "@/lib/services/shared/money-format";
 import { getPeriodRange } from "@/lib/services/reporting/aggregation";
 import { buildMonthlyReportPdfAttachment } from "@/lib/services/reporting/monthly-report-pdf-service";
 import {
+  buildFinancialCycleDateRange,
+  buildMonthToDateRange,
   buildReportText,
   getUserReportData,
   type ReportComparisonRange,
   type ReportDateRange
 } from "@/lib/services/reporting/report-service";
+import type { ReportRangeMode } from "@/lib/services/assistant/command-service";
 
 export type ReportResponse = {
   replyText: string;
@@ -21,6 +25,7 @@ type BuildReportParams =
   | ReportPeriod
   | {
       period: ReportPeriod;
+      reportMode?: ReportRangeMode;
       dateRange?: ReportDateRange | null;
       comparisonRange?: ReportComparisonRange | null;
     };
@@ -46,10 +51,61 @@ const isCalendarMonthlyRange = (dateRange: ReportDateRange) => {
   return isMonthStart && isMonthEnd;
 };
 
-const shouldAttachMonthlyPdf = (period: ReportPeriod, dateRange: ReportDateRange | null) => {
+const shouldAttachMonthlyPdf = (
+  period: ReportPeriod,
+  dateRange: ReportDateRange | null,
+  hasExplicitDateRange: boolean
+) => {
   if (period !== "monthly") return false;
-  if (!dateRange) return true;
-  return isCalendarMonthlyRange(dateRange);
+  if (hasExplicitDateRange && dateRange) return isCalendarMonthlyRange(dateRange);
+  return true;
+};
+
+const getUserFinancialCycleStartDay = async (userId: string) => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { salaryDate: true }
+  });
+  return user?.salaryDate ?? null;
+};
+
+const resolveMonthlyReportRange = async (params: {
+  userId: string;
+  reportMode: ReportRangeMode | undefined;
+  dateRange: ReportDateRange | null | undefined;
+}) => {
+  if (params.dateRange) {
+    return {
+      dateRange: params.dateRange,
+      note: null as string | null
+    };
+  }
+
+  if (params.reportMode === "calendar") {
+    return {
+      dateRange: buildMonthToDateRange(new Date()),
+      note: null
+    };
+  }
+
+  const cycleStartDay = await getUserFinancialCycleStartDay(params.userId);
+  if (cycleStartDay && cycleStartDay >= 1 && cycleStartDay <= 31) {
+    return {
+      dateRange: buildFinancialCycleDateRange(cycleStartDay, new Date()),
+      note:
+        params.reportMode === "financial_cycle" || params.reportMode === "default"
+          ? `Berdasarkan siklus gajian Boss setiap tanggal ${cycleStartDay}.`
+          : null
+    };
+  }
+
+  return {
+    dateRange: buildMonthToDateRange(new Date()),
+    note:
+      params.reportMode === "financial_cycle"
+        ? "Tanggal mulai siklus gajian belum diset, jadi sementara saya pakai bulan kalender."
+        : null
+  };
 };
 
 const buildComparisonReportText = (params: {
@@ -120,8 +176,20 @@ export const buildReportResponse = async (
     };
   }
 
-  const reportData = await getUserReportData(userId, params.period, params.dateRange ?? null);
-  const attachMonthlyPdf = shouldAttachMonthlyPdf(params.period, params.dateRange ?? null);
+  const resolvedMonthlyRange =
+    params.period === "monthly"
+      ? await resolveMonthlyReportRange({
+          userId,
+          reportMode: params.reportMode,
+          dateRange: params.dateRange ?? null
+        })
+      : { dateRange: params.dateRange ?? null, note: null };
+  const reportData = await getUserReportData(userId, params.period, resolvedMonthlyRange.dateRange);
+  const attachMonthlyPdf = shouldAttachMonthlyPdf(
+    params.period,
+    resolvedMonthlyRange.dateRange,
+    Boolean(params.dateRange)
+  );
   const summaryText = buildReportText(
     params.period,
     reportData.incomeTotal,
@@ -134,12 +202,15 @@ export const buildReportResponse = async (
 
   if (reportData.incomeTotal === 0 && reportData.expenseTotal === 0 && (reportData.savingTotal ?? 0) === 0) {
     return {
-      replyText: `Belum ada transaksi untuk report ${reportData.periodLabel}.`
+      replyText: [
+        `Belum ada transaksi untuk report ${reportData.periodLabel}.`,
+        resolvedMonthlyRange.note
+      ].filter(Boolean).join("\n")
     };
   }
 
   const resolvedDateRange =
-    params.dateRange ??
+    resolvedMonthlyRange.dateRange ??
     (() => {
       const range = getPeriodRange(params.period, new Date());
       return {
@@ -156,18 +227,22 @@ export const buildReportResponse = async (
         reportData
       });
       return {
-        replyText: `${summaryText}\n\nSaya lampirkan PDF report bulanan ya Boss.`,
+        replyText: [summaryText, resolvedMonthlyRange.note, "Saya lampirkan PDF report bulanan ya Boss."]
+          .filter(Boolean)
+          .join("\n\n"),
         ...document
       };
     } catch (error) {
       logger.error({ err: error }, "Failed to generate monthly PDF report");
       return {
-        replyText: `${summaryText}\n\nPDF report bulanan belum berhasil dibuat sementara.`
+        replyText: [summaryText, resolvedMonthlyRange.note, "PDF report bulanan belum berhasil dibuat sementara."]
+          .filter(Boolean)
+          .join("\n\n")
       };
     }
   }
 
-  return { replyText: summaryText };
+  return { replyText: [summaryText, resolvedMonthlyRange.note].filter(Boolean).join("\n\n") };
 };
 
 export const toReportReplyBody = (report: ReportResponse) => ({

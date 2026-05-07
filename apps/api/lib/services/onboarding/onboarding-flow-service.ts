@@ -56,6 +56,11 @@ export type OnboardingPromptContext = {
   hasExpenseDependentGoal: boolean;
   hasFinancialFreedomGoal: boolean;
   goalExpenseStrategy: GoalExpenseStrategyValue | null;
+  activeIncomeCount?: number | null;
+  activeIncomeAmountCount?: number;
+  activeIncomePaydayCount?: number;
+  activeIncomeLatestPayday?: number | null;
+  activeIncomeCycleStartDay?: number | null;
   monthlyIncomeTotal: number | null;
   monthlyExpenseTotal: number | null;
   potentialMonthlySaving: number | null;
@@ -100,6 +105,10 @@ export const READY_COMMANDS = new Set([
 
 export const GOAL_NONE_VALUE = "NONE_YET";
 export const ASSET_NONE_VALUE = "NONE";
+const STEP_ACTIVE_INCOME_COUNT = "ASK_ACTIVE_INCOME_COUNT" as OnboardingStep;
+const STEP_ACTIVE_INCOME_CYCLE_CONFIRM = "ASK_ACTIVE_INCOME_CYCLE_CONFIRM" as OnboardingStep;
+const QUESTION_ACTIVE_INCOME_COUNT = "ACTIVE_INCOME_COUNT" as OnboardingQuestionKey;
+const QUESTION_ACTIVE_INCOME_CYCLE_CONFIRM = "ACTIVE_INCOME_CYCLE_CONFIRM" as OnboardingQuestionKey;
 
 export const PRIMARY_GOAL_OPTIONS: OnboardingOption[] = [
   { value: PrimaryGoal.MANAGE_EXPENSES, label: "Mengatur pengeluaran" },
@@ -208,9 +217,6 @@ const normalizeEmploymentTypeList = (
     : employmentTypes
       ? [employmentTypes]
       : [];
-
-const needsSalaryDate = (employmentTypes: EmploymentType[] | EmploymentType | null | undefined) =>
-  normalizeEmploymentTypeList(employmentTypes).includes(EmploymentType.EMPLOYEE);
 
 const needsActiveIncomeQuestion = (
   employmentTypes: EmploymentType[] | EmploymentType | null | undefined
@@ -687,21 +693,68 @@ export const getPromptForStep = (
         inputType: "single_select",
         options: YES_NO_OPTIONS
       };
+    case STEP_ACTIVE_INCOME_COUNT:
+      return {
+        stepKey: step,
+        questionKey: QUESTION_ACTIVE_INCOME_COUNT,
+        title: "Jumlah Gajian",
+        body: [
+          "Dalam sebulan biasanya Boss menerima income aktif berapa kali?",
+          "",
+          "Contoh:",
+          "- 1, kalau cuma satu kali gajian",
+          "- 2, kalau ada gaji utama dan income aktif lain",
+          "",
+          "Balas angkanya aja ya Boss."
+        ].join("\n"),
+        inputType: "integer"
+      };
     case OnboardingStep.ASK_ACTIVE_INCOME:
+      const activeIncomeNumber = Math.max(1, (context.activeIncomeAmountCount ?? 0) + 1);
       return {
         stepKey: step,
         questionKey: OnboardingQuestionKey.ACTIVE_INCOME_MONTHLY,
         title: "Income Aktif",
-        body: "Biasanya pemasukan utama kamu per bulan kira-kira berapa Boss?",
+        body:
+          (context.activeIncomeCount ?? 1) > 1
+            ? `Income aktif ke-${activeIncomeNumber} nominalnya berapa Boss?`
+            : "Biasanya pemasukan utama kamu per bulan kira-kira berapa Boss?",
         inputType: "money"
       };
     case OnboardingStep.ASK_SALARY_DATE:
+      const salaryDateNumber = Math.max(1, (context.activeIncomePaydayCount ?? 0) + 1);
       return {
         stepKey: step,
         questionKey: OnboardingQuestionKey.SALARY_DATE,
         title: "Tanggal Gajian",
-        body: "Biasanya gajian jatuh di tanggal berapa? Balas angka 1-31 ya Boss.",
+        body:
+          (context.activeIncomeCount ?? 1) > 1
+            ? `Income aktif ke-${salaryDateNumber} biasanya masuk tanggal berapa Boss? Balas angka 1-31 ya.`
+            : [
+                "Biasanya Boss mulai hitung keuangan bulanan dari tanggal berapa?",
+                "",
+                "Contoh:",
+                "- Tanggal 1, kalau ikut awal bulan",
+                "- Tanggal 25, kalau gajian tanggal 25",
+                "- Tanggal 28, kalau gajian tanggal 28",
+                "",
+                "Balas angka 1-31 ya Boss."
+              ].join("\n"),
         inputType: "integer"
+      };
+    case STEP_ACTIVE_INCOME_CYCLE_CONFIRM:
+      return {
+        stepKey: step,
+        questionKey: QUESTION_ACTIVE_INCOME_CYCLE_CONFIRM,
+        title: "Awal Periode Report",
+        body: [
+          `Tanggal ${context.activeIncomeLatestPayday ?? "-"} ini mau dijadikan awal periode report bulanan Boss?`,
+          "",
+          "Kalau iya, nanti /monthly report dan /cashflow report mengikuti tanggal ini.",
+          "Kalau bukan, saya lanjut tanya income aktif berikutnya dulu."
+        ].join("\n"),
+        inputType: "single_select",
+        options: YES_NO_OPTIONS
       };
     case OnboardingStep.ASK_HAS_PASSIVE_INCOME:
       return {
@@ -1234,19 +1287,33 @@ export const getNextOnboardingStep = (
       if (usesEstimatedIncome(context.employmentTypes)) {
         return OnboardingStep.ASK_ESTIMATED_MONTHLY_INCOME;
       }
-      return OnboardingStep.ASK_ACTIVE_INCOME;
+      return STEP_ACTIVE_INCOME_COUNT;
     case OnboardingStep.ASK_HAS_ACTIVE_INCOME:
-      return answer === true ? OnboardingStep.ASK_ACTIVE_INCOME : OnboardingStep.ASK_ESTIMATED_MONTHLY_INCOME;
+      return answer === true ? STEP_ACTIVE_INCOME_COUNT : OnboardingStep.ASK_ESTIMATED_MONTHLY_INCOME;
+    case STEP_ACTIVE_INCOME_COUNT:
+      return OnboardingStep.ASK_ACTIVE_INCOME;
     case OnboardingStep.ASK_ACTIVE_INCOME:
-      return needsSalaryDate(context.employmentTypes)
-        ? OnboardingStep.ASK_SALARY_DATE
-        : OnboardingStep.ASK_HAS_PASSIVE_INCOME;
+      return OnboardingStep.ASK_SALARY_DATE;
     case OnboardingStep.ASK_SALARY_DATE:
-      return OnboardingStep.ASK_HAS_PASSIVE_INCOME;
+      if ((context.activeIncomeCount ?? 1) <= 1) return OnboardingStep.ASK_HAS_PASSIVE_INCOME;
+      if (context.activeIncomeCycleStartDay) {
+        return (context.activeIncomeAmountCount ?? 0) < (context.activeIncomeCount ?? 1)
+          ? OnboardingStep.ASK_ACTIVE_INCOME
+          : OnboardingStep.ASK_HAS_PASSIVE_INCOME;
+      }
+      if ((context.activeIncomePaydayCount ?? 0) >= (context.activeIncomeCount ?? 1)) {
+        return OnboardingStep.ASK_HAS_PASSIVE_INCOME;
+      }
+      return STEP_ACTIVE_INCOME_CYCLE_CONFIRM;
+    case STEP_ACTIVE_INCOME_CYCLE_CONFIRM:
+      return (context.activeIncomeAmountCount ?? 0) < (context.activeIncomeCount ?? 1)
+        ? OnboardingStep.ASK_ACTIVE_INCOME
+        : OnboardingStep.ASK_HAS_PASSIVE_INCOME;
     case OnboardingStep.ASK_HAS_PASSIVE_INCOME:
       return answer === true ? OnboardingStep.ASK_PASSIVE_INCOME : getPostIncomeStep(context);
-    case OnboardingStep.ASK_PASSIVE_INCOME:
     case OnboardingStep.ASK_ESTIMATED_MONTHLY_INCOME:
+      return OnboardingStep.ASK_SALARY_DATE;
+    case OnboardingStep.ASK_PASSIVE_INCOME:
       return getPostIncomeStep(context);
     case OnboardingStep.ASK_MANUAL_EXPENSE_BREAKDOWN:
       return getPostExpenseStep(context);
