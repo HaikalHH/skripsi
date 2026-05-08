@@ -187,7 +187,7 @@ const buildGeneralAnalyticsFollowUpText = (
   command: Extract<GlobalContextRoute["command"], { kind: "GENERAL_ANALYTICS_REPORT" }>
 ) => {
   const periodPhrase = command.dateRange?.label ?? buildPeriodPhrase(command.period);
-  if (/\b(recurring|langganan|subscription)\b/i.test(currentText)) {
+  if (/\b(recurring|langganan)\b/i.test(currentText)) {
     return `top recurring expense ${periodPhrase}`;
   }
   if (/\bmerchant\b/i.test(currentText)) {

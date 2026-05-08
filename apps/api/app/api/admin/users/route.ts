@@ -19,10 +19,6 @@ export async function GET(request: NextRequest) {
           messageLogs: true
         }
       },
-      subscriptions: {
-        orderBy: { createdAt: "desc" },
-        take: 1
-      },
       savingsGoal: true
     }
   });
@@ -39,7 +35,6 @@ export async function GET(request: NextRequest) {
       createdAt: user.createdAt.toISOString(),
       transactionCount: user._count.transactions,
       messageCount: user._count.messageLogs,
-      subscriptionStatus: user.subscriptions[0]?.status ?? "NONE",
       savingsGoalTarget: user.savingsGoal ? Number(user.savingsGoal.targetAmount) : null,
       savingsGoalProgress: user.savingsGoal ? Number(user.savingsGoal.currentProgress) : null
     }))

@@ -3,7 +3,7 @@
 ## 1. Identitas Proyek
 
 **Nama proyek:** WhatsApp Finance Assistant / AI Finance Assistant  
-**Jenis aplikasi:** Sistem asisten keuangan pribadi berbasis WhatsApp dengan dukungan AI, dashboard admin berbasis web, layanan reporting, onboarding finansial, tracking goal, aset, dan subscription.  
+**Jenis aplikasi:** Sistem asisten keuangan pribadi berbasis WhatsApp dengan dukungan AI, dashboard admin berbasis web, layanan reporting, onboarding finansial, tracking goal, aset, dan reminder otomatis.  
 **Bentuk repositori:** Monorepo `pnpm`
 
 ## 2. Ringkasan Umum Sistem
@@ -123,13 +123,11 @@ Secara implementasi, sistem dibangun dengan pendekatan monorepo menggunakan `pnp
 - Monthly closing.
 - Daily digest.
 
-### 4.12 Subscription dan pembayaran
+### 4.12 Aktivasi setelah onboarding
 
-- Ada sistem subscription untuk mengaktifkan akses penuh user.
-- Mendukung provider:
-  - `DUMMY` untuk simulasi/dev
-  - `AIRWALLEX` untuk pembayaran nyata
-- Tersedia payment session, payment confirmation, dan webhook pembayaran.
+- Akses fitur utama aktif setelah onboarding selesai.
+- Tidak ada alur billing atau gateway pembayaran di kode aktif.
+- Reminder, report, pencatatan transaksi, dan goal tracking langsung tersedia untuk user yang sudah `COMPLETED`.
 
 ### 4.13 Admin dashboard
 
@@ -137,11 +135,9 @@ Panel admin menyediakan fitur:
 
 - monitoring user
 - monitoring transaksi
-- monitoring subscription
 - monitoring health system
 - observability routing/intents
 - delete user
-- update status subscription
 
 ### 4.14 Observability dan quality monitoring
 
@@ -187,7 +183,6 @@ Panel admin menyediakan fitur:
 ### 6.3 Bot dan messaging
 
 - `@whiskeysockets/baileys`
-- Meta WhatsApp Graph API / Cloud API integration
 
 ### 6.4 AI dan OCR
 
@@ -201,11 +196,7 @@ Panel admin menyediakan fitur:
 - Matplotlib
 - Pydantic
 
-### 6.6 Payment
-
-- Airwallex
-
-### 6.7 Market data dan news provider
+### 6.6 Market data dan news provider
 
 - Finnhub
 - GoldAPI
@@ -213,7 +204,7 @@ Panel admin menyediakan fitur:
 - exchangerate.host
 - fallback market/news provider di level kode
 
-### 6.8 Testing dan quality
+### 6.7 Testing dan quality
 
 - Vitest
 - TypeScript strict mode
@@ -262,13 +253,7 @@ Schema database pada project ini cukup besar dan sudah mencerminkan aplikasi yan
 - `FinancialFreedomProfile`
 - `FinancialProfile`
 
-### 8.4 Tabel untuk pembayaran dan akses
-
-- `Subscription`
-- `PaymentSession`
-- `PaymentProviderEvent`
-
-### 8.5 Tabel untuk operasional sistem
+### 8.4 Tabel untuk operasional sistem
 
 - `OutboundMessage`
 - `ReminderPreference`
@@ -277,13 +262,12 @@ Schema database pada project ini cukup besar dan sudah mencerminkan aplikasi yan
 - `IntentObservation`
 - `SystemHeartbeat`
 
-### 8.6 Relasi data utama
+### 8.5 Relasi data utama
 
-- Satu `User` memiliki banyak `Transaction`, `MessageLog`, `Budget`, `Subscription`, `Asset`, `FinancialGoal`, dan `ReminderEvent`.
+- Satu `User` memiliki banyak `Transaction`, `MessageLog`, `Budget`, `Asset`, `FinancialGoal`, dan `ReminderEvent`.
 - `Transaction` terhubung ke `User`.
 - `MessageLog` dan `AIAnalysisLog` dipakai untuk jejak analisis percakapan.
 - `FinancialGoal` terhubung dengan `GoalContribution`.
-- `PaymentSession` dan `Subscription` terhubung ke `User`.
 
 ## 9. Arsitektur Sistem
 
@@ -317,7 +301,6 @@ Backend utama sistem. Berisi:
 - onboarding
 - reporting
 - reminder
-- payment
 - observability
 - service domain lain
 
@@ -330,10 +313,8 @@ Panel admin berbasis Next.js untuk:
 - audit transaksi
 - health monitoring
 - observability
-- subscription management
-- halaman payment dummy
 
-Catatan penting: di kode aktif saat ini, aplikasi web yang benar-benar ada adalah `apps/admin-web`. README lama masih menyebut `apps/web`, jadi dokumentasi internal belum sepenuhnya sinkron dengan struktur terbaru.
+Catatan penting: di kode aktif saat ini, aplikasi web yang benar-benar ada adalah `apps/admin-web`.
 
 #### `apps/bot`
 
@@ -371,7 +352,6 @@ Folder `apps/api/lib/services` dibagi per domain fitur. Ini merupakan struktur y
 - `messaging`: outbound message dan formatting bot
 - `observability`: analytics intent/routing
 - `onboarding`: flow onboarding, parser, helper route, kalkulasi
-- `payments`: payment session, subscription, Airwallex
 - `planning`: cashflow, goal, financial health, projection
 - `reminders`: aturan reminder dan preferensi
 - `reporting`: agregasi, report builder, monthly PDF
@@ -385,11 +365,11 @@ Folder `apps/api/lib/services` dibagi per domain fitur. Ini merupakan struktur y
 ### 11.1 Alur pesan teks
 
 1. User mengirim pesan WhatsApp.
-2. Pesan diterima lewat webhook Meta atau worker bot.
+2. Pesan diterima lewat worker bot Baileys.
 3. Payload divalidasi dengan Zod.
 4. Sistem membuat atau mencari user berdasarkan nomor WhatsApp.
 5. Sistem menyimpan `MessageLog`.
-6. Sistem mengecek onboarding dan subscription.
+6. Sistem mengecek status onboarding.
 7. Jika pesan adalah transaksi/command, pesan diarahkan ke router domain.
 8. Jika perlu AI, Gemini dipakai untuk intent extraction atau advice.
 9. Hasil diproses, disimpan ke database, lalu dibalas ke user.
@@ -429,14 +409,11 @@ Pada sisi backend terdapat **28 route handler**.
 - endpoint goals
 - endpoint financial profile
 - endpoint assets
-- endpoint public payment
-- endpoint public WhatsApp webhook
-- endpoint admin users/transactions/subscriptions/health/observability
+- endpoint admin users/transactions/health/observability
 - endpoint internal bot outbound/ack/heartbeat/reminders
 
 ### 12.2 Endpoint penting
 
-- `/api/public/whatsapp/webhook`
 - `/api/report`
 - `/api/onboarding/current`
 - `/api/onboarding/answer`
@@ -446,13 +423,10 @@ Pada sisi backend terdapat **28 route handler**.
 - `/api/goals/priorities`
 - `/api/financial-profile`
 - `/api/assets`
-- `/api/public/payment/session`
-- `/api/public/payment/confirm`
 - `/api/public/user/profile`
 - `/api/public/user/dashboard`
 - `/api/admin/users`
 - `/api/admin/transactions`
-- `/api/admin/subscriptions`
 - `/api/admin/health`
 - `/api/admin/observability`
 - `/api/bot/inbound`
@@ -462,14 +436,13 @@ Pada sisi backend terdapat **28 route handler**.
 
 ## 13. Komponen Frontend
 
-Frontend yang aktif di repository ini berfokus pada **panel admin** dan **halaman payment**.
+Frontend yang aktif di repository ini berfokus pada **panel admin**.
 
 ### 13.1 Halaman admin yang ada
 
 - login
 - users
 - transactions
-- subscriptions
 - observability
 - health
 
@@ -554,13 +527,12 @@ Project ini sudah memiliki pengujian otomatis di backend API menggunakan **Vites
 - report formatting
 - aggregation
 - onboarding flow
-- payment service
 - reminder service
 - market provider fallback
 - financial health
 - goal planner
 - conversation memory
-- WhatsApp webhook route
+- Baileys bot worker flow
 
 ## 18. Kelebihan Arsitektur Project
 
@@ -582,9 +554,9 @@ Beberapa hal berikut dapat dicantumkan sebagai batasan penelitian atau ruang pen
 
 ## 20. Kesimpulan Analisis
 
-Berdasarkan struktur kode, dependency, schema database, route API, dan service domain, project ini dapat dikategorikan sebagai **sistem asisten keuangan pribadi berbasis AI yang cukup lengkap**. Sistem tidak hanya mencatat transaksi, tetapi juga memiliki onboarding finansial, budgeting, goal planning, asset tracking, market information, reporting visual, reminder otomatis, subscription, serta dashboard admin untuk operasional dan observability.
+Berdasarkan struktur kode, dependency, schema database, route API, dan service domain, project ini dapat dikategorikan sebagai **sistem asisten keuangan pribadi berbasis AI yang cukup lengkap**. Sistem tidak hanya mencatat transaksi, tetapi juga memiliki onboarding finansial, budgeting, goal planning, asset tracking, market information, reporting visual, reminder otomatis, serta dashboard admin untuk operasional dan observability.
 
-Dari sisi teknis, project ini dibangun dengan kombinasi **TypeScript + Next.js + Prisma + MySQL + Python FastAPI**, lalu diperkuat oleh integrasi **Gemini AI**, **Google Vision OCR**, **WhatsApp integration**, dan **payment gateway**. Struktur ini sangat layak dijadikan objek implementasi skripsi, terutama untuk topik sistem informasi, financial assistant, chatbot cerdas, atau aplikasi manajemen keuangan berbasis AI.
+Dari sisi teknis, project ini dibangun dengan kombinasi **TypeScript + Next.js + Prisma + MySQL + Python FastAPI**, lalu diperkuat oleh integrasi **Gemini AI**, **Google Vision OCR**, dan **WhatsApp integration berbasis Baileys**. Struktur ini sangat layak dijadikan objek implementasi skripsi, terutama untuk topik sistem informasi, financial assistant, chatbot cerdas, atau aplikasi manajemen keuangan berbasis AI.
 
 ## 21. Ringkasan Singkat Poin-Poin Utama
 
@@ -598,5 +570,5 @@ Dari sisi teknis, project ini dibangun dengan kombinasi **TypeScript + Next.js +
 - **Testing:** Vitest
 - **Struktur:** monorepo `apps`, `packages`, `services`
 - **Komponen utama:** API, admin web, bot worker, reporting service
-- **Fitur utama:** transaksi, OCR struk, onboarding, budget, goal, aset, portfolio, market, news, report, reminder, subscription, admin monitoring
+- **Fitur utama:** transaksi, OCR struk, onboarding, budget, goal, aset, portfolio, market, news, report, reminder, admin monitoring
 

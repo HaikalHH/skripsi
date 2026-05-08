@@ -1,4 +1,4 @@
-import { isSubscriptionLikeMerchant, normalizeDetectedMerchant } from "@/lib/services/transactions/merchant-normalization-service";
+import { isRecurringLikeMerchant, normalizeDetectedMerchant } from "@/lib/services/transactions/merchant-normalization-service";
 import { normalizeExpenseBucketCategory } from "@/lib/services/transactions/category-override-service";
 
 type RecurringTransactionLike = {
@@ -17,7 +17,7 @@ export type RecurringExpenseInsight = {
   count: number;
   averageAmount: number;
   cadence: "weekly" | "monthly" | "irregular";
-  isSubscriptionLikely: boolean;
+  isRecurringLikeMerchant: boolean;
   confidenceScore: number;
   nextExpectedAt: Date | null;
 };
@@ -84,7 +84,7 @@ const buildConfidenceScore = (params: {
 }) => {
   let score = params.count >= 4 ? 0.58 : params.count >= 3 ? 0.48 : 0.34;
   if (params.cadence !== "irregular") score += 0.17;
-  if (isSubscriptionLikeMerchant(params.label)) score += 0.15;
+  if (isRecurringLikeMerchant(params.label)) score += 0.15;
 
   const stdDev = getIntervalStdDev(params.dates);
   if (stdDev !== null) {
@@ -143,7 +143,7 @@ export const analyzeRecurringExpenses = <T extends RecurringTransactionLike>(tra
         count: value.count,
         averageAmount: value.total / Math.max(1, value.count),
         cadence,
-        isSubscriptionLikely: isSubscriptionLikeMerchant(label) || cadence === "monthly",
+        isRecurringLikeMerchant: isRecurringLikeMerchant(label) || cadence === "monthly",
         confidenceScore,
         nextExpectedAt: cadence === "irregular" ? null : predictNextExpectedAt(value.dates)
       } satisfies RecurringExpenseInsight;

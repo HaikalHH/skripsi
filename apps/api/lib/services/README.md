@@ -8,7 +8,6 @@
 - `messaging`: message log dan outbound queue
 - `observability`: pencatatan observability intent dan routing
 - `onboarding`: onboarding flow, parser, helper route, dan kalkulasi profil awal
-- `payments`: payment session dan subscription access
 - `planning`: goal, health score, projection, cashflow forecast, dan allocation planning
 - `reminders`: reminder runner dan preference user
 - `reporting`: aggregation, report builder, dan insight generation

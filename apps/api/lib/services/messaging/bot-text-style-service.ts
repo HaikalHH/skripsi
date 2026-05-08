@@ -62,12 +62,12 @@ const styleLine = (line: string, emoji: string) => {
   if (listPrefixMatch) {
     const prefix = listPrefixMatch[1];
     const content = line.slice(prefix.length).trimStart();
-    return `${prefix}${content}`;
+    return `${prefix}${emoji} ${content}`;
   }
 
   const leadingWhitespace = line.match(/^\s*/)?.[0] ?? "";
   const content = line.trimStart();
-  return `${leadingWhitespace}${content}`;
+  return `${leadingWhitespace}${emoji} ${content}`;
 };
 
 export const applyBossFinanceEmojiStyle = (

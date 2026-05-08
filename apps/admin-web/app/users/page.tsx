@@ -4,6 +4,7 @@ import { SectionCard } from "@/components/section-card";
 import { StatCard } from "@/components/stat-card";
 import { StatusBadge } from "@/components/status-badge";
 import { fetchAdminApi } from "@/lib/api";
+import Link from "next/link";
 import {
   formatCompactNumber,
   formatCurrency,
@@ -151,7 +152,12 @@ export default async function UsersPage() {
                   </td>
                   <td>{formatDateTime(user.createdAt)}</td>
                   <td>
-                    <DeleteUserForm userId={user.id} />
+                    <div className="stack">
+                      <Link className="button button-compact" href={`/users/${user.id}`}>
+                        Detail
+                      </Link>
+                      <DeleteUserForm userId={user.id} />
+                    </div>
                   </td>
                 </tr>
               ))}

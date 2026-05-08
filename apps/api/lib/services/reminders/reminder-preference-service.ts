@@ -27,17 +27,17 @@ export type ReminderPreferenceCommand =
     };
 
 const DEFAULT_REMINDER_PREFERENCE: ReminderPreferenceState = {
-  budgetEnabled: false,
-  weeklyEnabled: false,
+  budgetEnabled: true,
+  weeklyEnabled: true,
   weeklyReviewEnabled: true,
-  recurringEnabled: false,
-  cashflowEnabled: false,
-  goalEnabled: false,
-  monthlyClosingEnabled: false,
+  recurringEnabled: true,
+  cashflowEnabled: true,
+  goalEnabled: true,
+  monthlyClosingEnabled: true,
   quietHoursStart: null,
   quietHoursEnd: null,
   minIntervalHours: 24,
-  maxPerDay: 1,
+  maxPerDay: 3,
   snoozedUntil: null
 };
 
@@ -369,7 +369,7 @@ export const parseReminderPreferenceCommand = (rawText: string): ReminderPrefere
     if (/\b(review mingguan|weekly review|ringkasan mingguan|digest mingguan|recap harian|rekap harian|recap pagi|jam 7)\b/i.test(text)) {
       updates.weeklyReviewEnabled = toggleValue;
     }
-    if (/\b(recurring|langganan|subscription)\b/i.test(text)) updates.recurringEnabled = toggleValue;
+    if (/\b(recurring|langganan)\b/i.test(text)) updates.recurringEnabled = toggleValue;
     if (/\b(cashflow|gajian|buffer|payday)\b/i.test(text)) updates.cashflowEnabled = toggleValue;
     if (/\b(goal|target)\b/i.test(text)) updates.goalEnabled = toggleValue;
     if (/\b(closing bulanan|monthly closing|review bulanan|ringkasan bulanan|closing)\b/i.test(text)) {

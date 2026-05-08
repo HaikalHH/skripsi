@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { analyzeRecurringExpenses } from "@/lib/services/transactions/recurring-expense-service";
 
 describe("recurring expense service", () => {
-  it("detects monthly recurring subscriptions with confidence and next expected date", () => {
+  it("detects monthly recurring expenses with confidence and next expected date", () => {
     const entries = analyzeRecurringExpenses([
       {
         category: "Entertainment",
@@ -30,7 +30,7 @@ describe("recurring expense service", () => {
     expect(entries).toHaveLength(1);
     expect(entries[0].label).toBe("Spotify");
     expect(entries[0].cadence).toBe("monthly");
-    expect(entries[0].isSubscriptionLikely).toBe(true);
+    expect(entries[0].isRecurringLikeMerchant).toBe(true);
     expect(entries[0].averageAmount).toBeCloseTo(51666.67, 1);
     expect(entries[0].confidenceScore).toBeGreaterThan(0.7);
     expect(entries[0].nextExpectedAt).not.toBeNull();

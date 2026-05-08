@@ -1,4 +1,3 @@
-import { SubscriptionStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { normalizeExpenseBucketCategory } from "@/lib/services/transactions/category-override-service";
 import { buildFinancialHealthReply } from "@/lib/services/planning/financial-health-service";
@@ -323,7 +322,7 @@ const getRecurringDueSoonAlert = async (
       const rightDays = signedDayDiff(baseDate, right.nextExpectedAt as Date);
       return (
         leftDays - rightDays ||
-        Number(right.isSubscriptionLikely) - Number(left.isSubscriptionLikely) ||
+        Number(right.isRecurringLikeMerchant) - Number(left.isRecurringLikeMerchant) ||
         right.confidenceScore - left.confidenceScore
       );
     })[0];
@@ -720,16 +719,14 @@ const queueReminderOnce = async (params: {
 };
 
 export const runProactiveReminders = async (baseDate = new Date()) => {
-  const activeSubscriptions = await prisma.subscription.findMany({
+  const activeUsers = await prisma.user.findMany({
     where: {
-      status: {
-        in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIAL]
-      }
+      registrationStatus: "COMPLETED",
+      onboardingStatus: "COMPLETED"
     },
-    distinct: ["userId"],
-    select: { userId: true }
+    select: { id: true }
   });
-  const userIds = activeSubscriptions.map((item) => item.userId);
+  const userIds = activeUsers.map((item) => item.id);
   if (!userIds.length) {
     return {
       processedUsers: 0,

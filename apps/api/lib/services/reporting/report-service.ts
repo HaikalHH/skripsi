@@ -311,7 +311,6 @@ const RECURRING_TERMS = [
   "rutin",
   "berulang",
   "langganan",
-  "subscription",
   "langganan aktif",
   "tagihan rutin"
 ];
@@ -2356,7 +2355,7 @@ export const buildGeneralAnalyticsReport = async (params: {
     ...topRecurring.map(
       (entry, index) =>
         `${index + 1}. ${entry.label} | ${entry.bucket} | ${formatMoney(entry.total)} | ${entry.count} transaksi${
-          entry.isSubscriptionLikely ? " | kemungkinan langganan" : ""
+          entry.isRecurringLikeMerchant ? " | kemungkinan langganan" : ""
         } | ${buildRecurringCadenceLabel(entry.cadence)} | confidence ${Math.round(
           entry.confidenceScore * 100
         )}%${

@@ -767,9 +767,7 @@ const PRICING_CLARIFICATION_PHRASES = [
   "biaya berapa",
   "berapa biaya",
   "langganan berapa",
-  "biaya langganan",
-  "ada subscription",
-  "pakai subscription"
+  "biaya langganan"
 ];
 
 const EDIT_LATER_CLARIFICATION_PHRASES = [

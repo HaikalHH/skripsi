@@ -111,7 +111,7 @@ const MERCHANT_ALIAS_PATTERNS: Array<{ canonical: string; patterns: RegExp[] }> 
   }
 ];
 
-const SUBSCRIPTION_LIKE_MERCHANTS = new Set([
+const RECURRING_LIKE_MERCHANTS = new Set([
   "Spotify",
   "Netflix",
   "YouTube Premium",
@@ -148,7 +148,7 @@ const ALIAS_TEXT_STOPWORDS = new Set([
   "sebesar",
   "sekitar",
   "langganan",
-  "subscription",
+  "recurring",
   "transaksi",
   "tagihan",
   "token",
@@ -324,8 +324,8 @@ export const resolveMerchantNameForUser = async (params: {
   return findLearnedMerchantAlias(params);
 };
 
-export const isSubscriptionLikeMerchant = (value: string | null | undefined) => {
+export const isRecurringLikeMerchant = (value: string | null | undefined) => {
   const normalized = normalizeMerchantName(value ?? null);
   if (!normalized) return false;
-  return SUBSCRIPTION_LIKE_MERCHANTS.has(normalized);
+  return RECURRING_LIKE_MERCHANTS.has(normalized);
 };

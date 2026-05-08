@@ -107,13 +107,11 @@ export async function GET(request: NextRequest) {
         onboardingStatus: user.onboardingStatus,
         registrationStatus: user.registrationStatus
       },
-      subscription: null,
       profile: financialProfile,
       analysis: {
         text: analysisText,
         data: analysisData
       },
-      paymentLink: null,
       report: {
         ...report,
         summary: buildReportText(

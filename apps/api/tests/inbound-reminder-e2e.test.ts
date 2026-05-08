@@ -5,7 +5,6 @@ const hoisted = vi.hoisted(() => {
     now: new Date("2026-02-24T12:00:00.000Z"),
     idCounter: 1,
     users: [] as any[],
-    subscriptions: [] as any[],
     budgets: [] as any[],
     savingsGoals: [] as any[],
     transactions: [] as any[],
@@ -70,16 +69,6 @@ const hoisted = vi.hoisted(() => {
         };
         store.users.push(user);
 
-        if (data.subscriptions?.create) {
-          store.subscriptions.push({
-            id: `sub_${store.idCounter++}`,
-            userId: user.id,
-            status: data.subscriptions.create.status,
-            createdAt: new Date(store.now),
-            updatedAt: new Date(store.now)
-          });
-        }
-
         if (data.savingsGoal?.create) {
           store.savingsGoals.push({
             id: `goal_${store.idCounter++}`,
@@ -117,60 +106,6 @@ const hoisted = vi.hoisted(() => {
         }
 
         return users;
-      }
-    },
-    subscription: {
-      findFirst: async ({ where, orderBy }: any) => {
-        let rows = store.subscriptions.filter((item) => item.userId === where.userId);
-        if (orderBy?.createdAt === "desc") {
-          rows = rows.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-        }
-        return rows[0] ?? null;
-      },
-      findMany: async ({ where, distinct, select }: any) => {
-        let rows = [...store.subscriptions];
-        if (where?.status?.in) {
-          const allowed = new Set(where.status.in);
-          rows = rows.filter((item) => allowed.has(item.status));
-        }
-
-        if (distinct?.includes("userId")) {
-          const seen = new Set<string>();
-          rows = rows.filter((item) => {
-            if (seen.has(item.userId)) return false;
-            seen.add(item.userId);
-            return true;
-          });
-        }
-
-        if (select) {
-          return rows.map((row) => {
-            const selected: Record<string, unknown> = {};
-            for (const key of Object.keys(select)) {
-              if (select[key]) selected[key] = row[key];
-            }
-            return selected;
-          });
-        }
-
-        return rows;
-      },
-      update: async ({ where, data }: any) => {
-        const row = store.subscriptions.find((item) => item.id === where.id);
-        if (!row) throw new Error("Subscription not found");
-        Object.assign(row, data, { updatedAt: new Date(store.now) });
-        return row;
-      },
-      create: async ({ data }: any) => {
-        const row = {
-          id: `sub_${store.idCounter++}`,
-          userId: data.userId,
-          status: data.status,
-          createdAt: new Date(store.now),
-          updatedAt: new Date(store.now)
-        };
-        store.subscriptions.push(row);
-        return row;
       }
     },
     messageLog: {
@@ -538,15 +473,6 @@ const seedData = () => {
       onboardingCompletedAt: new Date("2026-02-01T00:00:00.000Z"),
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-01T00:00:00.000Z")
-    }
-  ];
-  store.subscriptions = [
-    {
-      id: "sub_1",
-      userId: "user_1",
-      status: "ACTIVE",
-      createdAt: new Date("2026-02-01T00:00:00.000Z"),
-      updatedAt: new Date("2026-02-01T00:00:00.000Z")
     }
   ];
   store.budgets = [
@@ -2637,7 +2563,6 @@ describe("inbound + reminder e2e (mock DB)", () => {
 
   it("starts onboarding from goal selection when sender identity is lid", async () => {
     store.users = [];
-    store.subscriptions = [];
     store.budgets = [];
     store.savingsGoals = [];
     store.transactions = [];
@@ -2662,7 +2587,6 @@ describe("inbound + reminder e2e (mock DB)", () => {
 
   it("accepts short readiness follow-up during onboarding", async () => {
     store.users = [];
-    store.subscriptions = [];
     store.budgets = [];
     store.savingsGoals = [];
     store.transactions = [];
@@ -2684,9 +2608,8 @@ describe("inbound + reminder e2e (mock DB)", () => {
     expect(result.body.replyText).toContain("Pilih dulu tujuan keuangan yang lagi pengen kamu capai");
   });
 
-  it("still processes messages after onboarding even when no subscription record exists", async () => {
+  it("processes messages after onboarding without access gating", async () => {
     seedData();
-    store.subscriptions = [];
     store.extractionResult = {
       intent: "RECORD_TRANSACTION",
       type: "INCOME",

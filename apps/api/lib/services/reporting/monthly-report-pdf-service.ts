@@ -237,7 +237,7 @@ const buildRecurringSection = (expenseTransactions: Array<{
     lines: recurringEntries.map(
       (entry) =>
         `${entry.label} | ${entry.bucket} | ${entry.count} transaksi | total ${formatMoney(entry.total)}${
-          entry.isSubscriptionLikely ? " | langganan" : ""
+          entry.isRecurringLikeMerchant ? " | langganan" : ""
         }`
     )
   };

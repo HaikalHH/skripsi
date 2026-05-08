@@ -30,7 +30,7 @@ vi.mock("@/lib/prisma", () => ({
 import {
   findLearnedMerchantAlias,
   inferMerchantFromText,
-  isSubscriptionLikeMerchant,
+  isRecurringLikeMerchant,
   normalizeDetectedMerchant,
   normalizeMerchantName,
   resolveMerchantNameForUser
@@ -96,10 +96,10 @@ describe("merchant normalization service", () => {
     ).resolves.toBe("Wifi Kost");
   });
 
-  it("marks subscription-like merchants", () => {
-    expect(isSubscriptionLikeMerchant("Spotify")).toBe(true);
-    expect(isSubscriptionLikeMerchant("Biznet")).toBe(true);
-    expect(isSubscriptionLikeMerchant("PLN")).toBe(false);
+  it("marks recurring-like merchants", () => {
+    expect(isRecurringLikeMerchant("Spotify")).toBe(true);
+    expect(isRecurringLikeMerchant("Biznet")).toBe(true);
+    expect(isRecurringLikeMerchant("PLN")).toBe(false);
   });
 });
 

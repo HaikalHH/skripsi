@@ -4,17 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const navItems = [
+  { href: "/dashboard", label: "Dashboard", description: "Operational overview" },
   { href: "/users", label: "Users", description: "User base & onboarding" },
-  {
-    href: "/transactions",
-    label: "Transactions",
-    description: "Cashflow activity",
-  },
-  {
-    href: "/observability",
-    label: "Observability",
-    description: "Intent routing quality",
-  },
+  { href: "/reminders", label: "Reminders", description: "Reminder delivery" },
   // {
   //   href: "/health",
   //   label: "System Health",
@@ -28,17 +20,11 @@ export function AdminNav() {
   return (
     <aside className="admin-sidebar">
       <div className="sidebar-brand">
-        <div className="sidebar-brand-mark">AF</div>
         <div>
           <p className="eyebrow">Finance Bot</p>
           <h1>Control Room</h1>
         </div>
       </div>
-
-      <p className="sidebar-copy">
-        Internal workspace untuk monitor user, cashflow, reminder, dan kualitas
-        routing AI.
-      </p>
 
       <nav className="sidebar-nav" aria-label="Admin navigation">
         {navItems.map((item) => {
@@ -60,12 +46,8 @@ export function AdminNav() {
       </nav>
 
       <div className="sidebar-footer">
-        <div className="sidebar-footnote">
-          <span className="status-dot" />
-          Admin session aktif
-        </div>
         <form action="/logout" method="post">
-          <button type="submit" className="button button-danger button-block">
+          <button type="submit" className="button button-logout button-block">
             Logout
           </button>
         </form>

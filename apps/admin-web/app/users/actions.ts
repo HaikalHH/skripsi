@@ -17,3 +17,19 @@ export async function deleteUserAction(formData: FormData) {
 
   revalidatePath("/users");
 }
+
+export async function resetOnboardingAction(formData: FormData) {
+  const userId = String(formData.get("userId") ?? "");
+
+  if (!userId) {
+    return;
+  }
+
+  await fetchAdminApi(`/api/admin/users/${userId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ action: "reset-onboarding" })
+  });
+
+  revalidatePath("/users");
+  revalidatePath(`/users/${userId}`);
+}

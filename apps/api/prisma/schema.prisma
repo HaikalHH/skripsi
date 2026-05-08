@@ -29,12 +29,6 @@ enum AnalysisType {
   INSIGHT
 }
 
-enum SubscriptionStatus {
-  TRIAL
-  ACTIVE
-  INACTIVE
-}
-
 enum RegistrationStatus {
   PENDING
   COMPLETED
@@ -99,17 +93,6 @@ enum OnboardingStep {
   ASK_PERSONALIZATION_CHOICE
   SHOW_ANALYSIS
   COMPLETED
-}
-
-enum PaymentSessionStatus {
-  PENDING
-  PAID
-  EXPIRED
-}
-
-enum PaymentProvider {
-  DUMMY
-  AIRWALLEX
 }
 
 enum OutboundMessageStatus {
@@ -290,9 +273,6 @@ model User {
   budgets                   Budget[]
   savingsGoal               SavingsGoal?
   reminderPreference        ReminderPreference?
-  subscriptions             Subscription[]
-  paymentSessions           PaymentSession[]
-  paymentProviderEvents     PaymentProviderEvent[]
   outboundMessages          OutboundMessage[]
   portfolioAssets           PortfolioAsset[]
   portfolioTrades           PortfolioTrade[]
@@ -374,28 +354,6 @@ model SavingsGoal {
   updatedAt       DateTime @updatedAt
 }
 
-model Subscription {
-  id                     String             @id @default(cuid())
-  userId                 String
-  user                   User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  status                 SubscriptionStatus @default(TRIAL)
-  provider               PaymentProvider    @default(DUMMY)
-  providerSubscriptionId String?            @unique
-  providerCustomerId     String?
-  providerPriceId        String?
-  providerStatus         String?
-  currentPeriodStartAt   DateTime?
-  currentPeriodEndAt     DateTime?
-  cancelAt               DateTime?
-  cancelAtPeriodEnd      Boolean            @default(false)
-  cancelledAt            DateTime?
-  createdAt              DateTime           @default(now())
-  updatedAt              DateTime           @updatedAt
-
-  @@index([userId, status])
-  @@index([userId, provider, createdAt])
-}
-
 model ReminderPreference {
   id               String   @id @default(cuid())
   userId           String   @unique
@@ -414,47 +372,6 @@ model ReminderPreference {
   snoozedUntil     DateTime?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
-}
-
-model PaymentSession {
-  id                     String               @id @default(cuid())
-  userId                 String
-  user                   User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  token                  String               @unique
-  amount                 Decimal              @db.Decimal(12, 2)
-  currency               String               @default("IDR")
-  provider               PaymentProvider      @default(DUMMY)
-  status                 PaymentSessionStatus @default(PENDING)
-  customerEmail          String?
-  providerCheckoutId     String?              @unique
-  providerSubscriptionId String?
-  providerCustomerId     String?
-  providerStatus         String?
-  checkoutUrl            String?              @db.Text
-  checkoutExpiresAt      DateTime?
-  paidAt                 DateTime?
-  createdAt              DateTime             @default(now())
-  updatedAt              DateTime             @updatedAt
-
-  @@index([userId, status])
-  @@index([userId, provider, status])
-  @@index([providerSubscriptionId])
-}
-
-model PaymentProviderEvent {
-  id              String          @id @default(cuid())
-  userId          String?
-  user            User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
-  provider        PaymentProvider
-  providerEventId String
-  eventType       String
-  payloadJson     Json
-  processedAt     DateTime        @default(now())
-  createdAt       DateTime        @default(now())
-
-  @@unique([provider, providerEventId])
-  @@index([provider, eventType, createdAt])
-  @@index([userId, createdAt])
 }
 
 model OutboundMessage {
@@ -683,4 +600,20 @@ model ReminderEvent {
   @@index([userId, sentAt])
   @@index([userId, reminderType, sentAt])
   @@index([userId, marker, sentAt])
+}
+
+model ReminderTemplate {
+  id           String   @id @default(cuid())
+  templateKey  String   @unique
+  reminderType String
+  title        String
+  marker       String
+  messageText  String   @db.Text
+  entitiesJson Json?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([reminderType])
+  @@index([isActive])
 }
