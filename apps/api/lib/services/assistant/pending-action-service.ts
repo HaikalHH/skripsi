@@ -65,7 +65,7 @@ type PendingDraft = {
 };
 
 const ACTION_TEXT =
-  "Balas dengan salah satu:\n- simpan: kalau sudah benar\n- edit <yang diubah>: contoh `edit 50rb` atau `edit kategori Food & Drink`\n- buang: kalau batal";
+  "Balas dengan salah satu:\n- simpan: kalau sudah benar\n- edit (Transaksi): contoh `edit 50rb` atau `edit kategori Food & Drink`\n- buang: kalau batal";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -118,7 +118,7 @@ const buildTransactionDraftText = (payload: PendingTransactionDraftPayload) =>
   ]
     .filter(Boolean)
     .join("\n");
-  };
+};
 
 const buildBudgetDraftText = (payload: PendingBudgetDraftPayload) =>
   [
