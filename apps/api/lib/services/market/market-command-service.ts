@@ -6,7 +6,7 @@ import {
 } from "@/lib/services/market/market-price-service";
 
 const MARKET_PATTERN =
-  /(?:^|\s)(?:harga|price|cek harga|lihat harga|berapa)\s+([a-z0-9./:-]{2,16}|emas)\b|\b([a-z0-9./:-]{2,16})\s+(?:sekarang|hari ini)\s+(?:berapa|gimana)\b/i;
+  /(?:^|\s)(?:harga|price|cek harga|lihat harga|berapa)\s+(?:saham\s+)?([a-z0-9./:-]{2,16}|emas)\b|\b([a-z0-9./:-]{2,16})\s+(?:sekarang|hari ini)\s+(?:berapa|gimana)\b/i;
 
 const formatJakartaTimestamp = (value: string) =>
   new Intl.DateTimeFormat("id-ID", {
