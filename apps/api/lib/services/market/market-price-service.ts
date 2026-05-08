@@ -191,10 +191,10 @@ const isRetriableFailure = (failure: ProviderFailure) => failure.retriable;
 const isProviderFailure = (value: unknown): value is ProviderFailure =>
   Boolean(
     value &&
-      typeof value === "object" &&
-      "providerId" in value &&
-      "reason" in value &&
-      "message" in value
+    typeof value === "object" &&
+    "providerId" in value &&
+    "reason" in value &&
+    "message" in value
   );
 
 const classifyProviderFailure = (providerId: string, error: unknown): ProviderFailure => {
@@ -354,7 +354,7 @@ const buildQuoteLabel = (normalized: NormalizedMarketSymbol) => {
 
 const buildSourceLabel = (payload: ProviderQuotePayload, fallbackTrail: ProviderFailure[]) => {
   if (!fallbackTrail.length) return payload.source;
-  return `${payload.source} (fallback setelah ${fallbackTrail.map((item) => item.providerId).join(" -> ")})`;
+  return `${payload.source}`;
 };
 
 const shouldUseStaleQuote = (error: unknown) =>
@@ -603,7 +603,7 @@ const yahooQuoteProvider: QuoteProvider = {
       return {
         price,
         providerId: "yahoo_finance",
-        source: "Yahoo Finance",
+        source: "https://finance.yahoo.com/",
         asOf: toIsoTimestamp(timestamp)
       };
     }
