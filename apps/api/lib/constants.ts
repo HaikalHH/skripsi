@@ -1,5 +1,5 @@
 export const HELP_TEXT = [
-  "Perintah yang tersedia:",
+  "Hai Boss! 👋 Berikut fitur-fitur yang bisa kamu pakai:",
   "- ➕Catat transaksi: contoh `makan siang 45000` atau `gaji 5000000`, lalu konfirmasi simpan/edit/buang",
   "- ✏️Edit transaksi: `ubah kopi tadi jadi 20000`",
   "- ❌Hapus transaksi: `hapus transaksi listrik` / `hapus yang barusan`",
