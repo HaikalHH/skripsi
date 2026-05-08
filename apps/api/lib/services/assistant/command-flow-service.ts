@@ -73,12 +73,12 @@ type AssetAddFlowPayload = {
   kind: "COMMAND_FLOW";
   flow: "ASSET_ADD";
   step:
-    | "ASK_TYPE"
-    | "ASK_NAME"
-    | "ASK_VALUE"
-    | "ASK_CRYPTO_SYMBOL"
-    | "ASK_CRYPTO_QUANTITY"
-    | "ASK_CRYPTO_PRICE";
+  | "ASK_TYPE"
+  | "ASK_NAME"
+  | "ASK_VALUE"
+  | "ASK_CRYPTO_SYMBOL"
+  | "ASK_CRYPTO_QUANTITY"
+  | "ASK_CRYPTO_PRICE";
   data: {
     assetKind?: "DEPOSIT" | "PROPERTY" | "BUSINESS" | "OTHER" | "CRYPTO" | null;
     rawType?: string | null;
@@ -109,12 +109,12 @@ type ActiveCommandFlow = {
 };
 
 const FLOW_START_PROMPTS: Record<CommandFlowName, string> = {
-  SET_GOAL: "Nama goal-nya apa Boss?",
-  GOAL_ADD: "Mau masukin setoran ke goal yang mana Boss?",
-  GOAL_STATUS: "Mau cek goal yang mana Boss?",
-  BUDGET_SET: "Budget kategori apa Boss?",
+  SET_GOAL: "Yuk set target baru! 🎯 Nama goal-nya apa nih Boss?",
+  GOAL_ADD: "Mau masukin setoran ke goal yang mana Boss? 💰",
+  GOAL_STATUS: "Mau cek progress goal yang mana Boss? 📊",
+  BUDGET_SET: "Mau atur budget untuk kategori apa Boss? 📋",
   ASSET_ADD:
-    "Mau tambah aset apa Boss?\n\nPilih salah satu: emas, saham, crypto, tabungan/kas, deposito, properti, bisnis, atau lainnya."
+    "Mau tambah aset apa nih Boss?\n\nPilih salah satu: emas, saham, crypto, tabungan/kas, deposito, properti, bisnis, atau lainnya."
 };
 
 const MONTH_ALIASES: Array<{ month: number; aliases: string[] }> = [
@@ -380,7 +380,7 @@ export const tryHandleCommandFlowAnswer = async (params: {
       flowId: activeFlow.id,
       action: "CANCELLED"
     });
-    return ok({ replyText: "Oke, flow ini saya batalkan. Tidak ada data yang disimpan." });
+    return ok({ replyText: "Oke Siap, dibatalin ya Tenang Boss, nggak ada data yang kesimpen kok!" });
   }
 
   const { payload } = activeFlow;
@@ -419,7 +419,7 @@ export const tryHandleCommandFlowAnswer = async (params: {
           }
         }
       });
-      return ok({ replyText: "Mau dicapai kapan Boss? Contoh: `06/2030` atau `Juni 2030`." });
+      return ok({ replyText: "Mau dicapai kapan nih Boss? Contoh: `06/2030` atau `Juni 2030`" });
     }
 
     const due = parseMonthYear(text);
@@ -508,7 +508,7 @@ export const tryHandleCommandFlowAnswer = async (params: {
 
     const amount = parsePositiveAmount(text);
     if (!amount) {
-      return ok({ replyText: "Nominal budget belum kebaca. Tulis misalnya `2jt` atau `Rp2.000.000`." });
+      return ok({ replyText: "Nominal budget belum terbaca. Coba tulis ulang lagi boss 😅, misalnya `2jt` atau `Rp2.000.000`." });
     }
     await markFlowResolved({
       userId: params.userId,
