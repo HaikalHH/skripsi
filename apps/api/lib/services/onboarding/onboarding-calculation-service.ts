@@ -1,6 +1,5 @@
 import {
   AssetType,
-  BudgetMode,
   EmploymentType,
   ExpensePlanSource,
   FinancialGoalStatus,
@@ -15,7 +14,7 @@ import {
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { TROY_OUNCE_TO_GRAM } from "@/lib/services/market/market-price-service";
-import { formatMoney, formatPercent } from "@/lib/services/shared/money-format";
+import { formatMoney } from "@/lib/services/shared/money-format";
 
 export type ExpenseBreakdown = {
   food: number;
@@ -235,6 +234,14 @@ const joinGoalNames = (goalNames: string[]) => {
   if (goalNames.length === 2) return `${goalNames[0]} dan ${goalNames[1]}`;
   return `${goalNames.slice(0, -1).join(", ")}, dan ${goalNames.at(-1)}`;
 };
+
+const FAR_FINANCIAL_FREEDOM_TIMELINE_MONTHS = 30 * 12;
+const NEAR_TERM_GOAL_WINDOW_MONTHS = 18;
+
+const isFarFinancialFreedomTimeline = (monthsFromNow: number | null | undefined) =>
+  typeof monthsFromNow === "number" &&
+  Number.isFinite(monthsFromNow) &&
+  monthsFromNow >= FAR_FINANCIAL_FREEDOM_TIMELINE_MONTHS;
 
 type AllocationGoalInput = {
   goalType: FinancialGoalType;
@@ -1314,13 +1321,7 @@ export const generateOnboardingAnalysis = async (userId: string) => {
   );
   const lines = ["📊 Ringkasan Keuangan Boss", ""];
   const monthlySurplus = Math.max(data.potentialSaving ?? 0, 0);
-  const emergencyGoal = data.goals.find((goal) => goal.goalType === FinancialGoalType.EMERGENCY_FUND);
   const freedomGoal = data.goals.find((goal) => goal.goalType === FinancialGoalType.FINANCIAL_FREEDOM);
-  const manualGoals = data.goals.filter(
-    (goal) =>
-      goal.goalType !== FinancialGoalType.EMERGENCY_FUND &&
-      goal.goalType !== FinancialGoalType.FINANCIAL_FREEDOM
-  );
   const goalsForSequentialPlanning =
     data.user.priorityGoalType === FinancialGoalType.FINANCIAL_FREEDOM
       ? data.goals
@@ -1350,44 +1351,92 @@ export const generateOnboardingAnalysis = async (userId: string) => {
     }`
   );
 
-  if (data.savingRate !== null && Number.isFinite(data.savingRate)) {
-    lines.push(`Saving rate: ${formatPercent(data.savingRate, 1)}`);
-  }
-
-  if (emergencyGoal) {
-    lines.push(
-      `Dana darurat ideal: ${
-        emergencyGoal.targetAmount !== null
-          ? formatMoney(emergencyGoal.targetAmount)
-          : "masih menunggu data pengeluaran"
-      }`
-    );
-  }
-
-  lines.push(
-    `Aset terdata: ${
-      data.assets.length ? formatMoney(data.totalAssetValue) : "belum ditambahkan"
-    }`
-  );
-  if (planningAnalysis.recommendedAllocationMode) {
-    lines.push(
-      `Mode target: ${
-        planningAnalysis.recommendedAllocationMode === GoalExecutionMode.PARALLEL
-          ? "Paralel"
-          : "Berurutan"
-      }`
-    );
-  }
-
   const statusLines: string[] = [];
 
   if (data.potentialSaving === null) {
     statusLines.push("📝 Cashflow belum lengkap, jadi beberapa proyeksi masih kasar.");
   } else if (data.potentialSaving > 0) {
-    statusLines.push("✅ Cashflow sehat dan masih ada ruang tabung bulanan.");
+    statusLines.push("✅ Cashflow sehat.");
   } else {
     statusLines.push("⚠️ Cashflow masih ketat. Fokus utama sekarang rapihin pengeluaran rutin dulu.");
   }
+
+  const emergencyTargetAmount =
+    planningAnalysis.emergencyFund.recommendedTarget || planningAnalysis.emergencyFund.minimumTarget;
+  const emergencyProgress = planningAnalysis.emergencyFund.mappedProgressAmount;
+  if (emergencyTargetAmount > 0) {
+    if (emergencyProgress >= planningAnalysis.emergencyFund.minimumTarget) {
+      statusLines.push("✅ Dana darurat aman.");
+    } else if (emergencyProgress > 0) {
+      statusLines.push(
+        `⚠️ Dana darurat belum penuh. Idealnya naik ke sekitar ${formatMoney(emergencyTargetAmount)}.`
+      );
+    } else {
+      statusLines.push(
+        `⚠️ Dana darurat belum kebentuk. Idealnya mulai diisi sampai sekitar ${formatMoney(emergencyTargetAmount)}.`
+      );
+    }
+  }
+
+  const manualGoalSummaries = planningAnalysis.goalSummaries.filter(
+    (goal) =>
+      goal.goalType !== FinancialGoalType.EMERGENCY_FUND &&
+      goal.goalType !== FinancialGoalType.FINANCIAL_FREEDOM
+  );
+  const nearTermGoals = manualGoalSummaries.filter(
+    (goal) =>
+      goal.targetAmount !== null &&
+      goal.targetDateLabel !== null &&
+      (goal.monthsUntilTarget ?? Number.MAX_SAFE_INTEGER) <= NEAR_TERM_GOAL_WINDOW_MONTHS
+  );
+  const nearTermGoalKeys = new Set(nearTermGoals.map((goal) => `${goal.goalType}:${goal.goalName}`));
+
+  for (const goal of nearTermGoals.slice(0, 2)) {
+    if (goal.feasible) {
+      statusLines.push(`✅ ${goal.goalName} ${goal.targetDateLabel} masih realistis.`);
+      continue;
+    }
+
+    statusLines.push(`⚠️ ${goal.goalName} ${goal.targetDateLabel} butuh setoran khusus.`);
+  }
+
+  const longTermAnchorGoal =
+    manualGoalSummaries.find(
+      (goal) =>
+        !nearTermGoalKeys.has(`${goal.goalType}:${goal.goalName}`) &&
+        (goal.goalType === FinancialGoalType.HOUSE || goal.goalType === FinancialGoalType.VEHICLE)
+    ) ??
+    manualGoalSummaries.find(
+      (goal) => !nearTermGoalKeys.has(`${goal.goalType}:${goal.goalName}`)
+    ) ??
+    null;
+
+  if (longTermAnchorGoal && longTermAnchorGoal.targetAmount !== null) {
+    if (longTermAnchorGoal.feasible) {
+      statusLines.push(`✅ ${longTermAnchorGoal.goalName} masih realistis kalau ritmenya dijaga.`);
+    } else if (longTermAnchorGoal.realisticTargetLabel) {
+      statusLines.push(
+        `✅ ${longTermAnchorGoal.goalName} realistis jika deadline digeser ke sekitar ${longTermAnchorGoal.realisticTargetLabel}.`
+      );
+    } else {
+      statusLines.push(`⚠️ ${longTermAnchorGoal.goalName} masih perlu deadline yang lebih longgar.`);
+    }
+  }
+
+  const freedomPlanningPayload =
+    latestFreedomTargetSession?.normalizedAnswerJson &&
+    typeof latestFreedomTargetSession.normalizedAnswerJson === "object"
+      ? (latestFreedomTargetSession.normalizedAnswerJson as Record<string, unknown>)
+      : null;
+  const freedomPassiveTarget =
+    freedomPlanningPayload?.expenseMode === "CUSTOM" &&
+    typeof freedomPlanningPayload.monthlyExpense === "number" &&
+    freedomPlanningPayload.monthlyExpense > 0
+      ? freedomPlanningPayload.monthlyExpense
+      : null;
+  const freedomLabel = freedomPassiveTarget
+    ? `Financial Freedom ${formatMoney(freedomPassiveTarget)}/bulan`
+    : "Financial Freedom";
 
   if (freedomGoal?.targetAmount != null && desiredFreedomTarget) {
     const freedomTargetAmount = freedomGoal.targetAmount;
@@ -1412,136 +1461,81 @@ export const generateOnboardingAnalysis = async (userId: string) => {
       },
       monthlySurplus: availableForFreedom
     });
-    const priorityNote =
-      allocationPlan.priorityGoalName && allocationPlan.projectionBasis !== "FULL_SURPLUS"
-        ? ` karena ${allocationPlan.priorityGoalName} masih ambil porsi dulu`
-        : "";
+    const freedomTimelineMonths =
+      allocationPlan.estimatedMonthsToGoal ?? freedomPlan.realisticMonths ?? null;
 
-    if (freedomPlan.feasible) {
+    if (
+      availableForFreedom <= 0 &&
+      monthlySurplus > 0 &&
+      allocationPlan.projectionBasis === "AFTER_PRIORITY_GOAL" &&
+      allocationPlan.priorityGoalName
+    ) {
       statusLines.push(
-        `✅ Financial Freedom masih realistis. Setoran perlu ${formatMoney(
-          freedomPlan.requiredMonthlyContribution ?? 0
-        )}/bulan${priorityNote}.`
+        `⚠️ ${freedomLabel} masih terlalu berat untuk ritme sekarang. Surplus bulanan kamu ${formatMoney(monthlySurplus)}. Tapi karena mode targetnya berurutan, surplus ini sedang diprioritaskan untuk ${allocationPlan.priorityGoalName} dulu.`
       );
-    } else if (freedomPlan.requiredMonthlyContribution !== null) {
+    } else if (
+      !freedomPlan.feasible ||
+      (freedomPlan.gapMonthly ?? 0) > 0 ||
+      isFarFinancialFreedomTimeline(freedomTimelineMonths)
+    ) {
       statusLines.push(
-        `⚠️ Financial Freedom perlu setoran ${formatMoney(
-          freedomPlan.requiredMonthlyContribution
-        )}/bulan; ruang realistis sekarang ${formatMoney(
-          freedomPlan.availableMonthlyContribution
-        )}/bulan, gap ${formatMoney(freedomPlan.gapMonthly ?? 0)}/bulan${priorityNote}.`
+        `⚠️ ${freedomLabel} masih terlalu berat untuk ritme sekarang. Lebih cocok dijadikan visi jangka panjang sambil mulai dari milestone kecil dulu.`
       );
+    } else {
+      statusLines.push(`📝 ${freedomLabel} mulai masuk akal setelah prioritas dekat dibereskan.`);
     }
   } else if (freedomGoal && data.potentialSaving !== null && data.potentialSaving <= 0) {
     statusLines.push("⚠️ Financial Freedom belum realistis dihitung detail karena ruang tabungnya belum positif.");
   } else if (freedomGoal) {
-    statusLines.push("📝 Financial Freedom masih perlu timeline target supaya proyeksinya bisa saya kunci.");
-  }
-
-  const manualGoalSummaries = planningAnalysis.goalSummaries.filter(
-    (goal) =>
-      goal.goalType !== FinancialGoalType.EMERGENCY_FUND &&
-      goal.goalType !== FinancialGoalType.FINANCIAL_FREEDOM
-  );
-
-  for (const goal of manualGoalSummaries.slice(0, 3)) {
-    if (goal.targetAmount === null || goal.targetDateLabel === null) {
-      statusLines.push(`📝 ${goal.goalName} masih perlu nominal atau tanggal target yang lebih lengkap.`);
-      continue;
-    }
-
-    const startNote =
-      goal.basis === "SEQUENTIAL_AFTER_PREVIOUS" && goal.startLabel
-        ? ` Mulai realistis sekitar ${goal.startLabel}.`
-        : goal.basis === "PARALLEL_RESIDUAL" &&
-            goal.portfolioRequiredMonthlyAllocation !== null &&
-            goal.portfolioGapMonthly !== null
-          ? ` Kalau dikejar paralel, total kebutuhan semua target sekitar ${formatMoney(
-              goal.portfolioRequiredMonthlyAllocation
-            )}/bulan dengan gap portofolio ${formatMoney(goal.portfolioGapMonthly)}/bulan.`
-          : "";
-
-    if (goal.feasible) {
-      statusLines.push(
-        `✅ ${goal.goalName} masih realistis. Butuh sekitar ${formatMoney(
-          goal.requiredMonthlyAllocation ?? 0
-        )}/bulan sampai ${goal.targetDateLabel}.${startNote}`
-      );
-      continue;
-    }
-
-    if (goal.deadlineMissedBeforeStart) {
-      statusLines.push(
-        `âš ï¸ ${goal.goalName} belum keburu dengan urutan sekarang. Alokasi realistisnya baru mulai sekitar ${goal.startLabel ?? "setelah target sebelumnya selesai"}${
-          goal.realisticTargetLabel ? `, jadi lebih masuk akal kalau targetnya digeser ke sekitar ${goal.realisticTargetLabel}` : ""
-        }.`
-      );
-      continue;
-    }
-
-    if (goal.requiredMonthlyAllocation !== null) {
-      statusLines.push(
-        `⚠️ ${goal.goalName} cukup agresif. Butuh ${formatMoney(
-          goal.requiredMonthlyAllocation
-        )}/bulan; ruang sekarang ${formatMoney(
-          goal.availableMonthlyAllocation
-        )}/bulan, gap ${formatMoney(goal.gapMonthly ?? 0)}/bulan${
-          goal.realisticTargetLabel ? `, realistisnya sekitar ${goal.realisticTargetLabel}` : ""
-        }.${startNote}`
-      );
-    }
+    statusLines.push("📝 Financial Freedom lebih cocok dimulai dari milestone kecil dulu.");
   }
 
   const recommendationLines: string[] = [];
   if (data.potentialSaving !== null && data.potentialSaving <= 0) {
-    recommendationLines.push("Rapihin pengeluaran rutin dulu sampai ruang nabung balik positif.");
+    recommendationLines.push("Rapihin cashflow rutin dulu sampai ruang nabung balik positif.");
   }
-  if (emergencyGoal?.targetAmount && monthlySurplus > 0) {
-    recommendationLines.push("Selesaikan dana darurat dulu sebagai bantalan utama sebelum ngebut ke target besar.");
+  if (emergencyTargetAmount > 0 && emergencyProgress < emergencyTargetAmount) {
+    recommendationLines.push("Selesaikan dana darurat dulu.");
   }
-  if (manualGoals.some((goal) => goal.targetAmount && goal.targetMonth && goal.targetYear)) {
-    recommendationLines.push("Turunkan deadline target yang agresif atau tambah setoran bulanan pada target itu.");
-  }
-  if ((data.goals.length ?? 0) > 1) {
+  if (nearTermGoals.length) {
     recommendationLines.push(
-      data.user.goalExecutionMode === GoalExecutionMode.PARALLEL
-        ? "Jaga pembagian target paralel tetap realistis supaya prioritas utamanya tidak kekurangan dana."
-        : "Kejar target satu per satu dulu biar surplus bulanan tidak pecah terlalu tipis."
+      `Prioritaskan target dekat: ${joinGoalNames(nearTermGoals.slice(0, 2).map((goal) => goal.goalName))}.`
     );
   }
-  if (
-    planningAnalysis.portfolioGapMonthly !== null &&
-    planningAnalysis.portfolioGapMonthly > 0
-  ) {
+
+  const longTermGoalNames = manualGoalSummaries
+    .filter(
+      (goal) =>
+        !nearTermGoalKeys.has(`${goal.goalType}:${goal.goalName}`) &&
+        (goal.goalType === FinancialGoalType.HOUSE || goal.goalType === FinancialGoalType.VEHICLE)
+    )
+    .map((goal) => goal.goalName);
+  if (longTermGoalNames.length) {
     recommendationLines.push(
-      `Total kebutuhan target paralel saat ini lebih tinggi sekitar ${formatMoney(planningAnalysis.portfolioGapMonthly)}/bulan dari ruang tabung yang kebaca.`
+      `${joinGoalNames(longTermGoalNames)} lebih cocok dijadikan target jangka panjang.`
     );
   }
-  recommendationLines.push(
-    data.user.budgetMode === BudgetMode.AUTO_FROM_TRANSACTIONS
-      ? "Kirim catatan transaksi rutin supaya insight mingguan bisa makin presisi."
-      : "Pantau pengeluaran tiap minggu supaya surplus bulanan tidak bocor."
-  );
-  if (!data.assets.length) {
-    recommendationLines.push("Tambahkan aset nanti di dashboard biar progres target dan net worth lebih akurat.");
+  if (freedomGoal) {
+    recommendationLines.push("Financial Freedom mulai dari milestone kecil dulu.");
   }
 
   lines.push("", "Status:");
-  for (const status of statusLines.slice(0, 4)) {
-    lines.push(status);
-  }
+  statusLines
+    .filter((line, index, items) => items.indexOf(line) === index)
+    .slice(0, 5)
+    .forEach((status) => {
+      lines.push(status);
+    });
 
-  lines.push("", "Saran awal:");
+  lines.push("", "Saran:");
   recommendationLines
     .filter((line, index, items) => items.indexOf(line) === index)
-    .slice(0, 3)
+    .slice(0, 4)
     .forEach((recommendation, index) => {
       lines.push(`${index + 1}. ${recommendation}`);
     });
 
-  if (!data.assets.length) {
-    lines.push("", "📌 Kalau aset ditambah nanti di dashboard, proyeksi target bisa saya rapihin lagi.");
-  }
+  lines.push("", "Kalau Boss mau, saya bisa tampilkan timeline lengkapnya.");
 
   return lines.join("\n").trim();
 };
@@ -1765,9 +1759,16 @@ export const evaluateTargetAgainstCurrentPlan = (params: {
         ? "needs_parallel"
         : "aggressive";
   }
+  const isLongHorizonFinancialFreedomGoal =
+    params.goal.goalType === FinancialGoalType.FINANCIAL_FREEDOM &&
+    isFarFinancialFreedomTimeline(
+      desiredDate?.monthsFromNow ?? realisticEndDate?.monthsFromNow ?? null
+    );
 
   const insight =
-    status === "feasible"
+    status === "feasible" && isLongHorizonFinancialFreedomGoal
+      ? "Target ini lebih cocok dijadikan visi jangka panjang sambil mulai dari milestone kecil dulu."
+      : status === "feasible"
       ? "Target ini masih aman di ritme sekarang."
       : status === "aggressive"
         ? "Agak ketat. Deadline atau setoran bulanannya masih perlu dirapikan."
@@ -1852,10 +1853,20 @@ export const validateTimelinePeriods = (periods: TimelinePeriod[]) =>
 export const generateShortTargetEvaluationCopy = (params: {
   evaluation: TargetEvaluation;
   monthlySurplus: number;
+  totalMonthlySurplus?: number | null;
   previousGoalNames?: string[];
 }): string => {
   const { evaluation } = params;
   const lines: string[] = [];
+  const effectiveMonthlySurplus = Math.max(0, params.monthlySurplus);
+  const totalMonthlySurplus = Math.max(0, params.totalMonthlySurplus ?? params.monthlySurplus);
+  const shouldExplainDeferredSurplus =
+    Boolean(params.previousGoalNames?.length) &&
+    effectiveMonthlySurplus <= 0 &&
+    totalMonthlySurplus > 0;
+  const deferredSurplusLine = shouldExplainDeferredSurplus
+    ? `Surplus bulanan kamu ${formatMoney(totalMonthlySurplus)}. Tapi karena mode targetnya berurutan, surplus ini sedang diprioritaskan untuk ${joinGoalNames(params.previousGoalNames ?? []) ?? "target sebelumnya"} dulu.`
+    : null;
 
   if (params.previousGoalNames?.length) {
     lines.push(
@@ -1867,7 +1878,10 @@ export const generateShortTargetEvaluationCopy = (params: {
     lines.push(
       `Dengan urutan sekarang, target ini belum masuk kalau dikejar satu per satu. Alokasi realistisnya baru kebuka sekitar ${evaluation.realisticStartDate?.label ?? "setelah target sebelumnya selesai"}.`
     );
-    lines.push(`Ruang tabung sekarang sekitar ${formatMoney(params.monthlySurplus)}/bulan.`);
+    lines.push(
+      deferredSurplusLine ??
+        `Ruang tabung sekarang sekitar ${formatMoney(effectiveMonthlySurplus)}/bulan.`
+    );
     if (evaluation.realisticEndDate?.label) {
       lines.push(`Versi realistisnya sekitar ${evaluation.realisticEndDate.label}.`);
     }
@@ -1883,9 +1897,16 @@ export const generateShortTargetEvaluationCopy = (params: {
         `Target ini cukup agresif. Kalau mau tetap ${evaluation.desiredDate?.label ?? "dengan target ini"}, perlu sekitar ${formatMoney(evaluation.requiredMonthlyForDesiredDate)}/bulan.`
       );
     }
-    lines.push(
-      `Ruang tabung sekarang sekitar ${formatMoney(params.monthlySurplus)}/bulan, jadi masih ada gap ${formatMoney(evaluation.gapMonthly ?? 0)}/bulan.`
-    );
+    if (deferredSurplusLine) {
+      lines.push(deferredSurplusLine);
+      lines.push(
+        `Alokasi aktif untuk target ini sekarang masih gap ${formatMoney(evaluation.gapMonthly ?? 0)}/bulan.`
+      );
+    } else {
+      lines.push(
+        `Ruang tabung sekarang sekitar ${formatMoney(effectiveMonthlySurplus)}/bulan, jadi masih ada gap ${formatMoney(evaluation.gapMonthly ?? 0)}/bulan.`
+      );
+    }
     if (evaluation.realisticEndDate?.label) {
       lines.push(`Versi realistisnya sekitar ${evaluation.realisticEndDate.label}.`);
     }
@@ -1894,7 +1915,7 @@ export const generateShortTargetEvaluationCopy = (params: {
 
   if (evaluation.requiredMonthlyForDesiredDate !== null) {
     lines.push(
-      `Dengan ruang tabung sekarang sekitar ${formatMoney(params.monthlySurplus)}/bulan, target ini masih realistis.`
+      `Dengan ruang tabung sekarang sekitar ${formatMoney(effectiveMonthlySurplus)}/bulan, target ini masih realistis.`
     );
     lines.push(
       `Kebutuhan setoran bulanannya sekitar ${formatMoney(evaluation.requiredMonthlyForDesiredDate)}/bulan.`
@@ -1915,6 +1936,9 @@ export const generateFinalTimelineCopy = (params: {
 
   for (const period of periods) {
     const gapMonthly = period.gapMonthly ?? 0;
+    const isLongHorizonFinancialFreedomGoal =
+      period.goalType === FinancialGoalType.FINANCIAL_FREEDOM &&
+      isFarFinancialFreedomTimeline(period.endDate.monthsFromNow);
     const needsDeadlineWarning =
       period.desiredDate?.label &&
       (gapMonthly > 0 ||
@@ -1943,7 +1967,9 @@ export const generateFinalTimelineCopy = (params: {
     }
     lines.push(
       `Insight: ${
-        needsDeadlineWarning
+        isLongHorizonFinancialFreedomGoal
+          ? "Target ini terlalu besar kalau langsung dikejar penuh di ritme sekarang. Lebih cocok dijadikan visi jangka panjang sambil mulai milestone kecil dulu."
+          : needsDeadlineWarning
           ? "Deadline ini saya simpan sebagai versi Boss, tapi perlu jalan paralel atau tambah setoran. Kalau benar-benar berurutan, target ini mengikuti prioritas sebelumnya."
           : period.insight
       }`
@@ -1954,6 +1980,16 @@ export const generateFinalTimelineCopy = (params: {
   if (periods.some((period) => period.status === "impossible_sequential")) {
     lines.push(
       "📌 Overall masih perlu penyesuaian, karena ada target yang tidak feasible kalau dikejar berurutan."
+    );
+  } else if (
+    periods.some(
+      (period) =>
+        period.goalType === FinancialGoalType.FINANCIAL_FREEDOM &&
+        isFarFinancialFreedomTimeline(period.endDate.monthsFromNow)
+    )
+  ) {
+    lines.push(
+      "📌 Overall lebih sehat kalau target dekat didahulukan, lalu Financial Freedom dipecah jadi milestone kecil."
     );
   } else if (periods.some((period) => (period.gapMonthly ?? 0) > 0)) {
     lines.push(

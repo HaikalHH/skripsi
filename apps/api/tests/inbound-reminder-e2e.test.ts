@@ -2684,6 +2684,34 @@ describe("inbound + reminder e2e (mock DB)", () => {
     expect(result.body.replyText).toContain("Pilih dulu tujuan keuangan yang lagi pengen kamu capai");
   });
 
+  it("still processes messages after onboarding even when no subscription record exists", async () => {
+    seedData();
+    store.subscriptions = [];
+    store.extractionResult = {
+      intent: "RECORD_TRANSACTION",
+      type: "INCOME",
+      amount: 5_000_000,
+      category: "salary",
+      merchant: null,
+      note: null,
+      occurredAt: "2026-02-24T12:00:00.000Z",
+      reportPeriod: null,
+      adviceQuery: null
+    } as any;
+
+    const result = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "gaji masuk 5 juta",
+      sentAt: "2026-02-24T12:00:00.000Z"
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.body.replyText).toContain("Transaksi berhasil dicatat");
+    expect(store.transactions.at(-1)?.type).toBe("INCOME");
+    expect(store.transactions.at(-1)?.amount).toBe(5_000_000);
+  });
+
   it("queues daily recap at 7 pagi WIB for yesterday and deduplicates next run", async () => {
     store.transactions.push({
       id: "tx_daily_1",
@@ -2934,4 +2962,3 @@ describe("inbound + reminder e2e (mock DB)", () => {
     expect(habitLeaks.body.replyText).toContain("Kopi Kenangan");
   });
 });
-

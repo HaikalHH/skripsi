@@ -19,10 +19,10 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
         </h1>
         <p>
           Panel ini dipakai untuk memonitor user, transaksi, health system, observability routing,
-          dan operasional subscription dari AI Finance Assistant.
+          dan operasional internal AI Finance Assistant.
         </p>
         <ul className="hero-list">
-          <li>User growth, onboarding, dan access control</li>
+          <li>User growth, onboarding, dan akses bot</li>
           <li>Transaction audit, observability, dan health monitoring</li>
           <li>Operational tools untuk support dan QA internal</li>
         </ul>

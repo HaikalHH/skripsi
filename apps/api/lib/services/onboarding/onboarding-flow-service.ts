@@ -370,17 +370,14 @@ const getMonthYearLabelFromNow = (monthsFromNow: number) => {
 };
 
 const FAR_FINANCIAL_FREEDOM_ETA_MONTHS = 30 * 12;
-
-const getEtaDistanceLabel = (monthsFromNow: number) => {
-  const roundedMonths = Math.max(1, Math.ceil(monthsFromNow));
-  if (roundedMonths < 24) return `${roundedMonths} bulan lagi`;
-
-  const roundedYears = Math.round(roundedMonths / 12);
-  return `${roundedYears} tahun lagi`;
-};
+const isFarFinancialFreedomEta = (monthsFromNow: number | null | undefined) =>
+  typeof monthsFromNow === "number" &&
+  Number.isFinite(monthsFromNow) &&
+  monthsFromNow >= FAR_FINANCIAL_FREEDOM_ETA_MONTHS;
 
 const buildFinancialFreedomTimelineLines = (context: OnboardingPromptContext) => {
   const lines: string[] = [];
+  const hasFarEta = isFarFinancialFreedomEta(context.financialFreedomEtaMonths);
   const completionLabel =
     context.financialFreedomEtaMonths !== null
       ? getMonthYearLabelFromNow(Math.ceil(context.financialFreedomEtaMonths))
@@ -390,7 +387,9 @@ const buildFinancialFreedomTimelineLines = (context: OnboardingPromptContext) =>
     lines.push(`Mulai alokasi FF realistis: ${context.financialFreedomStartLabel}`);
   }
 
-  if (context.financialFreedomStartLabel && completionLabel) {
+  if (hasFarEta) {
+    lines.push("Arah FF ini masih terlalu panjang untuk dijadikan deadline utama sekarang.");
+  } else if (context.financialFreedomStartLabel && completionLabel) {
     lines.push(`Periode kumpul: ${context.financialFreedomStartLabel} -> ${completionLabel}`);
   } else if (completionLabel) {
     lines.push(`Estimasi selesai: ${completionLabel}`);
@@ -507,8 +506,8 @@ const buildFinancialFreedomProjectionBody = (context: OnboardingPromptContext) =
 
   const etaText =
     context.financialFreedomEtaMonths !== null
-      ? context.financialFreedomEtaMonths >= FAR_FINANCIAL_FREEDOM_ETA_MONTHS
-        ? `target financial freedom ini masih sangat jauh. Estimasi kasarnya sekitar ${getMonthYearLabelFromNow(Math.ceil(context.financialFreedomEtaMonths))}, atau kurang lebih ${getEtaDistanceLabel(context.financialFreedomEtaMonths)} dari sekarang.`
+      ? isFarFinancialFreedomEta(context.financialFreedomEtaMonths)
+        ? `target financial freedom ini terlalu besar untuk ritme sekarang. Lebih cocok dijadikan visi jangka panjang dulu sambil mulai dari milestone kecil.`
         : `estimasi kasarnya sekitar ${getMonthYearLabelFromNow(Math.ceil(context.financialFreedomEtaMonths))}.`
       : null;
   const priorityGoalName = context.financialFreedomPriorityGoalName;

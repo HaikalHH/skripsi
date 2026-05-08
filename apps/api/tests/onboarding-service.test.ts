@@ -301,10 +301,6 @@ vi.mock("@/lib/services/onboarding/onboarding-calculation-service", async () => 
   };
 });
 
-vi.mock("@/lib/services/payments/subscription-service", () => ({
-  activateSubscription: vi.fn(async () => ({ status: "ACTIVE" }))
-}));
-
 import {
   generateOnboardingAnalysis,
   replaceExpensePlan
@@ -313,7 +309,6 @@ import {
   getOnboardingState,
   handleOnboarding
 } from "@/lib/services/onboarding/onboarding-service";
-import { activateSubscription } from "@/lib/services/payments/subscription-service";
 
 const seedUser = (overrides: Record<string, unknown> = {}) => {
   hoisted.store.users = [
@@ -371,7 +366,6 @@ describe("onboarding service", () => {
   beforeEach(() => {
     seedUser();
     vi.mocked(replaceExpensePlan).mockClear();
-    vi.mocked(activateSubscription).mockClear();
     vi.mocked(generateOnboardingAnalysis).mockResolvedValue("analysis");
   });
 
@@ -636,9 +630,9 @@ describe("onboarding service", () => {
 
     const state = await getOnboardingState({ userId: "user_1" });
 
-    expect(state.stepKey).toBe(OnboardingStep.ASK_ACTIVE_INCOME);
-    expect(state.prompt?.questionKey).toBe(OnboardingQuestionKey.ACTIVE_INCOME_MONTHLY);
-    expect(hoisted.store.users[0].onboardingStep).toBe(OnboardingStep.ASK_ACTIVE_INCOME);
+    expect(state.stepKey).toBe("ASK_ACTIVE_INCOME_COUNT" as OnboardingStep);
+    expect(state.prompt?.questionKey).toBe("ACTIVE_INCOME_COUNT" as OnboardingQuestionKey);
+    expect(hoisted.store.users[0].onboardingStep).toBe("ASK_ACTIVE_INCOME_COUNT" as OnboardingStep);
   });
 
   it("uses an ambiguity fallback when Belum punya is mixed with real asset choices", async () => {
@@ -678,8 +672,6 @@ describe("onboarding service", () => {
     expect(result.replyText).toContain("analysis");
     expect(result.replyText).toContain("pantau cashflow bulanan");
     expect(result.replyText).toContain("fitur otomatis sudah aktif");
-    expect(result.replyText).not.toContain("https://pay.test/pay_token");
-    expect(activateSubscription).toHaveBeenCalledWith("user_1");
     expect(hoisted.store.users[0].onboardingStep).toBe(OnboardingStep.COMPLETED);
   });
 
@@ -710,9 +702,8 @@ describe("onboarding service", () => {
     expect(result.replyText).toContain(
       "Insight detailnya lagi saya rapihin, tapi data onboarding Boss sudah aman tersimpan."
     );
+    expect(result.replyText).toContain("Kalau Boss mau, saya bisa tampilkan timeline lengkapnya.");
     expect(result.replyText).toContain("fitur otomatis sudah aktif");
-    expect(result.replyText).not.toContain("https://pay.test/pay_token");
-    expect(activateSubscription).toHaveBeenCalledWith("user_1");
     expect(hoisted.store.users[0].onboardingStep).toBe(OnboardingStep.COMPLETED);
   });
 
@@ -982,14 +973,26 @@ describe("onboarding service", () => {
     });
 
     const result = await sendText("udah itu aja", "msg_finalize_custom_timeline");
-    const combinedReply = result.replyTexts?.join("\n\n") ?? result.replyText;
 
     expect(result.handled).toBe(true);
-    expect(combinedReply).toContain("Timeline Keuangan Boss");
-    expect(combinedReply).toContain("Dana Nikah");
-    expect(combinedReply).toContain("Beli Rumah");
-    expect((combinedReply.indexOf("Dana Nikah") ?? -1)).toBeLessThan(
-      combinedReply.indexOf("Beli Rumah") ?? Number.MAX_SAFE_INTEGER
+    expect(result.replyText).toContain("Kalau Boss mau, saya bisa tampilkan timeline lengkapnya.");
+    expect(result.replyText).not.toContain("Timeline Keuangan Boss");
+
+    const timelineResult = await handleOnboarding({
+      user: hoisted.store.users[0],
+      isNew: false,
+      messageId: "msg_request_completed_timeline",
+      messageType: "TEXT",
+      text: "lihat timeline"
+    });
+    const combinedTimeline = timelineResult.replyTexts?.join("\n\n") ?? timelineResult.replyText;
+
+    expect(timelineResult.handled).toBe(true);
+    expect(combinedTimeline).toContain("Timeline Keuangan Boss");
+    expect(combinedTimeline).toContain("Dana Nikah");
+    expect(combinedTimeline).toContain("Beli Rumah");
+    expect((combinedTimeline.indexOf("Dana Nikah") ?? -1)).toBeLessThan(
+      combinedTimeline.indexOf("Beli Rumah") ?? Number.MAX_SAFE_INTEGER
     );
   });
 

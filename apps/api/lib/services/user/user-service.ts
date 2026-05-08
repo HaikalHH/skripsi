@@ -1,4 +1,4 @@
-import { OnboardingStatus, OnboardingStep, RegistrationStatus, SubscriptionStatus } from "@prisma/client";
+import { OnboardingStatus, OnboardingStep, RegistrationStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 const stripWhitespace = (value: string) => value.replace(/\s+/g, "");
@@ -140,11 +140,6 @@ export const findOrCreateUserByWaNumber = async (waNumber: string, waLid?: strin
       registrationStatus: RegistrationStatus.PENDING,
       onboardingStatus: OnboardingStatus.NOT_STARTED,
       onboardingStep: OnboardingStep.WAIT_REGISTER,
-      subscriptions: {
-        create: {
-          status: SubscriptionStatus.INACTIVE
-        }
-      },
       savingsGoal: {
         create: {
           targetAmount: 0,
@@ -156,4 +151,3 @@ export const findOrCreateUserByWaNumber = async (waNumber: string, waLid?: strin
 
   return { user, isNew: true };
 };
-

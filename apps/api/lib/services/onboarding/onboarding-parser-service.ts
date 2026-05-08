@@ -2017,7 +2017,7 @@ const buildGoalRecommendationSelections = (
   let customIndex = 0;
   let targetDateIndex = 0;
 
-  return selectedGoalTypes
+  const selections = selectedGoalTypes
     .filter(
       (value): value is FinancialGoalType =>
         Boolean(value)
@@ -2048,6 +2048,36 @@ const buildGoalRecommendationSelections = (
         monthsFromNow: targetDate?.monthsFromNow ?? null
       };
     });
+
+  return selections
+    .map((goal, index) => ({
+      goal,
+      index
+    }))
+    .sort((left, right) => {
+      const getPriorityBucket = (goal: GoalRecommendationSelection) => {
+        if (goal.goalType === FinancialGoalType.EMERGENCY_FUND) return 0;
+        if (goal.goalType === FinancialGoalType.FINANCIAL_FREEDOM) return 3;
+        return goal.monthsFromNow !== null ? 1 : 2;
+      };
+
+      const leftBucket = getPriorityBucket(left.goal);
+      const rightBucket = getPriorityBucket(right.goal);
+      if (leftBucket !== rightBucket) {
+        return leftBucket - rightBucket;
+      }
+
+      if (
+        left.goal.monthsFromNow !== null &&
+        right.goal.monthsFromNow !== null &&
+        left.goal.monthsFromNow !== right.goal.monthsFromNow
+      ) {
+        return left.goal.monthsFromNow - right.goal.monthsFromNow;
+      }
+
+      return left.index - right.index;
+    })
+    .map(({ goal }) => goal);
 };
 
 const shouldRecommendParallelGoalExecution = (goals: GoalRecommendationSelection[]) => {

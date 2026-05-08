@@ -15,6 +15,7 @@ import {
   parseGoldAssetKarat,
   parseGoldAssetPlatform,
   parseGoldAssetType,
+  getGoalPlanRecommendation,
   parseGoalSelectionConflict,
   parseGoalSelection,
   parseGoalSelections,
@@ -303,6 +304,102 @@ describe("onboarding parser service", () => {
         }
       ] as any)
     ).toEqual([FinancialGoalType.EMERGENCY_FUND]);
+  });
+
+  it("reorders goal recommendations to prioritize near deadlines and keep financial freedom last", () => {
+    const recommendation = getGoalPlanRecommendation([
+      {
+        id: "session_goal_selection",
+        userId: "user_1",
+        stepKey: "ASK_GOAL_SELECTION",
+        questionKey: "GOAL_SELECTION",
+        rawAnswerJson: ["dana darurat", "rumah", "liburan", "dana keluarga", "financial freedom"],
+        normalizedAnswerJson: [
+          FinancialGoalType.EMERGENCY_FUND,
+          FinancialGoalType.HOUSE,
+          FinancialGoalType.VACATION,
+          FinancialGoalType.CUSTOM,
+          FinancialGoalType.FINANCIAL_FREEDOM
+        ],
+        isCompleted: true,
+        createdAt: new Date("2026-03-10T09:00:00.000Z"),
+        updatedAt: new Date("2026-03-10T09:00:00.000Z")
+      },
+      {
+        id: "session_custom_name",
+        userId: "user_1",
+        stepKey: "ASK_GOAL_CUSTOM_NAME",
+        questionKey: "GOAL_CUSTOM_NAME",
+        rawAnswerJson: "Dana Keluarga",
+        normalizedAnswerJson: "Dana Keluarga",
+        isCompleted: true,
+        createdAt: new Date("2026-03-10T09:01:00.000Z"),
+        updatedAt: new Date("2026-03-10T09:01:00.000Z")
+      },
+      {
+        id: "session_house_date",
+        userId: "user_1",
+        stepKey: "ASK_GOAL_TARGET_DATE",
+        questionKey: "GOAL_TARGET_DATE",
+        rawAnswerJson: "06/2035",
+        normalizedAnswerJson: {
+          target: {
+            label: "Juni 2035",
+            month: 6,
+            year: 2035,
+            monthsFromNow: 109
+          }
+        },
+        isCompleted: true,
+        createdAt: new Date("2026-03-10T09:02:00.000Z"),
+        updatedAt: new Date("2026-03-10T09:02:00.000Z")
+      },
+      {
+        id: "session_vacation_date",
+        userId: "user_1",
+        stepKey: "ASK_GOAL_TARGET_DATE",
+        questionKey: "GOAL_TARGET_DATE",
+        rawAnswerJson: "11/2026",
+        normalizedAnswerJson: {
+          target: {
+            label: "November 2026",
+            month: 11,
+            year: 2026,
+            monthsFromNow: 8
+          }
+        },
+        isCompleted: true,
+        createdAt: new Date("2026-03-10T09:03:00.000Z"),
+        updatedAt: new Date("2026-03-10T09:03:00.000Z")
+      },
+      {
+        id: "session_custom_date",
+        userId: "user_1",
+        stepKey: "ASK_GOAL_TARGET_DATE",
+        questionKey: "GOAL_TARGET_DATE",
+        rawAnswerJson: "03/2027",
+        normalizedAnswerJson: {
+          target: {
+            label: "Maret 2027",
+            month: 3,
+            year: 2027,
+            monthsFromNow: 12
+          }
+        },
+        isCompleted: true,
+        createdAt: new Date("2026-03-10T09:04:00.000Z"),
+        updatedAt: new Date("2026-03-10T09:04:00.000Z")
+      }
+    ] as any);
+
+    expect(recommendation.orderedGoals.map((goal) => goal.goalName)).toEqual([
+      "Dana Darurat",
+      "Liburan",
+      "Dana Keluarga",
+      "Beli Rumah",
+      "Financial Freedom"
+    ]);
+    expect(recommendation.priorityGoalType).toBe(FinancialGoalType.EMERGENCY_FUND);
   });
 
   it("prioritizes negative boolean phrases over partial positive matches", () => {

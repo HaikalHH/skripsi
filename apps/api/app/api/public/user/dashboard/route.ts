@@ -13,7 +13,6 @@ import {
   buildReportText,
   getUserReportData
 } from "@/lib/services/reporting/report-service";
-import { ensureUsableSubscription } from "@/lib/services/payments/subscription-service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,7 +48,6 @@ export async function GET(request: NextRequest) {
   }
 
   const user = await resolveUserIdentity(parsed.data);
-  await ensureUsableSubscription(user.id);
 
   let financialProfile = await prisma.financialProfile.findUnique({
     where: { userId: user.id }
@@ -58,13 +56,9 @@ export async function GET(request: NextRequest) {
     financialProfile = await buildInitialFinancialProfile(user.id).catch(() => null);
   }
 
-  const [report, latestSubscription, goals, assets, activePlan, recentTransactions, freedomProfile] =
+  const [report, goals, assets, activePlan, recentTransactions, freedomProfile] =
     await Promise.all([
       getUserReportData(user.id, parsed.data.period),
-      prisma.subscription.findFirst({
-        where: { userId: user.id },
-        orderBy: { createdAt: "desc" }
-      }),
       prisma.financialGoal.findMany({
         where: { userId: user.id },
         orderBy: [{ priorityOrder: "asc" }, { createdAt: "asc" }]
@@ -113,16 +107,7 @@ export async function GET(request: NextRequest) {
         onboardingStatus: user.onboardingStatus,
         registrationStatus: user.registrationStatus
       },
-      subscription: latestSubscription
-        ? {
-            status: latestSubscription.status,
-            provider: latestSubscription.provider,
-            providerStatus: latestSubscription.providerStatus,
-            currentPeriodEndAt: latestSubscription.currentPeriodEndAt,
-            cancelAt: latestSubscription.cancelAt,
-            cancelAtPeriodEnd: latestSubscription.cancelAtPeriodEnd
-          }
-        : null,
+      subscription: null,
       profile: financialProfile,
       analysis: {
         text: analysisText,

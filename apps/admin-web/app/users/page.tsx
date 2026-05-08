@@ -23,17 +23,9 @@ type UsersResponse = {
     createdAt: string;
     transactionCount: number;
     messageCount: number;
-    subscriptionStatus: string;
     savingsGoalTarget: number | null;
     savingsGoalProgress: number | null;
   }>;
-};
-
-const getSubscriptionTone = (status: string) => {
-  if (status === "ACTIVE") return "success" as const;
-  if (status === "TRIAL") return "accent" as const;
-  if (status === "INACTIVE") return "warning" as const;
-  return "neutral" as const;
 };
 
 const getRegistrationTone = (registrationStatus: string, onboardingStep: string) => {
@@ -54,7 +46,6 @@ const getRegistrationTone = (registrationStatus: string, onboardingStep: string)
 export default async function UsersPage() {
   const data = await fetchAdminApi<UsersResponse>("/api/admin/users");
 
-  const activeSubscriptions = data.users.filter((user) => user.subscriptionStatus === "ACTIVE").length;
   const trackedTransactions = data.users.reduce((sum, user) => sum + user.transactionCount, 0);
   const activeGoals = data.users.filter((user) => (user.savingsGoalTarget ?? 0) > 0).length;
 
@@ -74,9 +65,15 @@ export default async function UsersPage() {
           tone="accent"
         />
         <StatCard
-          label="Active Subscriptions"
-          value={formatCompactNumber(activeSubscriptions)}
-          hint="User dengan akses aktif"
+          label="Onboarding Complete"
+          value={formatCompactNumber(
+            data.users.filter(
+              (user) =>
+                user.registrationStatus.toLowerCase().includes("complete") ||
+                user.onboardingStep.toLowerCase().includes("complete")
+            ).length
+          )}
+          hint="User yang sudah selesai setup"
           tone="success"
         />
         <StatCard
@@ -103,7 +100,6 @@ export default async function UsersPage() {
                 <th>User</th>
                 <th>Profile</th>
                 <th>Journey</th>
-                <th>Subscription</th>
                 <th>Activity</th>
                 <th>Savings Goal</th>
                 <th>Created</th>
@@ -138,12 +134,6 @@ export default async function UsersPage() {
                       />
                       <span className="muted">Step: {user.onboardingStep}</span>
                     </div>
-                  </td>
-                  <td>
-                    <StatusBadge
-                      label={user.subscriptionStatus}
-                      tone={getSubscriptionTone(user.subscriptionStatus)}
-                    />
                   </td>
                   <td>
                     <div className="stack">

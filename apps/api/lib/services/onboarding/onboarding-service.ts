@@ -62,7 +62,6 @@ import {
   upsertIncomeProfile,
   type ExpenseBreakdown
 } from "@/lib/services/onboarding/onboarding-calculation-service";
-import { activateSubscription } from "@/lib/services/payments/subscription-service";
 import {
   getCurrentGoldType,
   getCurrentAssetType,
@@ -156,7 +155,6 @@ export type OnboardingState = {
   isCompleted: boolean;
   analysisText?: string | null;
   timelineText?: string | null;
-  paymentLink?: string | null;
 };
 
 type RuntimeContext = OnboardingPromptContext & {
@@ -237,7 +235,6 @@ const createState = (params: {
   prompt: OnboardingPrompt | null;
   analysisText?: string | null;
   timelineText?: string | null;
-  paymentLink?: string | null;
 }): OnboardingState => ({
   userId: params.user.id,
   onboardingStatus: params.user.onboardingStatus,
@@ -247,8 +244,7 @@ const createState = (params: {
   prompt: params.prompt,
   isCompleted: params.user.onboardingStatus === OnboardingStatus.COMPLETED,
   analysisText: params.analysisText ?? null,
-  timelineText: params.timelineText ?? null,
-  paymentLink: params.paymentLink ?? null
+  timelineText: params.timelineText ?? null
 });
 
 const buildValidationReply = (prompt: OnboardingPrompt, message: string): OnboardingResult =>
@@ -1298,6 +1294,13 @@ const getFinancialFreedomEtaLabel = (monthsFromNow: number | null) => {
   if (monthsFromNow === null || !Number.isFinite(monthsFromNow)) return null;
   return getMonthYearLabelFromNow(Math.ceil(monthsFromNow));
 };
+
+const FAR_FINANCIAL_FREEDOM_TIMELINE_MONTHS = 30 * 12;
+
+const isFarFinancialFreedomTimeline = (monthsFromNow: number | null | undefined) =>
+  typeof monthsFromNow === "number" &&
+  Number.isFinite(monthsFromNow) &&
+  monthsFromNow >= FAR_FINANCIAL_FREEDOM_TIMELINE_MONTHS;
 
 type GoalTargetConfirmationSummary = {
   goalType: FinancialGoalType | null;
@@ -3761,6 +3764,9 @@ const buildFinancialFreedomPlanningConfirmationLines = (
 ) => {
   const preview = buildFinancialFreedomPlanningPreview(context, planningAnswer);
   if (!preview) return [];
+  const hasFarTimeline = isFarFinancialFreedomTimeline(
+    preview.timeline.estimatedCompletionMonthsFromNow
+  );
 
   const lines = [
     "🧭 Versi yang saya cek",
@@ -3772,10 +3778,12 @@ const buildFinancialFreedomPlanningConfirmationLines = (
   }
 
   lines.push(
-    `Timeline realistis: ${preview.periodStartLabel ?? "belum kebaca"} - ${preview.realisticCompletionLabel ?? preview.requestedTargetLabel}`
+    hasFarTimeline
+      ? `Timeline realistis: mulai ${preview.periodStartLabel ?? "belum kebaca"}. Untuk ritme sekarang, target ini lebih cocok jadi visi jangka panjang dulu.`
+      : `Timeline realistis: ${preview.periodStartLabel ?? "belum kebaca"} - ${preview.realisticCompletionLabel ?? preview.requestedTargetLabel}`
   );
   const completionDurationLabel = formatMonthDuration(preview.timeline.estimatedCompletionMonthsFromNow);
-  if (completionDurationLabel) {
+  if (completionDurationLabel && !hasFarTimeline) {
     lines.push(`Estimasi sampai tercapai: ${completionDurationLabel}`);
   }
   lines.push(`Skema setelah tercapai: sekitar ${formatMoney(preview.safeMonthlyWithdrawal)}/bulan`);
@@ -3819,9 +3827,11 @@ const buildFinancialFreedomPlanningShortSummary = (
 ) => {
   const lines = [
     `Target dana FF ${formatMoney(preview.targetAmount)}`,
-    `Timeline ${preview.periodStartLabel ?? "belum kebaca"} - ${
-      preview.realisticCompletionLabel ?? preview.requestedTargetLabel
-    }`,
+    isFarFinancialFreedomTimeline(preview.timeline.estimatedCompletionMonthsFromNow)
+      ? `Timeline mulai ${preview.periodStartLabel ?? "belum kebaca"}, visi jangka panjang`
+      : `Timeline ${preview.periodStartLabel ?? "belum kebaca"} - ${
+          preview.realisticCompletionLabel ?? preview.requestedTargetLabel
+        }`,
     `Skema sekitar ${formatMoney(preview.safeMonthlyWithdrawal)}/bulan`
   ];
 
@@ -4104,6 +4114,7 @@ const buildGoalTargetConfirmationReplyTexts = (
     const evaluationCopy = generateShortTargetEvaluationCopy({
       evaluation: summary.targetEvaluation,
       monthlySurplus: summary.requestedParallelPreview?.availableMonthly ?? summary.monthlySurplus,
+      totalMonthlySurplus: Math.max(0, context.potentialMonthlySaving ?? 0),
       previousGoalNames: summary.previousGoalNames
     });
     if (evaluationCopy) {
@@ -4185,6 +4196,7 @@ const buildGoalTargetOverrideAcceptedTexts = (
             : "original"
       },
       monthlySurplus: summary.requestedParallelPreview?.availableMonthly ?? summary.monthlySurplus,
+      totalMonthlySurplus: Math.max(0, context.potentialMonthlySaving ?? 0),
       previousGoalNames: summary.previousGoalNames
     });
     if (evaluationCopy) {
@@ -5264,6 +5276,8 @@ const buildFallbackCompletedAnalysisText = async (userId: string) => {
 
   lines.push("");
   lines.push("Insight detailnya lagi saya rapihin, tapi data onboarding Boss sudah aman tersimpan.");
+  lines.push("");
+  lines.push("Kalau Boss mau, saya bisa tampilkan timeline lengkapnya.");
 
   return lines.join("\n");
 };
@@ -5416,7 +5430,6 @@ const buildSafeCompletedTimelineText = async (userId: string) => {
 
 const finalizeOnboarding = async (userId: string) => {
   await buildInitialFinancialProfile(userId);
-  await activateSubscription(userId);
   const [analysisText, timelineText] = await Promise.all([
     buildSafeCompletedAnalysisText(userId),
     buildSafeCompletedTimelineText(userId)
@@ -5437,7 +5450,7 @@ const buildPostOnboardingActiveText = () =>
 const buildCompletedReplyTexts = (state: OnboardingState) =>
   [
     state.analysisText ?? "Onboarding selesai.",
-    state.timelineText,
+    state.timelineText ? "Kalau Boss mau, saya bisa tampilkan timeline lengkapnya." : null,
     buildPostOnboardingActiveText()
   ].filter((item): item is string => typeof item === "string" && item.trim().length > 0);
 
@@ -5949,7 +5962,6 @@ export const getOnboardingState = async (params: { userId: string }): Promise<On
       context.user.analysisReady ? buildSafeCompletedAnalysisText(params.userId) : Promise.resolve(null),
       buildSafeCompletedTimelineText(params.userId)
     ]);
-    await activateSubscription(params.userId);
     return createState({ user: context.user, prompt: null, analysisText, timelineText });
   }
   const prompt = resolvePrompt(context);
@@ -5976,6 +5988,17 @@ export const handleOnboarding = async (params: {
   phoneInputRegistered?: boolean;
 }): Promise<OnboardingResult> => {
   if (params.user.onboardingStatus === OnboardingStatus.COMPLETED || params.user.registrationStatus === RegistrationStatus.COMPLETED) {
+    const rawText = (params.text ?? "").trim();
+    if (params.messageType === "TEXT" && rawText && isTimelineRequest(rawText)) {
+      const timelineText = await buildSafeCompletedTimelineText(params.user.id);
+      if (timelineText) {
+        return buildReplyResult(
+          [timelineText],
+          createState({ user: params.user, prompt: null, timelineText }),
+          { preserveReplyTextBubbles: true }
+        );
+      }
+    }
     return { handled: false, replyText: "" };
   }
 

@@ -308,13 +308,8 @@ vi.mock("@/lib/services/onboarding/onboarding-calculation-service", async () => 
   };
 });
 
-vi.mock("@/lib/services/payments/subscription-service", () => ({
-  activateSubscription: vi.fn(async () => ({ status: "ACTIVE" }))
-}));
-
 import { createOrUpdateFinancialGoal } from "@/lib/services/onboarding/onboarding-calculation-service";
 import { handleOnboarding } from "@/lib/services/onboarding/onboarding-service";
-import { activateSubscription } from "@/lib/services/payments/subscription-service";
 
 const seedUser = (overrides: Record<string, unknown> = {}) => {
   hoisted.store.users = [
@@ -373,7 +368,6 @@ describe("onboarding confirmation flow", () => {
   beforeEach(() => {
     seedUser();
     vi.mocked(createOrUpdateFinancialGoal).mockClear();
-    vi.mocked(activateSubscription).mockClear();
   });
 
   it("does not ask benar-salah confirmation for regular goal selection anymore", async () => {
@@ -723,7 +717,10 @@ describe("onboarding confirmation flow", () => {
     const dateResult = await sendText("06/2030", "msg_target_date_derived");
 
     expect(dateResult.handled).toBe(true);
-    expect(dateResult.replyText).toContain("Ruang tabung sekarang sekitar Rp0/bulan");
+    expect(dateResult.replyText).toContain("Surplus bulanan kamu Rp11.200.000.");
+    expect(dateResult.replyText).toContain(
+      "surplus ini sedang diprioritaskan untuk Dana Darurat dulu"
+    );
     expect(dateResult.replyTexts?.[1]).toContain("🎯 Timeline Keuangan Boss:");
     expect(dateResult.replyTexts?.[1]).toContain("✅ Dana Darurat |");
     expect(dateResult.replyTexts?.[1]).toContain("🟡 Lagi dicek: Beli Rumah");
@@ -1252,7 +1249,10 @@ describe("onboarding confirmation flow", () => {
     expect(result.replyTexts?.[1]).not.toContain("Gap:");
     */
     expect(result.replyText).toContain("perlu sekitar Rp4.347.827/bulan");
-    expect(result.replyText).toContain("Ruang tabung sekarang sekitar Rp0/bulan");
+    expect(result.replyText).toContain("Surplus bulanan kamu Rp6.700.000.");
+    expect(result.replyText).toContain(
+      "surplus ini sedang diprioritaskan untuk Dana Darurat dan Beli Rumah dulu"
+    );
     expect(result.replyText).toContain("Versi realistisnya sekitar Maret 2039.");
     expect(result.replyText).not.toContain("Rp300.000.000/bulan");
     expect(result.replyTexts?.[1]).toContain("🎯 Timeline Keuangan Boss:");

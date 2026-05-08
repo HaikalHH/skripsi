@@ -359,8 +359,8 @@ describe("onboarding flow service", () => {
       financialFreedomEtaMonths: 1370
     });
 
-    expect(prompt.body.toLowerCase()).toContain("masih sangat jauh");
-    expect(prompt.body.toLowerCase()).toContain("tahun lagi");
+    expect(prompt.body.toLowerCase()).toContain("terlalu besar untuk ritme sekarang");
+    expect(prompt.body.toLowerCase()).toContain("visi jangka panjang");
   });
 
   it("clarifies that free cashflow is still total room before the main goal takes its share", () => {

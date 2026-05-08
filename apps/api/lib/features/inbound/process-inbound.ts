@@ -5,7 +5,6 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { createMessageLog } from "@/lib/services/messaging/message-service";
 import { handleOnboarding } from "@/lib/services/onboarding/onboarding-service";
 import { logDirectAssistantReply } from "@/lib/services/messaging/outbound-message-service";
-import { ensureUsableSubscription } from "@/lib/services/payments/subscription-service";
 import { findOrCreateUserByWaNumber, normalizeWaNumber } from "@/lib/services/user/user-service";
 import { parseSentAt } from "./formatters";
 import { handleImageMessage } from "./image-handler";
@@ -84,17 +83,6 @@ export const processInboundBody = async (body: unknown): Promise<InboundHandlerR
         replyText: onboardingResult.replyText,
         replyTexts: onboardingResult.replyTexts,
         preserveReplyTextBubbles: onboardingResult.preserveReplyTextBubbles
-      })
-    );
-  }
-
-  const canUseSubscription = await ensureUsableSubscription(user.id);
-  if (!canUseSubscription) {
-    return withReplyLog(
-      user,
-      ok({
-        replyText:
-          "Akun belum aktif karena onboarding belum selesai. Ketik lanjut untuk menyelesaikan onboarding dulu ya Boss."
       })
     );
   }

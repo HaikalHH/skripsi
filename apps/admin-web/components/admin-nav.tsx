@@ -11,11 +11,6 @@ const navItems = [
     description: "Cashflow activity",
   },
   {
-    href: "/subscriptions",
-    label: "Subscriptions",
-    description: "Plan & access control",
-  },
-  {
     href: "/observability",
     label: "Observability",
     description: "Intent routing quality",
