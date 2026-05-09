@@ -4,6 +4,7 @@ import { createAIAnalysisLog } from "@/lib/services/ai/ai-log-service";
 import { buildGoalIntentDetails } from "@/lib/services/planning/goal-intent-service";
 import {
   addGoalContributionAndRecordSaving,
+  getActiveGoalNames,
   getSavingsGoalStatus
 } from "@/lib/services/planning/goal-service";
 import { tryHandlePortfolioCommand } from "@/lib/services/market/portfolio-command-service";
@@ -300,6 +301,18 @@ const parseGoalSelectionAnswer = (text: string) => {
   };
 };
 
+const resolveGoalAnswerText = async (userId: string, text: string): Promise<string> => {
+  const trimmed = text.trim();
+  const numericIndex = /^\d+$/.test(trimmed) ? Number(trimmed) : null;
+  if (numericIndex != null && numericIndex > 0) {
+    const goalNames = await getActiveGoalNames(userId);
+    if (numericIndex <= goalNames.length) {
+      return goalNames[numericIndex - 1];
+    }
+  }
+  return text;
+};
+
 const parseAssetType = (text: string) => {
   const normalized = normalizeText(text).toLowerCase();
   if (/\bemas|gold\b/i.test(normalized)) return { kind: "GOLD" as const };
@@ -331,6 +344,16 @@ const runPortfolioSyntheticCommand = async (params: {
   });
 };
 
+const buildGoalListPrompt = (basePrompt: string, goalNames: string[]) => {
+  if (!goalNames.length) {
+    return `${basePrompt}\n\nBelum ada goal aktif. Buat dulu pakai /set goal ya Boss!`;
+  }
+  const list = goalNames
+    .map((name, index) => `${index + 1}. ${name}`)
+    .join("\n");
+  return `${basePrompt}\n\nGoal aktif kamu:\n${list}\n\nKetik nama atau nomor goal-nya Boss.`;
+};
+
 export const startCommandFlow = async (params: {
   userId: string;
   messageId: string;
@@ -358,6 +381,13 @@ export const startCommandFlow = async (params: {
     messageId: params.messageId,
     payload: basePayload
   });
+
+  if (params.flow === "GOAL_STATUS" || params.flow === "GOAL_ADD") {
+    const goalNames = await getActiveGoalNames(params.userId);
+    return ok({
+      replyText: buildGoalListPrompt(FLOW_START_PROMPTS[params.flow], goalNames)
+    });
+  }
 
   return ok({ replyText: FLOW_START_PROMPTS[params.flow] });
 };
@@ -447,7 +477,8 @@ export const tryHandleCommandFlowAnswer = async (params: {
 
   if (payload.flow === "GOAL_ADD") {
     if (payload.step === "ASK_GOAL") {
-      const goal = parseGoalSelectionAnswer(text);
+      const resolvedText = await resolveGoalAnswerText(params.userId, text);
+      const goal = parseGoalSelectionAnswer(resolvedText);
       await replaceFlow({
         userId: params.userId,
         messageId: params.messageId,
@@ -485,7 +516,8 @@ export const tryHandleCommandFlowAnswer = async (params: {
       flowId: activeFlow.id,
       action: "COMPLETED"
     });
-    const goal = parseGoalSelectionAnswer(text);
+    const resolvedText = await resolveGoalAnswerText(params.userId, text);
+    const goal = parseGoalSelectionAnswer(resolvedText);
     const status = await getSavingsGoalStatus(params.userId, goal);
     return ok({ replyText: buildGoalStatusText(status) });
   }

@@ -308,9 +308,9 @@ export const getMonthlySavingCapacity = async (userId: string) => {
   const financialProfileModel = getFinancialProfileModel();
   const profile = financialProfileModel
     ? await financialProfileModel.findUnique({
-        where: { userId },
-        select: { potentialMonthlySaving: true }
-      })
+      where: { userId },
+      select: { potentialMonthlySaving: true }
+    })
     : null;
 
   const profileSaving = toNumber(profile?.potentialMonthlySaving ?? 0);
@@ -651,12 +651,12 @@ const getLegacyGoalStatus = async (userId: string): Promise<GoalStatusSummary> =
   const existingLegacyGoal =
     savingsGoalModel?.findUnique != null
       ? await savingsGoalModel.findUnique({
-          where: { userId },
-          select: {
-            targetAmount: true,
-            currentProgress: true
-          }
-        })
+        where: { userId },
+        select: {
+          targetAmount: true,
+          currentProgress: true
+        }
+      })
       : null;
   const explicitLegacyProgress = Math.max(
     toNumber(existingLegacyGoal?.currentProgress ?? 0),
@@ -681,8 +681,8 @@ const getLegacyGoalStatus = async (userId: string): Promise<GoalStatusSummary> =
     update:
       savingsGoalModel.findUnique != null
         ? {
-            currentProgress: resolvedLegacyProgress
-          }
+          currentProgress: resolvedLegacyProgress
+        }
         : {},
     create: {
       userId,
@@ -723,14 +723,14 @@ const getLegacyGoalStatus = async (userId: string): Promise<GoalStatusSummary> =
     recommendedPlan:
       monthlySavingCapacity > 0
         ? [
-            {
-              goalId: null,
-              goalName: goalItem.goalName,
-              goalType: goalItem.goalType,
-              recommendedMonthlyContribution: monthlySavingCapacity,
-              sharePercent: 100
-            }
-          ]
+          {
+            goalId: null,
+            goalName: goalItem.goalName,
+            goalType: goalItem.goalType,
+            recommendedMonthlyContribution: monthlySavingCapacity,
+            sharePercent: 100
+          }
+        ]
         : [],
     progressSource: "GOAL_CONTRIBUTIONS",
     contributionActiveMonths: goalItem.contributionActiveMonths,
@@ -916,9 +916,9 @@ export const setSavingsGoalTarget = async (
       const deadlineUpdate =
         selection?.targetMonth && selection?.targetYear
           ? {
-              targetMonth: selection.targetMonth,
-              targetYear: selection.targetYear
-            }
+            targetMonth: selection.targetMonth,
+            targetYear: selection.targetYear
+          }
           : {};
       await financialGoalModel.update({
         where: { id: existingGoal.id },
@@ -951,11 +951,11 @@ export const setSavingsGoalTarget = async (
     const [existingLegacyGoal, recordedSavingTotal] = await Promise.all([
       savingsGoalModel.findUnique != null
         ? savingsGoalModel.findUnique({
-            where: { userId },
-            select: {
-              currentProgress: true
-            }
-          })
+          where: { userId },
+          select: {
+            currentProgress: true
+          }
+        })
         : null,
       calculateRecordedSavingTotal(userId)
     ]);
@@ -1133,6 +1133,28 @@ export const addGoalContributionAndRecordSaving = async (
   }
 
   return contribution;
+};
+
+export const getActiveGoalNames = async (userId: string): Promise<string[]> => {
+  const financialGoalModel = getFinancialGoalModel();
+  if (!financialGoalModel) return [];
+
+  const goals = await financialGoalModel.findMany({
+    where: {
+      userId,
+      status: { in: [FinancialGoalStatus.ACTIVE, FinancialGoalStatus.PENDING_CALCULATION] }
+    },
+    orderBy: [{ priorityOrder: "asc" }, { createdAt: "asc" }],
+    select: { goalName: true, goalType: true, targetAmount: true }
+  });
+
+  return goals
+    .filter(
+      (goal: any) =>
+        isSupportedFinancialGoalType(goal.goalType as FinancialGoalType) &&
+        toNumber(goal.targetAmount ?? 0) > 0
+    )
+    .map((goal: any) => goal.goalName as string);
 };
 
 export const getSavingsGoalStatus = async (userId: string, selection?: GoalSelection) => {
