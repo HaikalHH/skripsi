@@ -33,7 +33,7 @@ const EMOJI_RULES: Array<{ emoji: string; patterns: RegExp[] }> = [
   {
     emoji: EMOJI_TARGET,
     patterns: [
-      /\b(target(?:nya)?|tujuan(?:nya)?|goal|financial freedom|dana darurat|rencana|planner|alokasi|prioritas|progress)\b/i,
+      /\b(target(?:nya)?|tujuan(?:nya)?|goal|financial freedom|dana darurat|rencana|planner|alokasi|prioritas)\b/i,
       /\b(rumah|kendaraan|mobil|motor|liburan|nikah|properti|tanah|apartemen)\b/i
     ]
   },
@@ -103,6 +103,11 @@ export const applyBossFinanceEmojiStyle = (
 
       const isListItem = LIST_PREFIX_REGEX.test(line);
       const content = line.replace(LIST_PREFIX_REGEX, "").trim();
+
+      if (isListItem && /^.+:\s/.test(content)) {
+        return null;
+      }
+
       const emoji = pickContextualEmoji(content);
       return {
         index,
