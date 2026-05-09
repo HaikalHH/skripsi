@@ -97,7 +97,7 @@ export const buildGoalStatusText = (params: {
       : null;
   const paceText =
     params.monthlyContributionPace != null && Number.isFinite(params.monthlyContributionPace)
-      ? `- Ritme progress: ${formatMoney(params.monthlyContributionPace)}/bulan`
+      ? `- Ritme progress: ${formatMoney(Math.round(params.monthlyContributionPace))}/bulan`
       : null;
   const recommendedText =
     params.recommendedPlan?.[0]?.recommendedMonthlyContribution != null
@@ -180,26 +180,26 @@ export const buildGoalStatusText = (params: {
 export const buildGoalContributionText = (params: {
   contributionAmount: number;
   goalCompleted?: boolean;
-    goalStatus: {
-      goalName?: string | null;
-      estimatedMonthsToGoal?: number | null;
-      monthlyContributionPace?: number | null;
-      monthlySavingCapacity?: number | null;
-      recommendedPlan?: Array<{
-        goalName: string;
-        recommendedMonthlyContribution: number;
-        sharePercent: number;
-      }>;
-      totalGoals?: number;
-      goals?: Array<{
-        goalName: string;
-        targetAmount: number;
-        remainingAmount: number;
-        progressPercent: number;
-        estimatedMonthsToGoal: number | null;
-        monthlyContributionPace: number | null;
-        recommendedMonthlyContribution: number | null;
-        recommendedAllocationShare: number | null;
+  goalStatus: {
+    goalName?: string | null;
+    estimatedMonthsToGoal?: number | null;
+    monthlyContributionPace?: number | null;
+    monthlySavingCapacity?: number | null;
+    recommendedPlan?: Array<{
+      goalName: string;
+      recommendedMonthlyContribution: number;
+      sharePercent: number;
+    }>;
+    totalGoals?: number;
+    goals?: Array<{
+      goalName: string;
+      targetAmount: number;
+      remainingAmount: number;
+      progressPercent: number;
+      estimatedMonthsToGoal: number | null;
+      monthlyContributionPace: number | null;
+      recommendedMonthlyContribution: number | null;
+      recommendedAllocationShare: number | null;
       recentContributionTotal: number;
       lastContributionAt: Date | null;
       contributionActiveMonths: number;
@@ -207,7 +207,7 @@ export const buildGoalContributionText = (params: {
       trackingStatus: "ON_TRACK" | "WATCH" | "OFF_TRACK";
       isPrimary: boolean;
       progressSource: "GOAL_CONTRIBUTIONS" | "NET_SAVINGS_PROXY";
-      }>;
+    }>;
     goalNotFoundQuery?: string | null;
     targetAmount: number;
     currentProgress: number;
