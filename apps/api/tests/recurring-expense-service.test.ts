@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analyzeRecurringExpenses } from "@/lib/services/transactions/recurring-expense-service";
+import { analyzeRecurringExpenses } from "@/lib/services/transactions/recurring-expense";
 
 describe("recurring expense service", () => {
   it("detects monthly recurring expenses with confidence and next expected date", () => {

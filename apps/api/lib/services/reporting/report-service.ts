@@ -6,10 +6,10 @@ import { aggregateTransactions, getPeriodRange } from "@/lib/services/reporting/
 import {
   detectExpenseBucketMatches,
   normalizeExpenseBucketCategory
-} from "@/lib/services/transactions/category-override-service";
-import { buildTransactionDetailLabel, inferTransactionDetailTag } from "@/lib/services/transactions/detail-tag-service";
+} from "@/lib/services/transactions/category";
+import { buildTransactionDetailLabel, inferTransactionDetailTag } from "@/lib/services/transactions/detail-tags";
 import { formatMoney } from "@/lib/services/shared/money-format";
-import { analyzeRecurringExpenses } from "@/lib/services/transactions/recurring-expense-service";
+import { analyzeRecurringExpenses } from "@/lib/services/transactions/recurring-expense";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 

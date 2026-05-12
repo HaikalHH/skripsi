@@ -1,13 +1,13 @@
 import { reportingMonthlyPdfRequestSchema } from "@finance/shared";
 import { prisma } from "@/lib/prisma";
 import { env } from "@/lib/env";
-import { buildFinancialHealthReply } from "@/lib/services/planning/financial-health-service";
-import { getSavingsGoalStatus } from "@/lib/services/planning/goal-service";
-import { getUserPortfolioValuation } from "@/lib/services/market/portfolio-valuation-service";
+import { buildFinancialHealthReply } from "@/lib/services/planning/financial-health";
+import { getSavingsGoalStatus } from "@/lib/services/planning/goal";
+import { getUserPortfolioValuation } from "@/lib/services/market/portfolio";
 import { formatMoney, formatMoneyWhole, formatPercent } from "@/lib/services/shared/money-format";
 import { formatDurationFromMonths } from "@/lib/services/shared/projection-math-service";
-import { analyzeRecurringExpenses } from "@/lib/services/transactions/recurring-expense-service";
-import { normalizeExpenseBucketCategory } from "@/lib/services/transactions/category-override-service";
+import { analyzeRecurringExpenses } from "@/lib/services/transactions/recurring-expense";
+import { normalizeExpenseBucketCategory } from "@/lib/services/transactions/category";
 import type {
   ReportDateRange,
   ReportTransactionItem

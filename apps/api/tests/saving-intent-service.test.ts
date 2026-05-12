@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   isLikelySavingTransactionText,
   resolveSavingGoalSelection
-} from "@/lib/services/transactions/saving-intent-service";
+} from "@/lib/services/transactions/saving-intent";
 
 describe("saving intent service", () => {
   it("detects saving transactions from natural language", () => {

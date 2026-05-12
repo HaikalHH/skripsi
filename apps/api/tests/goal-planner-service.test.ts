@@ -72,7 +72,7 @@ vi.mock("@/lib/prisma", () => ({
   prisma: hoisted.prismaMock
 }));
 
-import { buildGoalPlannerReply } from "@/lib/services/planning/goal-planner-service";
+import { buildGoalPlannerReply } from "@/lib/services/planning/goal-planner";
 
 describe("goal planner service", () => {
   beforeEach(() => {

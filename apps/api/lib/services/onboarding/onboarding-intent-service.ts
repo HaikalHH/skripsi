@@ -1,4 +1,4 @@
-import { parsePositiveAmount } from "@/lib/services/transactions/amount-parser";
+import { parsePositiveAmount } from "@/lib/services/transactions/amount";
 import {
   isFuzzyPhraseMatch,
   isFuzzyTokenMatch,

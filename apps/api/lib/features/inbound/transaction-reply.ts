@@ -1,11 +1,11 @@
 import type { GeminiExtraction } from "@finance/shared";
 import { AnalysisType, TransactionSource } from "@prisma/client";
 import { createAIAnalysisLog } from "@/lib/services/ai/ai-log-service";
-import { checkBudgetAlert } from "@/lib/services/transactions/budget-service";
-import { buildSavingsProgressUpdateText } from "@/lib/services/planning/savings-progress-service";
-import { checkUnusualExpenseAlert } from "@/lib/services/transactions/spending-anomaly-service";
-import { syncSavingTransactionGoalProgress } from "@/lib/services/planning/saving-transaction-service";
-import { createTransactionFromExtraction } from "@/lib/services/transactions/transaction-service";
+import { checkBudgetAlert } from "@/lib/services/transactions/budget";
+import { buildSavingsProgressUpdateText } from "@/lib/services/planning/savings-progress";
+import { checkUnusualExpenseAlert } from "@/lib/services/transactions/spending-anomaly";
+import { syncSavingTransactionGoalProgress } from "@/lib/services/planning/saving-transaction";
+import { createTransactionFromExtraction } from "@/lib/services/transactions/transaction";
 import { confirmTransactionText } from "./formatters";
 import { ok, type InboundHandlerResult } from "./result";
 

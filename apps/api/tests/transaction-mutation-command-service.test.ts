@@ -38,14 +38,14 @@ vi.mock("@/lib/prisma", () => ({
   }
 }));
 
-vi.mock("@/lib/services/planning/goal-service", () => ({
+vi.mock("@/lib/services/planning/goal", () => ({
   refreshSavingsGoalProgress: vi.fn(async () => null)
 }));
 
 import {
   parseMutationCommand,
   tryHandleTransactionMutationCommand
-} from "@/lib/services/transactions/transaction-mutation-command-service";
+} from "@/lib/services/transactions/mutation-command";
 
 describe("transaction mutation command service", () => {
   beforeEach(() => {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { processInboundBody } from "@/lib/features/inbound";
 import { logger } from "@/lib/logger";
-import { styleBotReplyPayload } from "@/lib/services/messaging/bot-text-style-service";
+import { styleBotReplyPayload } from "@/lib/services/messaging/bot-style";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

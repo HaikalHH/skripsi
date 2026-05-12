@@ -8,7 +8,7 @@ import {
 } from "@finance/shared";
 import { z } from "zod";
 import { env } from "@/lib/env";
-import { applyBossFinanceEmojiStyle } from "@/lib/services/messaging/bot-text-style-service";
+import { applyBossFinanceEmojiStyle } from "@/lib/services/messaging/bot-style";
 
 const insightSchema = z.object({
   insightText: z.string().min(1)

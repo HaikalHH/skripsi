@@ -110,7 +110,7 @@ vi.mock("@/lib/prisma", () => ({
   }
 }));
 
-vi.mock("@/lib/services/market/market-price-service", () => {
+vi.mock("@/lib/services/market/quote", () => {
   class MockMarketDataError extends Error {
     code: "SYMBOL_NOT_FOUND" | "PROVIDER_UNAVAILABLE" | "NO_DATA";
     symbol: string;
@@ -181,7 +181,7 @@ vi.mock("@/lib/services/market/market-price-service", () => {
   };
 });
 
-import { tryHandlePortfolioCommand } from "@/lib/services/market/portfolio-command-service";
+import { tryHandlePortfolioCommand } from "@/lib/services/market/commands";
 
 const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000);
 

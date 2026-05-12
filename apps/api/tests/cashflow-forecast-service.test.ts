@@ -77,7 +77,7 @@ vi.mock("@/lib/prisma", () => ({
 import {
   buildCashflowForecastReply,
   parseCashflowForecastQuery
-} from "@/lib/services/planning/cashflow-forecast-service";
+} from "@/lib/services/planning/cashflow-forecast";
 
 describe("cashflow forecast service", () => {
   beforeEach(() => {

@@ -1,13 +1,13 @@
 import { AnalysisType } from "@prisma/client";
 import { logger } from "@/lib/logger";
 import { createAIAnalysisLog } from "@/lib/services/ai/ai-log-service";
-import { extractForcedCategory } from "@/lib/services/transactions/category-override-service";
+import { extractForcedCategory } from "@/lib/services/transactions/category";
 import {
   extractIntentAndTransaction,
   isGeminiRateLimitError,
 } from "@/lib/services/ai/ai-service";
 import { extractTextFromImage } from "@/lib/services/ai/ocr-service";
-import { isTransactionExtractable } from "@/lib/services/transactions/transaction-service";
+import { isTransactionExtractable } from "@/lib/services/transactions/transaction";
 import { saveTransactionAndBuildReply } from "./transaction-reply";
 import { badRequest, ok, type InboundHandlerResult } from "./result";
 import type { MessageContext } from "./types";

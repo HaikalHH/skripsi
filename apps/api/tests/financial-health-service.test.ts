@@ -39,7 +39,7 @@ vi.mock("@/lib/prisma", () => ({
   prisma: hoisted.prismaMock
 }));
 
-vi.mock("@/lib/services/planning/goal-service", () => ({
+vi.mock("@/lib/services/planning/goal", () => ({
   getSavingsGoalStatus: vi.fn(async () => ({
     goalName: "Dana Darurat",
     goalType: "EMERGENCY_FUND",
@@ -65,7 +65,7 @@ vi.mock("@/lib/services/planning/goal-service", () => ({
   }))
 }));
 
-import { buildFinancialHealthReply } from "@/lib/services/planning/financial-health-service";
+import { buildFinancialHealthReply } from "@/lib/services/planning/financial-health";
 
 describe("financial health service", () => {
   beforeEach(() => {

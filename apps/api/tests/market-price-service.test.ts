@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveMarketSymbol } from "@/lib/services/market/market-price-service";
+import { resolveMarketSymbol } from "@/lib/services/market/quote";
 
 describe("market symbol resolver", () => {
   it("resolves gold aliases", () => {

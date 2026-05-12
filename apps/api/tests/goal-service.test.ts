@@ -110,8 +110,8 @@ vi.mock("@/lib/prisma", () => ({
   prisma: hoisted.prismaMock
 }));
 
-import { getSavingsGoalStatus, setSavingsGoalTarget } from "@/lib/services/planning/goal-service";
-import { addGoalContribution } from "@/lib/services/planning/goal-service";
+import { getSavingsGoalStatus, setSavingsGoalTarget } from "@/lib/services/planning/goal";
+import { addGoalContribution } from "@/lib/services/planning/goal";
 
 describe("goal service", () => {
   beforeEach(() => {

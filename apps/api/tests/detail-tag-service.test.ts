@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildTransactionDetailLabel,
   inferTransactionDetailTag
-} from "@/lib/services/transactions/detail-tag-service";
+} from "@/lib/services/transactions/detail-tags";
 
 describe("detail tag service", () => {
   it("infers detail tags from expense text and merchant", () => {

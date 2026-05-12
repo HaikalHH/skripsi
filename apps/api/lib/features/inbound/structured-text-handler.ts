@@ -1,11 +1,11 @@
 import { HELP_TEXT } from "@/lib/constants";
 import { logger } from "@/lib/logger";
-import { buildCashflowForecastReply } from "@/lib/services/planning/cashflow-forecast-service";
-import { buildFinancialHealthReply } from "@/lib/services/planning/financial-health-service";
+import { buildCashflowForecastReply } from "@/lib/services/planning/cashflow-forecast";
+import { buildFinancialHealthReply } from "@/lib/services/planning/financial-health";
 import {
   buildFinanceNewsFailureReply,
   tryHandleFinanceNewsCommand
-} from "@/lib/services/market/finance-news-service";
+} from "@/lib/services/market/news";
 import {
   ALL_GLOBAL_CONTEXT_MODULES,
   routeGlobalTextContext,
@@ -14,15 +14,15 @@ import {
 import {
   buildMarketCommandFailureReply,
   tryHandleMarketCommand
-} from "@/lib/services/market/market-command-service";
-import { tryHandlePortfolioCommand } from "@/lib/services/market/portfolio-command-service";
+} from "@/lib/services/market/commands";
+import { tryHandlePortfolioCommand } from "@/lib/services/market/commands";
 import { tryHandlePrivacyCommand } from "@/lib/services/assistant/privacy-command-service";
-import { buildGoalPlannerReply } from "@/lib/services/planning/goal-planner-service";
-import { tryHandleTransactionMutationCommand } from "@/lib/services/transactions/transaction-mutation-command-service";
+import { buildGoalPlannerReply } from "@/lib/services/planning/goal-planner";
+import { tryHandleTransactionMutationCommand } from "@/lib/services/transactions/mutation-command";
 import {
   addGoalContributionAndRecordSaving,
   getSavingsGoalStatus
-} from "@/lib/services/planning/goal-service";
+} from "@/lib/services/planning/goal";
 import {
   buildCategoryDetailReport,
   buildGeneralAnalyticsReport

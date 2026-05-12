@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { isAdminAuthorized } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { queueOutboundMessage } from "@/lib/services/messaging/outbound-message-service";
+import { queueOutboundMessage } from "@/lib/services/messaging/outbound";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

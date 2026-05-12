@@ -5,7 +5,7 @@ import {
   type GlobalContextModule,
   type GlobalContextRoute
 } from "@/lib/services/assistant/global-context-router-service";
-import { parseMutationCommand } from "@/lib/services/transactions/transaction-mutation-command-service";
+import { parseMutationCommand } from "@/lib/services/transactions/mutation-command";
 
 type ConversationRole = "user" | "assistant";
 

@@ -5,13 +5,13 @@ import { createAIAnalysisLog } from "@/lib/services/ai/ai-log-service";
 import {
   getMatchingCategoryBudget,
   upsertCategoryBudget
-} from "@/lib/services/transactions/budget-service";
+} from "@/lib/services/transactions/budget";
 import {
   extractForcedCategory,
   normalizeExpenseBucketCategory
-} from "@/lib/services/transactions/category-override-service";
-import { parsePositiveAmount } from "@/lib/services/transactions/amount-parser";
-import { setSavingsGoalTarget } from "@/lib/services/planning/goal-service";
+} from "@/lib/services/transactions/category";
+import { parsePositiveAmount } from "@/lib/services/transactions/amount";
+import { setSavingsGoalTarget } from "@/lib/services/planning/goal";
 import { formatMoney } from "@/lib/services/shared/money-format";
 import {
   buildBudgetSetText,

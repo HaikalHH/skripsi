@@ -1,10 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import { normalizeExpenseBucketCategory } from "@/lib/services/transactions/category-override-service";
-import { buildFinancialHealthReply } from "@/lib/services/planning/financial-health-service";
-import { getSavingsGoalStatus } from "@/lib/services/planning/goal-service";
-import { queueOutboundMessage } from "@/lib/services/messaging/outbound-message-service";
+import { normalizeExpenseBucketCategory } from "@/lib/services/transactions/category";
+import { buildFinancialHealthReply } from "@/lib/services/planning/financial-health";
+import { getSavingsGoalStatus } from "@/lib/services/planning/goal";
+import { queueOutboundMessage } from "@/lib/services/messaging/outbound";
 import { formatDurationFromMonths } from "@/lib/services/shared/projection-math-service";
-import { analyzeRecurringExpenses } from "@/lib/services/transactions/recurring-expense-service";
+import { analyzeRecurringExpenses } from "@/lib/services/transactions/recurring-expense";
 import {
   getReminderPreference,
   isReminderSnoozed,

@@ -1,0 +1,1 @@
+export const TROY_OUNCE_TO_GRAM = 31.1034768;

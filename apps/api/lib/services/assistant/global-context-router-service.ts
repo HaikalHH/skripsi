@@ -4,10 +4,10 @@ import {
   parseCashflowForecastQuery,
   type CashflowForecastHorizon,
   type CashflowForecastMode
-} from "@/lib/services/planning/cashflow-forecast-service";
-import { type FinancialHealthMode } from "@/lib/services/planning/financial-health-service";
-import { buildGoalIntentDetails } from "@/lib/services/planning/goal-intent-service";
-import { type GoalPlannerMode } from "@/lib/services/planning/goal-planner-service";
+} from "@/lib/services/planning/cashflow-forecast";
+import { type FinancialHealthMode } from "@/lib/services/planning/financial-health";
+import { buildGoalIntentDetails } from "@/lib/services/planning/goal-intent";
+import { type GoalPlannerMode } from "@/lib/services/planning/goal-planner";
 import {
   parseGeneralReportQuery,
   parseGeneralAnalyticsQuery,
@@ -24,7 +24,7 @@ import {
 } from "@/lib/services/reminders/reminder-preference-service";
 import { parseCommand, type ParsedCommand, type ReportRangeMode } from "@/lib/services/assistant/command-service";
 import { parsePlainTextCommand } from "@/lib/services/assistant/plain-command-service";
-import { isLikelySavingTransactionText } from "@/lib/services/transactions/saving-intent-service";
+import { isLikelySavingTransactionText } from "@/lib/services/transactions/saving-intent";
 
 export type GlobalContextModule =
   | "TRANSACTION_MUTATION"

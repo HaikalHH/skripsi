@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyBossFinanceEmojiStyle } from "@/lib/services/messaging/bot-text-style-service";
+import { applyBossFinanceEmojiStyle } from "@/lib/services/messaging/bot-style";
 
 describe("bot text boss finance emoji styling", () => {
   it("uses a finance emoji for cashflow messages", () => {

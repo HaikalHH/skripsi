@@ -13,7 +13,7 @@ import {
 } from "@prisma/client";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
-import { TROY_OUNCE_TO_GRAM } from "@/lib/services/market/market-price-service";
+import { TROY_OUNCE_TO_GRAM } from "@/lib/services/market/quote";
 import { formatMoney } from "@/lib/services/shared/money-format";
 
 export type ExpenseBreakdown = {

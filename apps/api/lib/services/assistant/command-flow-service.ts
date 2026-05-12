@@ -1,15 +1,15 @@
 import { AnalysisType, FinancialGoalType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { createAIAnalysisLog } from "@/lib/services/ai/ai-log-service";
-import { buildGoalIntentDetails } from "@/lib/services/planning/goal-intent-service";
+import { buildGoalIntentDetails } from "@/lib/services/planning/goal-intent";
 import {
   addGoalContributionAndRecordSaving,
   getActiveGoalNames,
   getSavingsGoalStatus
-} from "@/lib/services/planning/goal-service";
-import { tryHandlePortfolioCommand } from "@/lib/services/market/portfolio-command-service";
-import { parsePositiveAmount } from "@/lib/services/transactions/amount-parser";
-import { normalizeExpenseBucketCategory } from "@/lib/services/transactions/category-override-service";
+} from "@/lib/services/planning/goal";
+import { tryHandlePortfolioCommand } from "@/lib/services/market/commands";
+import { parsePositiveAmount } from "@/lib/services/transactions/amount";
+import { normalizeExpenseBucketCategory } from "@/lib/services/transactions/category";
 import { formatMoney } from "@/lib/services/shared/money-format";
 import {
   buildGoalContributionText,

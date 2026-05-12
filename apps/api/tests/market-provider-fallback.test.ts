@@ -62,8 +62,8 @@ describe("market provider fallback", () => {
 
     const [{ getMarketQuoteBySymbol }, { resetMarketMemoryCache }] =
       await Promise.all([
-        import("@/lib/services/market/market-price-service"),
-        import("@/lib/services/market/market-memory-cache"),
+        import("@/lib/services/market/quote"),
+        import("@/lib/services/market/cache"),
       ]);
     resetMarketMemoryCache();
 
@@ -91,8 +91,8 @@ describe("market provider fallback", () => {
 
     const [{ getMarketQuoteBySymbol }, { resetMarketMemoryCache }] =
       await Promise.all([
-        import("@/lib/services/market/market-price-service"),
-        import("@/lib/services/market/market-memory-cache"),
+        import("@/lib/services/market/quote"),
+        import("@/lib/services/market/cache"),
       ]);
     resetMarketMemoryCache();
 
@@ -120,8 +120,8 @@ describe("market provider fallback", () => {
 
     const [{ getMarketQuoteBySymbol }, { resetMarketMemoryCache }] =
       await Promise.all([
-        import("@/lib/services/market/market-price-service"),
-        import("@/lib/services/market/market-memory-cache"),
+        import("@/lib/services/market/quote"),
+        import("@/lib/services/market/cache"),
       ]);
     resetMarketMemoryCache();
 
@@ -158,8 +158,8 @@ describe("market provider fallback", () => {
 
     const [{ getMarketQuoteBySymbol }, { resetMarketMemoryCache }] =
       await Promise.all([
-        import("@/lib/services/market/market-price-service"),
-        import("@/lib/services/market/market-memory-cache"),
+        import("@/lib/services/market/quote"),
+        import("@/lib/services/market/cache"),
       ]);
     resetMarketMemoryCache();
 
@@ -197,8 +197,8 @@ describe("market provider fallback", () => {
 
     const [{ getMarketQuoteBySymbol }, { resetMarketMemoryCache }] =
       await Promise.all([
-        import("@/lib/services/market/market-price-service"),
-        import("@/lib/services/market/market-memory-cache"),
+        import("@/lib/services/market/quote"),
+        import("@/lib/services/market/cache"),
       ]);
     resetMarketMemoryCache();
 

@@ -1,12 +1,12 @@
 import { FinancialGoalStatus, OnboardingQuestionKey } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getSavingsGoalStatus } from "@/lib/services/planning/goal-service";
+import { getSavingsGoalStatus } from "@/lib/services/planning/goal";
 import {
   getGuidedOtherExpenseState,
   parseManualExpenseBreakdownDetails,
   type ManualExpenseBreakdownDetail
 } from "@/lib/services/onboarding/onboarding-parser-service";
-import { buildTransactionDetailLabel, inferTransactionDetailTag } from "@/lib/services/transactions/detail-tag-service";
+import { buildTransactionDetailLabel, inferTransactionDetailTag } from "@/lib/services/transactions/detail-tags";
 import { formatMoney, formatPercent } from "@/lib/services/shared/money-format";
 import { formatDurationFromMonths } from "@/lib/services/shared/projection-math-service";
 import { normalizeStoredOnboardingAssetValue } from "@/lib/services/onboarding/onboarding-calculation-service";

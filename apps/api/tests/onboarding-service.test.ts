@@ -271,7 +271,7 @@ vi.mock("@/lib/services/assistant/conversation-memory-service", () => ({
   resolveConversationMemory: vi.fn(async () => null)
 }));
 
-vi.mock("@/lib/services/market/market-price-service", () => ({
+vi.mock("@/lib/services/market/quote", () => ({
   TROY_OUNCE_TO_GRAM: 31.1034768,
   buildManualMutualFundSymbol: vi.fn((raw: string) => `MANUAL_${raw}`),
   getMarketQuoteBySymbol: vi.fn(async () => {

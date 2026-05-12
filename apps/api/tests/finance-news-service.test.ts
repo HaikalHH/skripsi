@@ -76,7 +76,7 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-vi.mock("@/lib/services/market/portfolio-command-service", () => ({
+vi.mock("@/lib/services/market/commands", () => ({
   getPortfolioNewsContext: hoisted.getPortfolioNewsContext,
 }));
 
@@ -156,8 +156,8 @@ describe("finance news service", () => {
       { resetMarketMemoryCache },
     ] =
       await Promise.all([
-        import("@/lib/services/market/finance-news-service"),
-        import("@/lib/services/market/market-memory-cache"),
+        import("@/lib/services/market/news"),
+        import("@/lib/services/market/cache"),
       ]);
     resetMarketMemoryCache();
     resetFinanceNewsDeliveryMemory();
@@ -223,8 +223,8 @@ describe("finance news service", () => {
       { resetMarketMemoryCache },
     ] =
       await Promise.all([
-        import("@/lib/services/market/finance-news-service"),
-        import("@/lib/services/market/market-memory-cache"),
+        import("@/lib/services/market/news"),
+        import("@/lib/services/market/cache"),
       ]);
     resetMarketMemoryCache();
     resetFinanceNewsDeliveryMemory();
@@ -308,8 +308,8 @@ describe("finance news service", () => {
       { resetMarketMemoryCache },
     ] =
       await Promise.all([
-        import("@/lib/services/market/finance-news-service"),
-        import("@/lib/services/market/market-memory-cache"),
+        import("@/lib/services/market/news"),
+        import("@/lib/services/market/cache"),
       ]);
     resetMarketMemoryCache();
     resetFinanceNewsDeliveryMemory();

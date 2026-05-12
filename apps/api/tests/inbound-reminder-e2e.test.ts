@@ -453,7 +453,7 @@ vi.mock("@/lib/services/ai/ai-service", () => ({
   )
 }));
 
-import { claimPendingOutboundMessages } from "@/lib/services/messaging/outbound-message-service";
+import { claimPendingOutboundMessages } from "@/lib/services/messaging/outbound";
 import { processInboundBody } from "@/lib/features/inbound/process-inbound";
 import { runProactiveReminders } from "@/lib/services/reminders/reminder-service";
 

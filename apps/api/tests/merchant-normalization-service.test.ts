@@ -34,7 +34,7 @@ import {
   normalizeDetectedMerchant,
   normalizeMerchantName,
   resolveMerchantNameForUser
-} from "@/lib/services/transactions/merchant-normalization-service";
+} from "@/lib/services/transactions/merchant";
 
 describe("merchant normalization service", () => {
   beforeEach(() => {

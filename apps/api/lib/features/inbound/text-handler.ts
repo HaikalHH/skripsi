@@ -7,8 +7,8 @@ import {
   extractIntentAndTransaction,
   isGeminiRateLimitError
 } from "@/lib/services/ai/ai-service";
-import { extractForcedCategory } from "@/lib/services/transactions/category-override-service";
-import { parseFallbackTransactionExtraction } from "@/lib/services/transactions/fallback-transaction-parser";
+import { extractForcedCategory } from "@/lib/services/transactions/category";
+import { parseFallbackTransactionExtraction } from "@/lib/services/transactions/fallback-parser";
 import { tryHandleGeneralChat } from "@/lib/services/assistant/general-chat-service";
 import {
   loadRecentConversationTurns,
@@ -17,7 +17,7 @@ import {
 import { routeGlobalTextContext } from "@/lib/services/assistant/global-context-router-service";
 import { recordIntentObservation } from "@/lib/services/observability/observability-service";
 import { parseReportPeriod } from "@/lib/services/reporting/report-service";
-import { isTransactionExtractable } from "@/lib/services/transactions/transaction-service";
+import { isTransactionExtractable } from "@/lib/services/transactions/transaction";
 import {
   stageExpenseTransactionAndBuildReply,
   tryHandlePendingAction

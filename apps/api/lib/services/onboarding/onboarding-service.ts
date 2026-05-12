@@ -132,7 +132,7 @@ import {
   buildManualMutualFundSymbol,
   getMarketQuoteBySymbol,
   getMutualFundQuoteBySelection
-} from "@/lib/services/market/market-price-service";
+} from "@/lib/services/market/quote";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { formatMoney, formatPercent } from "@/lib/services/shared/money-format";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toSafeOutboundMessageText } from "@/lib/services/messaging/outbound-message-service";
+import { toSafeOutboundMessageText } from "@/lib/services/messaging/outbound";
 
 describe("outbound message safety", () => {
   it("normalizes whitespace", () => {

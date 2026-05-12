@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parsePositiveAmount } from "@/lib/services/transactions/amount-parser";
+import { parsePositiveAmount } from "@/lib/services/transactions/amount";
 
 describe("amount parser", () => {
   it("parses shorthand units", () => {

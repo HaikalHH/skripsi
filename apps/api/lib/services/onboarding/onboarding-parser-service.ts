@@ -9,7 +9,7 @@ import {
   OnboardingStep,
   PrimaryGoal
 } from "@prisma/client";
-import { parsePositiveAmount } from "@/lib/services/transactions/amount-parser";
+import { parsePositiveAmount } from "@/lib/services/transactions/amount";
 import {
   ASSET_NONE_VALUE,
   ASSET_OPTIONS,
@@ -37,7 +37,7 @@ import {
   type GoalSelectionValue
 } from "@/lib/services/onboarding/onboarding-flow-service";
 import type { ExpenseBreakdown } from "@/lib/services/onboarding/onboarding-calculation-service";
-import { normalizeSupportedCryptoSymbol } from "@/lib/services/market/market-price-service";
+import { normalizeSupportedCryptoSymbol } from "@/lib/services/market/quote";
 import {
   extractDecimalFromFreeText,
   extractDecimalRangeFromFreeText,
