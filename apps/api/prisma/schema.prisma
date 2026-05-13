@@ -68,7 +68,6 @@ enum OnboardingStep {
   ASK_GOAL_PRIORITY_FOCUS
   ASK_GOAL_EXPENSE_STRATEGY
   ASK_GOAL_EXPENSE_TOTAL
-  ASK_GOAL_FINANCIAL_FREEDOM_AGE
   ASK_GOAL_ADD_MORE
   ASK_ASSET_SELECTION
   ASK_ASSET_SAVINGS_NAME
@@ -122,7 +121,6 @@ enum PrimaryGoal {
   MANAGE_EXPENSES
   SAVE_DISCIPLINED
   TRACK_INVESTMENTS
-  FINANCIAL_FREEDOM
   ALL_OF_THE_ABOVE
 }
 
@@ -158,7 +156,6 @@ enum FinancialGoalType {
   HOUSE
   VEHICLE
   VACATION
-  FINANCIAL_FREEDOM
   CUSTOM
 }
 
@@ -219,7 +216,6 @@ enum OnboardingQuestionKey {
   GOAL_PRIORITY_FOCUS
   GOAL_EXPENSE_STRATEGY
   GOAL_EXPENSE_TOTAL
-  GOAL_FINANCIAL_FREEDOM_AGE
   GOAL_ADD_MORE
   ASSET_SELECTION
   ASSET_SAVINGS_NAME
@@ -245,46 +241,44 @@ enum OnboardingQuestionKey {
 }
 
 model User {
-  id                        String                  @id @default(cuid())
-  waNumber                  String                  @unique
-  name                      String?
-  currency                  String                  @default("IDR")
-  monthlyBudget             Decimal?                @db.Decimal(12, 2)
-  registrationStatus        RegistrationStatus      @default(PENDING)
-  onboardingStatus          OnboardingStatus        @default(NOT_STARTED)
-  onboardingStep            OnboardingStep          @default(WAIT_REGISTER)
-  primaryGoal               PrimaryGoal?
-  employmentType            EmploymentType?
-  incomeStability           IncomeStability?
-  hasPassiveIncome          Boolean?
-  salaryDate                Int?
-  targetFinancialFreedomAge Int?
-  goalExecutionMode         GoalExecutionMode?
-  priorityGoalType          FinancialGoalType?
-  budgetMode                BudgetMode?
-  hasAssets                 Boolean?
-  analysisReady             Boolean                 @default(false)
-  onboardingCompletedAt     DateTime?
-  createdAt                 DateTime                @default(now())
-  updatedAt                 DateTime                @updatedAt
-  transactions              Transaction[]
-  messageLogs               MessageLog[]
-  aiAnalysisLogs            AIAnalysisLog[]
-  budgets                   Budget[]
-  savingsGoal               SavingsGoal?
-  reminderPreference        ReminderPreference?
-  outboundMessages          OutboundMessage[]
-  portfolioAssets           PortfolioAsset[]
-  portfolioTrades           PortfolioTrade[]
-  financialFreedom          FinancialFreedomProfile?
-  financialProfile          FinancialProfile?
-  expensePlans              ExpensePlan[]
-  financialGoals            FinancialGoal[]
-  goalContributions         GoalContribution[]
-  assets                    Asset[]
-  onboardingSessions        OnboardingSession[]
-  intentObservations        IntentObservation[]
-  reminderEvents            ReminderEvent[]
+  id                    String              @id @default(cuid())
+  waNumber              String              @unique
+  name                  String?
+  currency              String              @default("IDR")
+  monthlyBudget         Decimal?            @db.Decimal(12, 2)
+  registrationStatus    RegistrationStatus  @default(PENDING)
+  onboardingStatus      OnboardingStatus    @default(NOT_STARTED)
+  onboardingStep        OnboardingStep      @default(WAIT_REGISTER)
+  primaryGoal           PrimaryGoal?
+  employmentType        EmploymentType?
+  incomeStability       IncomeStability?
+  hasPassiveIncome      Boolean?
+  salaryDate            Int?
+  goalExecutionMode     GoalExecutionMode?
+  priorityGoalType      FinancialGoalType?
+  budgetMode            BudgetMode?
+  hasAssets             Boolean?
+  analysisReady         Boolean             @default(false)
+  onboardingCompletedAt DateTime?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  transactions          Transaction[]
+  messageLogs           MessageLog[]
+  aiAnalysisLogs        AIAnalysisLog[]
+  budgets               Budget[]
+  savingsGoal           SavingsGoal?
+  reminderPreference    ReminderPreference?
+  outboundMessages      OutboundMessage[]
+  portfolioAssets       PortfolioAsset[]
+  portfolioTrades       PortfolioTrade[]
+  financialProfile      FinancialProfile?
+  expensePlans          ExpensePlan[]
+  financialGoals        FinancialGoal[]
+  goalContributions     GoalContribution[]
+  assets                Asset[]
+  onboardingSessions    OnboardingSession[]
+  intentObservations    IntentObservation[]
+  reminderEvents        ReminderEvent[]
 }
 
 model Transaction {
@@ -355,23 +349,23 @@ model SavingsGoal {
 }
 
 model ReminderPreference {
-  id               String   @id @default(cuid())
-  userId           String   @unique
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  budgetEnabled    Boolean  @default(true)
-  weeklyEnabled    Boolean  @default(true)
-  weeklyReviewEnabled  Boolean  @default(true)
-  recurringEnabled Boolean  @default(true)
-  cashflowEnabled  Boolean  @default(true)
-  goalEnabled      Boolean  @default(true)
-  monthlyClosingEnabled Boolean @default(true)
-  quietHoursStart  Int?
-  quietHoursEnd    Int?
-  minIntervalHours Int      @default(24)
-  maxPerDay        Int      @default(3)
-  snoozedUntil     DateTime?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                    String    @id @default(cuid())
+  userId                String    @unique
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  budgetEnabled         Boolean   @default(true)
+  weeklyEnabled         Boolean   @default(true)
+  weeklyReviewEnabled   Boolean   @default(true)
+  recurringEnabled      Boolean   @default(true)
+  cashflowEnabled       Boolean   @default(true)
+  goalEnabled           Boolean   @default(true)
+  monthlyClosingEnabled Boolean   @default(true)
+  quietHoursStart       Int?
+  quietHoursEnd         Int?
+  minIntervalHours      Int       @default(24)
+  maxPerDay             Int       @default(3)
+  snoozedUntil          DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 }
 
 model OutboundMessage {
@@ -430,18 +424,6 @@ model PortfolioTrade {
   @@index([userId, side, occurredAt])
 }
 
-model FinancialFreedomProfile {
-  id                 String   @id @default(cuid())
-  userId             String   @unique
-  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  enabled            Boolean  @default(false)
-  monthlyExpense     Decimal  @default(0) @db.Decimal(12, 2)
-  targetYears        Int      @default(15)
-  safeWithdrawalRate Decimal  @default(0.04) @db.Decimal(5, 4)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-}
-
 model FinancialProfile {
   id                     String   @id @default(cuid())
   userId                 String   @unique
@@ -454,7 +436,6 @@ model FinancialProfile {
   potentialMonthlySaving BigInt?
   savingRate             Decimal? @db.Decimal(7, 2)
   emergencyFundTarget    BigInt?
-  financialFreedomTarget BigInt?
   annualExpense          BigInt?
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
@@ -565,22 +546,22 @@ model SystemHeartbeat {
 }
 
 model IntentObservation {
-  id                   String   @id @default(cuid())
-  userId               String
-  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  messageId            String?
-  rawText              String
-  effectiveText        String
-  commandKind          String
-  topModule            String?
-  moduleOrderJson      Json?
-  resolutionKind       String
-  resolutionSource     String?
+  id                     String   @id @default(cuid())
+  userId                 String
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messageId              String?
+  rawText                String
+  effectiveText          String
+  commandKind            String
+  topModule              String?
+  moduleOrderJson        Json?
+  resolutionKind         String
+  resolutionSource       String?
   semanticNormalizedText String?
-  handledBy            String
-  fallbackStage        String?
-  ambiguityFlag        Boolean  @default(false)
-  createdAt            DateTime @default(now())
+  handledBy              String
+  fallbackStage          String?
+  ambiguityFlag          Boolean  @default(false)
+  createdAt              DateTime @default(now())
 
   @@index([userId, createdAt])
   @@index([handledBy, createdAt])

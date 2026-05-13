@@ -1,4 +1,4 @@
-﻿# WhatsApp Finance Assistant MVP (Monorepo)
+# WhatsApp Finance Assistant MVP (Monorepo)
 
 MVP chatbot keuangan pribadi berbasis WhatsApp dengan AI (Gemini + Vision OCR), penyimpanan MySQL (Prisma), web customer + admin monitoring, dan chart PNG dari Python service.
 
@@ -8,7 +8,7 @@ MVP chatbot keuangan pribadi berbasis WhatsApp dengan AI (Gemini + Vision OCR), 
 - Bot channel: **Baileys WhatsApp socket worker** (`apps/bot`)
 - Backend API: **Next.js 14 route handlers** (`apps/api`)
 - Web app (customer + admin): **Next.js 14** (`apps/admin-web`)
-- Reporting image: **FastAPI + Matplotlib PNG** (`services/reporting`)
+- Report renderer: **FastAPI + Matplotlib PNG/PDF** (`services/report-renderer`)
 - Shared schemas/types/prompts: `packages/shared`
 - Database: MySQL + Prisma
 
@@ -84,7 +84,7 @@ Copy and edit:
 - `apps/api/.env.example` -> `apps/api/.env`
 - `apps/admin-web/.env.example` -> `apps/admin-web/.env`
 - `apps/bot/.env.example` -> `apps/bot/.env`
-- `services/reporting/.env.example` -> `services/reporting/.env` (optional)
+- `services/report-renderer/.env.example` -> `services/report-renderer/.env` (optional)
 
 Important:
 
@@ -135,10 +135,10 @@ pnpm --filter @finance/api prisma:migrate
 pnpm --filter @finance/api prisma:seed
 ```
 
-### 4) Run reporting service (Python)
+### 4) Run report renderer service (Python)
 
 ```bash
-cd services/reporting
+cd services/report-renderer
 python -m venv .venv
 # Windows PowerShell:
 . .venv/Scripts/Activate.ps1
@@ -199,23 +199,21 @@ pnpm --filter @finance/api test
    - expected: summary text + PNG chart
 5. `/report monthly`
    - expected: summary text + PNG chart
-6. `/insight`
-   - expected: short rule-based + AI insight text
-7. `/help`
+6. `/help`
    - expected: command list
-8. `register` (for new/unregistered number)
+7. `register` (for new/unregistered number)
    - expected: start onboarding question 1/4
-9. `/budget set makan 1500000`
+8. `/budget set makan 1500000`
    - expected: budget kategori tersimpan + sisa budget bulan ini
-10. `/goal set 10000000`
+9. `/goal set 10000000`
    - expected: target tabungan tersimpan + progress saat ini
-11. `/goal status`
+10. `/goal status`
    - expected: status progress tabungan terbaru
-12. `budget makan 2 juta/bulan`
+11. `budget makan 2 juta/bulan`
    - expected: budget kategori tersimpan
-13. `mau nabung 50 juta`
+12. `mau nabung 50 juta`
    - expected: target tabungan tersimpan + progress saat ini
-14. `summary minggu ini`
+13. `summary minggu ini`
    - expected: summary weekly + PNG chart
 
 ## New User Flow
@@ -245,7 +243,7 @@ pnpm --filter @finance/api test
 pnpm --filter @finance/api test
 ```
 
-Current coverage includes parsing, aggregation, onboarding, reminders, planning, portfolio, and reporting insight under `apps/api/tests/`.
+Current coverage includes parsing, aggregation, onboarding, reminders, planning, portfolio, and reporting under `apps/api/tests/`.
 
 ## Assumptions
 

@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
-import { formatMoney, formatPercent } from "@/lib/services/shared/money-format";
+import { formatMoney, formatPercent } from "@/lib/services/shared/money";
 import { getSavingsGoalStatus } from "@/lib/services/planning/goal";
-import type { ReportDateRange } from "@/lib/services/reporting/report-service";
+import type { ReportDateRange } from "@/lib/services/reporting/report-builder";
 import { DATE_LABEL_FORMATTER, getEffectiveRange } from "./date-range";
 import { getHealthVerdict, getScoreGrade } from "./scoring";
 import type { FinancialHealthMode } from "./types";

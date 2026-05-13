@@ -1,5 +1,5 @@
-import { formatMoney } from "@/lib/services/shared/money-format";
-import { formatDurationFromMonths } from "@/lib/services/shared/projection-math-service";
+import { formatMoney } from "@/lib/services/shared/money";
+import { formatDurationFromMonths } from "@/lib/services/shared/projection";
 import {
   buildEqualSplitAllocation,
   buildFocusedAllocation,

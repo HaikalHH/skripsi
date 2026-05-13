@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { Manrope, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { ADMIN_SESSION_COOKIE, ADMIN_SESSION_VALUE } from "@/lib/auth";
-import { AdminNav } from "@/components/admin-nav";
+import { AdminNav } from "@/components/layout/admin-nav";
 
 const bodyFont = Manrope({
   subsets: ["latin"],

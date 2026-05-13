@@ -1,5 +1,3 @@
-import { logger } from "@/lib/logger";
-
 export type MarketObservationReason = "timeout" | "5xx" | "network" | "rate-limit" | "no-key" | "no-data";
 export type MarketObservationOperation = "quote" | "fx" | "news";
 
@@ -42,16 +40,6 @@ const getProviderStats = (providerId: string) => {
   };
   providerStats.set(providerId, created);
   return created;
-};
-
-export const resetMarketObservabilityState = () => {
-  providerStats.clear();
-  fallbackCounters.clear();
-  finalProviderCounters.clear();
-  cacheCounters.hit = 0;
-  cacheCounters.miss = 0;
-  cacheCounters.stale = 0;
-  recentEvents.splice(0, recentEvents.length);
 };
 
 export const recordMarketProviderLatency = (params: {
@@ -149,7 +137,3 @@ export const getMarketObservabilitySnapshot = () => ({
   providerSelected: Array.from(finalProviderCounters.entries()).map(([key, count]) => ({ key, count })),
   recentEvents: [...recentEvents]
 });
-
-export const logMarketObservabilitySummary = () => {
-  logger.debug(getMarketObservabilitySnapshot(), "Market observability snapshot");
-};

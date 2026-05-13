@@ -1,4 +1,4 @@
-import { formatDurationFromMonths } from "@/lib/services/shared/projection-math-service";
+import { formatDurationFromMonths } from "@/lib/services/shared/projection";
 
 export const formatEta = (monthsRaw: number) => {
   if (!Number.isFinite(monthsRaw)) return "estimasi belum tersedia";

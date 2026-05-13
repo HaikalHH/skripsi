@@ -1,4 +1,4 @@
-import { formatMoney } from "@/lib/services/shared/money-format";
+import { formatMoney } from "@/lib/services/shared/money";
 import type { TransactionRow } from "./types";
 
 const SHORT_DATE_FORMATTER = new Intl.DateTimeFormat("id-ID", {

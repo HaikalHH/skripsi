@@ -14,7 +14,7 @@ Secara arsitektur, sistem ini tidak hanya terdiri dari satu aplikasi, tetapi dib
 
 ## 3. Narasi Singkat Siap Pakai untuk Skripsi
 
-Proyek ini merupakan aplikasi asisten keuangan pribadi berbasis WhatsApp yang dirancang untuk membantu pengguna mencatat transaksi pemasukan, pengeluaran, dan tabungan secara lebih mudah melalui bahasa alami. Sistem juga menyediakan fitur analisis keuangan, budgeting, perencanaan target keuangan, pengelolaan aset, laporan berkala, serta notifikasi pengingat otomatis. Untuk meningkatkan akurasi input, aplikasi mendukung OCR pada gambar struk dan memanfaatkan model AI untuk klasifikasi intent, ekstraksi data transaksi, dan penyusunan insight finansial.
+Proyek ini merupakan aplikasi asisten keuangan pribadi berbasis WhatsApp yang dirancang untuk membantu pengguna mencatat transaksi pemasukan, pengeluaran, dan tabungan secara lebih mudah melalui bahasa alami. Sistem juga menyediakan fitur analisis keuangan, budgeting, perencanaan target keuangan, pengelolaan aset, laporan berkala, serta notifikasi pengingat otomatis. Untuk meningkatkan akurasi input, aplikasi mendukung OCR pada gambar struk dan memanfaatkan model AI untuk klasifikasi intent, ekstraksi data transaksi, dan penyusunan analisis finansial.
 
 Secara implementasi, sistem dibangun dengan pendekatan monorepo menggunakan `pnpm`. Backend utama menggunakan Next.js App Router pada sisi server dengan bahasa TypeScript, sedangkan panel admin juga dibangun menggunakan Next.js dan React. Untuk reporting visual dan PDF, sistem menggunakan service terpisah berbasis FastAPI dan Matplotlib dalam bahasa Python. Basis data yang digunakan adalah MySQL dengan Prisma sebagai ORM. Struktur ini membuat sistem lebih modular, mudah dikembangkan, dan memisahkan tanggung jawab antara pemrosesan chat, visualisasi laporan, administrasi, dan integrasi pihak ketiga.
 
@@ -63,14 +63,13 @@ Secara implementasi, sistem dibangun dengan pendekatan monorepo menggunakan `pnp
   - kendaraan
   - liburan
   - custom goal
-  - financial freedom
 - Mendukung setoran progres goal dan pengecekan status goal.
 - Sistem menghitung progress, sisa target, estimasi waktu tercapai, dan rekomendasi alokasi.
 
 ### 4.6 Financial profile dan financial health
 
 - Sistem membentuk profil finansial awal pengguna dari data onboarding dan transaksi.
-- Menghitung total income, expense, saving rate, target dana darurat, target financial freedom, dan health score.
+- Menghitung total income, expense, saving rate, target dana darurat, dan health score.
 - Tersedia mode evaluasi skor kesehatan finansial dan closing bulanan.
 
 ### 4.7 Reporting
@@ -250,7 +249,6 @@ Schema database pada project ini cukup besar dan sudah mencerminkan aplikasi yan
 - `Asset`
 - `PortfolioAsset`
 - `PortfolioTrade`
-- `FinancialFreedomProfile`
 - `FinancialProfile`
 
 ### 8.4 Tabel untuk operasional sistem
@@ -335,7 +333,7 @@ Berisi komponen bersama lintas aplikasi:
 - prompt AI
 - utilitas JSON/date
 
-#### `services/reporting`
+#### `services/report-renderer`
 
 Service Python terpisah untuk:
 
@@ -371,7 +369,7 @@ Folder `apps/api/lib/services` dibagi per domain fitur. Ini merupakan struktur y
 5. Sistem menyimpan `MessageLog`.
 6. Sistem mengecek status onboarding.
 7. Jika pesan adalah transaksi/command, pesan diarahkan ke router domain.
-8. Jika perlu AI, Gemini dipakai untuk intent extraction atau advice.
+8. Jika perlu AI, Gemini dipakai untuk intent extraction atau normalisasi jawaban.
 9. Hasil diproses, disimpan ke database, lalu dibalas ke user.
 
 ### 11.2 Alur gambar struk
@@ -465,8 +463,6 @@ AI dipakai di beberapa titik penting:
 - ekstraksi detail transaksi
 - semantic command normalization
 - general finance chat yang dibatasi konteks sistem
-- insight laporan
-- advice finansial
 - normalisasi jawaban onboarding
 
 Prompt AI disimpan terpusat di `packages/shared/src/prompts.ts`, sehingga logika prompt dapat digunakan ulang oleh beberapa aplikasi.

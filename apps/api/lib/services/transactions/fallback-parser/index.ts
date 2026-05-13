@@ -24,8 +24,7 @@ export const parseFallbackTransactionExtraction = (rawText: string): GeminiExtra
       merchant: "Tabungan Pribadi",
       note: null,
       occurredAt: null,
-      reportPeriod: null,
-      adviceQuery: null
+      reportPeriod: null
     };
   }
 
@@ -45,7 +44,6 @@ export const parseFallbackTransactionExtraction = (rawText: string): GeminiExtra
     merchant,
     note: null,
     occurredAt: null,
-    reportPeriod: null,
-    adviceQuery: null
+    reportPeriod: null
   };
 };

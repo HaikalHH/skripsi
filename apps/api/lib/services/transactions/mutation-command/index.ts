@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { formatMoney } from "@/lib/services/shared/money-format";
+import { formatMoney } from "@/lib/services/shared/money";
 import { refreshSavingsGoalProgress } from "@/lib/services/planning/goal";
 import { resolveTransactionCandidates } from "./candidate-resolver";
 import { buildCandidateOptionLabel, buildTransactionLabel } from "./labels";

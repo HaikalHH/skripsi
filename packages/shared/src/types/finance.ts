@@ -1,0 +1,22 @@
+export type IntentType =
+  | "RECORD_TRANSACTION"
+  | "REQUEST_REPORT"
+  | "HELP"
+  | "UNKNOWN";
+
+export type TransactionType = "INCOME" | "EXPENSE" | "SAVING";
+export type MessageType = "TEXT" | "IMAGE";
+export type TransactionSource = "TEXT" | "OCR";
+export type ReportPeriod = "daily" | "weekly" | "monthly";
+
+export interface GeminiExtraction {
+  intent: IntentType;
+  type: TransactionType | null;
+  amount: number | null;
+  category: string | null;
+  merchant: string | null;
+  note: string | null;
+  occurredAt: string | null;
+  reportPeriod: ReportPeriod | null;
+  adviceQuery?: string | null;
+}

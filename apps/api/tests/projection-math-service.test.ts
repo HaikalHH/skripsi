@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDurationFromMonths } from "@/lib/services/shared/projection-math-service";
+import { formatDurationFromMonths } from "@/lib/services/shared/projection";
 
 describe("projection math service", () => {
   it("formats decimal month estimates as bulan dan hari", () => {

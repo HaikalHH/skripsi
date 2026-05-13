@@ -1,4 +1,4 @@
-import { formatMoney } from "@/lib/services/shared/money-format";
+import { formatMoney } from "@/lib/services/shared/money";
 import { getUserPortfolioValuation } from "@/lib/services/market/portfolio/portfolio-valuation-service";
 
 const EMPTY_PORTFOLIO_REPLY =

@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { PageHeader } from "@/components/page-header";
-import { ResetOnboardingForm } from "@/components/reset-onboarding-form";
-import { SectionCard } from "@/components/section-card";
-import { StatCard } from "@/components/stat-card";
-import { StatusBadge } from "@/components/status-badge";
+import { PageHeader } from "@/components/layout/page-header";
+import { ResetOnboardingForm } from "@/features/users/reset-onboarding-form";
+import { SectionCard } from "@/components/ui/section-card";
+import { StatCard } from "@/components/ui/stat-card";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { fetchAdminApi } from "@/lib/api";
 import {
   formatCompactNumber,

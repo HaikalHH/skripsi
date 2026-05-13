@@ -11,8 +11,7 @@ describe("fallback transaction parser", () => {
       merchant: null,
       note: null,
       occurredAt: null,
-      reportPeriod: null,
-      adviceQuery: null
+      reportPeriod: null
     });
   });
 
@@ -25,8 +24,7 @@ describe("fallback transaction parser", () => {
       merchant: null,
       note: null,
       occurredAt: null,
-      reportPeriod: null,
-      adviceQuery: null
+      reportPeriod: null
     });
   });
 
@@ -39,12 +37,11 @@ describe("fallback transaction parser", () => {
       merchant: "Tabungan Pribadi",
       note: null,
       occurredAt: null,
-      reportPeriod: null,
-      adviceQuery: null
+      reportPeriod: null
     });
   });
 
-  it("ignores question-style advice text", () => {
+  it("ignores question-style purchase text", () => {
     expect(parseFallbackTransactionExtraction("boleh beli hp 5 juta ga?")).toBeNull();
   });
 
@@ -57,8 +54,7 @@ describe("fallback transaction parser", () => {
       merchant: "BPJS",
       note: null,
       occurredAt: null,
-      reportPeriod: null,
-      adviceQuery: null
+      reportPeriod: null
     });
 
     expect(parseFallbackTransactionExtraction("beli obat 150 ribu")).toEqual({
@@ -69,8 +65,7 @@ describe("fallback transaction parser", () => {
       merchant: null,
       note: null,
       occurredAt: null,
-      reportPeriod: null,
-      adviceQuery: null
+      reportPeriod: null
     });
   });
 
@@ -83,8 +78,7 @@ describe("fallback transaction parser", () => {
       merchant: "Spotify",
       note: null,
       occurredAt: null,
-      reportPeriod: null,
-      adviceQuery: null
+      reportPeriod: null
     });
   });
 });

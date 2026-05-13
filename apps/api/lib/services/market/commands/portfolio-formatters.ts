@@ -1,4 +1,4 @@
-import { formatMoney } from "@/lib/services/shared/money-format";
+import { formatMoney } from "@/lib/services/shared/money";
 import { normalizeMarketSymbolForKind } from "@/lib/services/market/symbol";
 
 export const normalizeSpaces = (value: string) => value.trim().replace(/\s+/g, " ");

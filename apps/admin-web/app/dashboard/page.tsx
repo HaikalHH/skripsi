@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { PageHeader } from "@/components/page-header";
-import { SectionCard } from "@/components/section-card";
-import { StatCard } from "@/components/stat-card";
-import { StatusBadge } from "@/components/status-badge";
+import { PageHeader } from "@/components/layout/page-header";
+import { SectionCard } from "@/components/ui/section-card";
+import { StatCard } from "@/components/ui/stat-card";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { fetchAdminApi } from "@/lib/api";
 import { formatCompactNumber, formatDateTime } from "@/lib/format";
 

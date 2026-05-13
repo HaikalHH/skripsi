@@ -1,4 +1,4 @@
-import { formatMoney, formatPercent } from "@/lib/services/shared/money-format";
+import { formatMoney, formatPercent } from "@/lib/services/shared/money";
 import { formatEta } from "./eta-format";
 import { estimateMonthlySavingsPace } from "./pace-estimator";
 import type { GoalStatus } from "./types";

@@ -1,4 +1,4 @@
-import type { ReportDateRange } from "@/lib/services/reporting/report-service";
+import type { ReportDateRange } from "@/lib/services/reporting/report-builder";
 
 export const DATE_LABEL_FORMATTER = new Intl.DateTimeFormat("id-ID", {
   day: "numeric",

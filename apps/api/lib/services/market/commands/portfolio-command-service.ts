@@ -1,4 +1,4 @@
-import { formatMoney } from "@/lib/services/shared/money-format";
+import { formatMoney } from "@/lib/services/shared/money";
 import { getPortfolioNewsContext } from "@/lib/services/market/portfolio/portfolio-news-context";
 import { normalizeSpaces, toNumber } from "@/lib/services/market/commands/portfolio-formatters";
 import { tryResolveGoldAdd } from "@/lib/services/market/commands/gold-add-resolver";

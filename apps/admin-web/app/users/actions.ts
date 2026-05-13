@@ -1,35 +1,14 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { fetchAdminApi } from "@/lib/api";
+import {
+  deleteUserAction as deleteUserFeatureAction,
+  resetOnboardingAction as resetOnboardingFeatureAction
+} from "@/features/users/actions";
 
 export async function deleteUserAction(formData: FormData) {
-  const userId = String(formData.get("userId") ?? "");
-
-  if (!userId) {
-    return;
-  }
-
-  await fetchAdminApi("/api/admin/users", {
-    method: "DELETE",
-    body: JSON.stringify({ userId })
-  });
-
-  revalidatePath("/users");
+  return deleteUserFeatureAction(formData);
 }
 
 export async function resetOnboardingAction(formData: FormData) {
-  const userId = String(formData.get("userId") ?? "");
-
-  if (!userId) {
-    return;
-  }
-
-  await fetchAdminApi(`/api/admin/users/${userId}`, {
-    method: "PATCH",
-    body: JSON.stringify({ action: "reset-onboarding" })
-  });
-
-  revalidatePath("/users");
-  revalidatePath(`/users/${userId}`);
+  return resetOnboardingFeatureAction(formData);
 }

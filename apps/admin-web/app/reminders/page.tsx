@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { EditReminderTemplateDialog } from "@/components/edit-reminder-template-dialog";
-import { PageHeader } from "@/components/page-header";
-import { ResendOutboundForm } from "@/components/resend-outbound-form";
-import { SectionCard } from "@/components/section-card";
-import { StatCard } from "@/components/stat-card";
-import { StatusBadge } from "@/components/status-badge";
+import { EditReminderTemplateDialog } from "@/features/reminders/edit-reminder-template-dialog";
+import { PageHeader } from "@/components/layout/page-header";
+import { ResendOutboundForm } from "@/features/reminders/resend-outbound-form";
+import { SectionCard } from "@/components/ui/section-card";
+import { StatCard } from "@/components/ui/stat-card";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { fetchAdminApi } from "@/lib/api";
 import { formatCompactNumber, formatDateTime } from "@/lib/format";
 

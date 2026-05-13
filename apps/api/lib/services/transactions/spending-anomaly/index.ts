@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { formatMoney, formatPercent } from "@/lib/services/shared/money-format";
+import { formatMoney, formatPercent } from "@/lib/services/shared/money";
 import { toNumber } from "../helpers/number";
 
 const LOOKBACK_DAYS = 30;

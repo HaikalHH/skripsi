@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { formatMoney } from "@/lib/services/shared/money-format";
+import { formatMoney } from "@/lib/services/shared/money";
 import { normalizeExpenseBucketCategory } from "../category";
 import { toNumber } from "../helpers/number";
 import { getMonthlyCategorySpent, pickMatchingBudget } from "./data-access";

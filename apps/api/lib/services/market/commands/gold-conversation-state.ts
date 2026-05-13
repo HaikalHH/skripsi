@@ -1,4 +1,4 @@
-import { loadRecentConversationTurns } from "@/lib/services/assistant/conversation-memory-service";
+import { loadRecentConversationTurns } from "@/lib/services/assistant/memory";
 import type {
   GoldConversationState,
   GoldDraft,

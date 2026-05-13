@@ -1,4 +1,4 @@
-import { formatMoney } from "@/lib/services/shared/money-format";
+import { formatMoney } from "@/lib/services/shared/money";
 import type {
   GoldDraft,
   GoldQuestion,

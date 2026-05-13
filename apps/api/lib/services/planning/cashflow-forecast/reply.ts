@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { formatMoney } from "@/lib/services/shared/money-format";
+import { formatMoney } from "@/lib/services/shared/money";
 import {
   DATE_LABEL_FORMATTER,
   DAY_MS,
