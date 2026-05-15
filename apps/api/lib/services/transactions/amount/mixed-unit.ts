@@ -13,6 +13,23 @@ export const parseMixedUnitAmount = (normalized: string): number | null => {
   let usedAny = false;
 
   for (const token of tokens) {
+    const compactUnitMatch = token.match(
+      /^([\d.,]+)(jt|jta|jtan|juta|jutaan|rb|rbu|ribu|ribuan|k|miliar|milyar|triliun)$/i
+    );
+    if (compactUnitMatch) {
+      const numericValue = parseNumericChunk(compactUnitMatch[1]!);
+      const multiplier = LARGE_UNIT_MULTIPLIERS[compactUnitMatch[2]!.toLowerCase()];
+      if (numericValue == null || !multiplier) return null;
+      if (pendingValue != null) {
+        total += pendingValue;
+        usedAny = true;
+      }
+      total += Math.round(numericValue * multiplier);
+      pendingValue = null;
+      usedAny = true;
+      continue;
+    }
+
     if (isNumericToken(token)) {
       if (pendingValue != null) {
         total += pendingValue;

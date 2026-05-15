@@ -19,6 +19,7 @@ describe("amount parser", () => {
   });
 
   it("parses mixed numeric and word-based abnormal phrases", () => {
+    expect(parsePositiveAmount("2jt 600 ribu")).toBe(2600000);
     expect(parsePositiveAmount("1 juta 500 ribu 100 rupiah")).toBe(1500100);
     expect(parsePositiveAmount("sejuta lima ratur ribu seratus rupiah")).toBe(1500100);
     expect(parsePositiveAmount("dua belas juta lima ratus ribu")).toBe(12500000);
