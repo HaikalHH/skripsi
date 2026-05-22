@@ -23,7 +23,13 @@ export async function POST(request: NextRequest) {
     parsed.data.period,
     report.incomeTotal,
     report.expenseTotal,
-    report.categoryBreakdown
+    report.categoryBreakdown,
+    report.periodLabel,
+    report.transactions,
+    {
+      savingTotal: report.savingTotal ?? 0,
+      categoryBudgets: report.categoryBudgets
+    }
   );
 
   let imageBase64: string | undefined;

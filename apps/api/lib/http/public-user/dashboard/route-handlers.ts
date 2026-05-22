@@ -114,7 +114,12 @@ export async function GET(request: NextRequest) {
           report.incomeTotal,
           report.expenseTotal,
           report.categoryBreakdown,
-          report.periodLabel
+          report.periodLabel,
+          report.transactions,
+          {
+            savingTotal: report.savingTotal ?? 0,
+            categoryBudgets: report.categoryBudgets
+          }
         )
       },
       goals: goals

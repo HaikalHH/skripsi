@@ -181,8 +181,9 @@ describe("goal service", () => {
     expect(status.goals[0].goalName).toBe("Beli Rumah");
     expect(status.goals[1].goalName).toBe("Dana Darurat");
     expect(status.goals.find((goal) => goal.goalName === "Dana Darurat")?.isPrimary).toBe(true);
-    expect(status.recommendedPlan).toHaveLength(2);
-    expect(status.recommendedPlan[0]?.recommendedMonthlyContribution).toBeGreaterThan(0);
+    expect(status.recommendedPlan).toHaveLength(1);
+    expect(status.recommendedPlan[0]?.goalName).toBe("Dana Darurat");
+    expect(status.recommendedPlan[0]?.recommendedMonthlyContribution).toBe(6000000);
 
     const replyTexts = buildGoalStatusReplyTexts(status);
     const replyText = replyTexts.join("\n\n");

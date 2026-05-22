@@ -41,8 +41,9 @@ export const getMonthlySavingCapacity = async (userId: string) => {
       })
     : null;
 
-  const profileSaving = toNumber(profile?.potentialMonthlySaving ?? 0);
-  if (profileSaving > 0) return profileSaving;
+  if (profile && profile.potentialMonthlySaving != null) {
+    return Math.max(0, toNumber(profile.potentialMonthlySaving));
+  }
 
   return calculateNetSavings(userId);
 };

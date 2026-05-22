@@ -197,7 +197,11 @@ export const buildReportResponse = async (
     reportData.categoryBreakdown,
     reportData.periodLabel,
     reportData.transactions,
-    { includeTransactions: !attachMonthlyPdf, savingTotal: reportData.savingTotal ?? 0 }
+    {
+      includeTransactions: !attachMonthlyPdf,
+      savingTotal: reportData.savingTotal ?? 0,
+      categoryBudgets: reportData.categoryBudgets
+    }
   );
 
   if (reportData.incomeTotal === 0 && reportData.expenseTotal === 0 && (reportData.savingTotal ?? 0) === 0) {

@@ -3071,7 +3071,8 @@ const persistConfirmedAnswerEffects = async (
         await replaceExpensePlan({
           userId: context.user.id,
           source: ExpensePlanSource.GUIDED_ONBOARDING_PLAN,
-          breakdown
+          breakdown,
+          customExpenseItems: guidedOtherExpenseState.items
         });
       }
 

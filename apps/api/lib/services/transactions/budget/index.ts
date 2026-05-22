@@ -74,13 +74,18 @@ const syncBudgetExpenseContext = async (userId: string) => {
         activeIncomeMonthly: true,
         passiveIncomeMonthly: true,
         estimatedMonthlyIncome: true,
-        monthlyIncomeTotal: true
+        monthlyIncomeTotal: true,
+        monthlyExpenseTotal: true,
+        potentialMonthlySaving: true
       }
     });
     const monthlyIncomeTotal =
       toNumber(profile?.monthlyIncomeTotal ?? 0) ||
       toNumber(profile?.activeIncomeMonthly ?? 0) + toNumber(profile?.passiveIncomeMonthly ?? 0) ||
-      toNumber(profile?.estimatedMonthlyIncome ?? 0);
+      toNumber(profile?.estimatedMonthlyIncome ?? 0) ||
+      (profile?.potentialMonthlySaving != null && profile?.monthlyExpenseTotal != null
+        ? toNumber(profile.potentialMonthlySaving) + toNumber(profile.monthlyExpenseTotal)
+        : 0);
     const potentialMonthlySaving =
       monthlyIncomeTotal > 0 ? monthlyIncomeTotal - totalMonthlyExpense : null;
     syncedPotentialMonthlySaving = potentialMonthlySaving;

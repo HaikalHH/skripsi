@@ -22,6 +22,11 @@ export type ReportTransactionItem = {
   occurredAt: Date;
 };
 
+export type ReportCategoryBudget = {
+  category: string;
+  monthlyLimit: number;
+};
+
 export type CategoryReportQueryMode =
   | "LIST"
   | "TOTAL"

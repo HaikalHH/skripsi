@@ -92,6 +92,7 @@ import {
   buildBudgetCategoryListText,
   upsertCategoryBudget
 } from "@/lib/services/transactions/budget";
+import { getMonthlySavingCapacity } from "@/lib/services/planning/goal";
 
 describe("budget service", () => {
   beforeEach(() => {
@@ -130,6 +131,7 @@ describe("budget service", () => {
     expect(hoisted.store.users[0].monthlyBudget).toBe(1_500_000);
     expect(hoisted.store.financialProfiles[0].monthlyExpenseTotal).toBe(1_500_000n);
     expect(hoisted.store.financialProfiles[0].potentialMonthlySaving).toBe(8_500_000n);
+    await expect(getMonthlySavingCapacity("user_1")).resolves.toBe(8_500_000);
     expect(hoisted.store.expensePlans.at(-1)?.items).toEqual([
       { categoryKey: "Food & Drink", amount: 1_000_000n },
       { categoryKey: "hobi", amount: 500_000n }
@@ -144,10 +146,20 @@ describe("budget service", () => {
     expect(hoisted.store.budgets).toHaveLength(2);
     expect(hoisted.store.budgets.at(-1)?.category).toBe("Hobi");
     expect(hoisted.store.users[0].monthlyBudget).toBe(1_700_000);
+    expect(hoisted.store.financialProfiles[0].potentialMonthlySaving).toBe(8_300_000n);
+    await expect(getMonthlySavingCapacity("user_1")).resolves.toBe(8_300_000);
+
+    await upsertCategoryBudget({
+      userId: "user_1",
+      category: "kontrak kantor",
+      monthlyLimit: 10_000_000
+    });
+    expect(hoisted.store.financialProfiles[0].potentialMonthlySaving).toBe(-1_700_000n);
+    await expect(getMonthlySavingCapacity("user_1")).resolves.toBe(0);
 
     const listText = await buildBudgetCategoryListText("user_1");
     expect(listText).toContain("Food & Drink - Rp1.000.000/bulan");
     expect(listText).toContain("Hobi - Rp700.000/bulan");
+    expect(listText).toContain("kontrak kantor - Rp10.000.000/bulan");
   });
 });
-

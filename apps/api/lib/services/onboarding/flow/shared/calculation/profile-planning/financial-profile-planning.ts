@@ -467,8 +467,37 @@ export const replaceExpensePlan = async (params: {
   userId: string;
   source: ExpensePlanSource;
   breakdown: ExpenseBreakdown;
+  customExpenseItems?: Array<{ label: string; amount: number }>;
 }) => {
   const total = sumBreakdown(params.breakdown);
+  const customExpenseItems = Array.from(
+    (params.customExpenseItems ?? [])
+      .filter((item) => item.label.trim() && Number.isFinite(item.amount) && item.amount > 0)
+      .reduce((items, item) => {
+        const key = item.label.trim().toLowerCase();
+        const current = items.get(key);
+        items.set(key, {
+          label: current?.label ?? item.label.trim(),
+          amount: (current?.amount ?? 0) + item.amount
+        });
+        return items;
+      }, new Map<string, { label: string; amount: number }>())
+      .values()
+  );
+  const customExpenseTotal = customExpenseItems.reduce((sum, item) => sum + item.amount, 0);
+  const unresolvedOthersAmount = Math.max(0, params.breakdown.others - customExpenseTotal);
+  const planItems = [
+    { categoryKey: "food", amount: params.breakdown.food },
+    { categoryKey: "transport", amount: params.breakdown.transport },
+    { categoryKey: "bills", amount: params.breakdown.bills },
+    { categoryKey: "entertainment", amount: params.breakdown.entertainment },
+    ...customExpenseItems.map((item) => ({ categoryKey: item.label, amount: item.amount })),
+    ...(unresolvedOthersAmount > 0
+      ? [{ categoryKey: "others", amount: unresolvedOthersAmount }]
+      : customExpenseItems.length
+        ? []
+        : [{ categoryKey: "others", amount: params.breakdown.others }])
+  ];
 
   return prisma.$transaction(async (tx) => {
     await tx.expensePlan.updateMany({
@@ -483,13 +512,10 @@ export const replaceExpensePlan = async (params: {
         totalMonthlyExpense: BigInt(total),
         isActive: true,
         items: {
-          create: [
-            { categoryKey: "food", amount: BigInt(params.breakdown.food) },
-            { categoryKey: "transport", amount: BigInt(params.breakdown.transport) },
-            { categoryKey: "bills", amount: BigInt(params.breakdown.bills) },
-            { categoryKey: "entertainment", amount: BigInt(params.breakdown.entertainment) },
-            { categoryKey: "others", amount: BigInt(params.breakdown.others) }
-          ]
+          create: planItems.map((item) => ({
+            categoryKey: item.categoryKey,
+            amount: BigInt(Math.max(0, Math.round(item.amount)))
+          }))
         }
       },
       include: { items: true }
@@ -500,21 +526,41 @@ export const replaceExpensePlan = async (params: {
       data: { monthlyBudget: total }
     });
 
-    for (const [categoryKey, amount] of Object.entries(params.breakdown) as Array<
-      [keyof ExpenseBreakdown, number]
-    >) {
+    if (customExpenseItems.length && unresolvedOthersAmount <= 0 && "deleteMany" in tx.budget) {
+      await tx.budget.deleteMany({
+        where: {
+          userId: params.userId,
+          category: EXPENSE_CATEGORY_TO_BUDGET.others
+        }
+      });
+    }
+
+    const budgetItems = [
+      { category: EXPENSE_CATEGORY_TO_BUDGET.food, amount: params.breakdown.food },
+      { category: EXPENSE_CATEGORY_TO_BUDGET.transport, amount: params.breakdown.transport },
+      { category: EXPENSE_CATEGORY_TO_BUDGET.bills, amount: params.breakdown.bills },
+      { category: EXPENSE_CATEGORY_TO_BUDGET.entertainment, amount: params.breakdown.entertainment },
+      ...customExpenseItems.map((item) => ({ category: item.label, amount: item.amount })),
+      ...(unresolvedOthersAmount > 0
+        ? [{ category: EXPENSE_CATEGORY_TO_BUDGET.others, amount: unresolvedOthersAmount }]
+        : customExpenseItems.length
+          ? []
+          : [{ category: EXPENSE_CATEGORY_TO_BUDGET.others, amount: params.breakdown.others }])
+    ];
+
+    for (const item of budgetItems) {
       await tx.budget.upsert({
         where: {
           userId_category: {
             userId: params.userId,
-            category: EXPENSE_CATEGORY_TO_BUDGET[categoryKey]
+            category: item.category
           }
         },
-        update: { monthlyLimit: amount },
+        update: { monthlyLimit: item.amount },
         create: {
           userId: params.userId,
-          category: EXPENSE_CATEGORY_TO_BUDGET[categoryKey],
-          monthlyLimit: amount
+          category: item.category,
+          monthlyLimit: item.amount
         }
       });
     }

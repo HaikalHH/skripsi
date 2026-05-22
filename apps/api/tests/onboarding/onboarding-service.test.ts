@@ -531,6 +531,18 @@ describe("onboarding service", () => {
     ]);
     expect(completed.preserveReplyTextBubbles).toBe(true);
     expect(hoisted.store.users[0].onboardingStep).toBe(OnboardingStep.ASK_ASSET_SELECTION);
+    expect(replaceExpensePlan).toHaveBeenLastCalledWith({
+      userId: "user_1",
+      source: ExpensePlanSource.GUIDED_ONBOARDING_PLAN,
+      breakdown: {
+        food: 1000000,
+        transport: 200000,
+        bills: 300000,
+        entertainment: 500000,
+        others: 500000
+      },
+      customExpenseItems: [{ label: "jajan istri", amount: 500000 }]
+    });
   });
 
   it("routes asset completion straight into the next personalization question when detail is pending", async () => {

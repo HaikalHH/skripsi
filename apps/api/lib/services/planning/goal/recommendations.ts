@@ -13,6 +13,27 @@ const buildGoalPriorityWeight = (goal: GoalStatusItem) => {
   return Number((typeWeight + remainingWeight + etaWeight + progressWeight).toFixed(2));
 };
 
+const compareGoalPriority = (left: GoalStatusItem, right: GoalStatusItem) => {
+  const leftHasOrder = left.priorityOrder != null;
+  const rightHasOrder = right.priorityOrder != null;
+
+  if (leftHasOrder || rightHasOrder) {
+    if (leftHasOrder && rightHasOrder && left.priorityOrder !== right.priorityOrder) {
+      return (left.priorityOrder ?? 0) - (right.priorityOrder ?? 0);
+    }
+    if (leftHasOrder !== rightHasOrder) return leftHasOrder ? -1 : 1;
+  }
+
+  if (left.isPrimary !== right.isPrimary) return left.isPrimary ? -1 : 1;
+
+  const typeDiff =
+    (right.goalType ? GOAL_PRIORITY_BASELINE[right.goalType] ?? 50 : 50) -
+    (left.goalType ? GOAL_PRIORITY_BASELINE[left.goalType] ?? 50 : 50);
+  if (typeDiff !== 0) return typeDiff;
+
+  return buildGoalPriorityWeight(right) - buildGoalPriorityWeight(left);
+};
+
 export const buildGoalRecommendationPlan = (
   goals: GoalStatusItem[],
   monthlySavingCapacity: number
@@ -22,27 +43,27 @@ export const buildGoalRecommendationPlan = (
   );
   if (!eligibleGoals.length || monthlySavingCapacity <= 0) return [];
 
-  const weightedGoals = eligibleGoals.map((goal) => ({
-    goal,
-    weight: buildGoalPriorityWeight(goal)
-  }));
-  const totalWeight = weightedGoals.reduce((sum, item) => sum + item.weight, 0) || weightedGoals.length;
-
+  const prioritizedGoals = [...eligibleGoals].sort(compareGoalPriority);
   let allocatedSoFar = 0;
-  return weightedGoals.map((item, index) => {
-    const recommendedMonthlyContribution =
-      index === weightedGoals.length - 1
-        ? Math.max(0, monthlySavingCapacity - allocatedSoFar)
-        : Math.max(0, Math.round((monthlySavingCapacity * item.weight) / totalWeight));
+  return prioritizedGoals.flatMap((goal) => {
+    const remainingCapacity = Math.max(0, monthlySavingCapacity - allocatedSoFar);
+    if (remainingCapacity <= 0) return [];
+
+    const recommendedMonthlyContribution = Math.min(
+      Math.max(0, Math.round(goal.remainingAmount)),
+      Math.round(remainingCapacity)
+    );
+    if (recommendedMonthlyContribution <= 0) return [];
+
     allocatedSoFar += recommendedMonthlyContribution;
     const sharePercent = monthlySavingCapacity > 0 ? (recommendedMonthlyContribution / monthlySavingCapacity) * 100 : 0;
-    return {
-      goalId: item.goal.goalId,
-      goalName: item.goal.goalName,
-      goalType: item.goal.goalType,
+    return [{
+      goalId: goal.goalId,
+      goalName: goal.goalName,
+      goalType: goal.goalType,
       recommendedMonthlyContribution,
       sharePercent: Number(sharePercent.toFixed(1))
-    };
+    }];
   });
 };
 
