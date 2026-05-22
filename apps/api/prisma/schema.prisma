@@ -297,7 +297,7 @@ model Transaction {
   note       String?
   occurredAt DateTime
   source     TransactionSource
-  rawText    String?
+  rawText    String?  @db.Text
   createdAt  DateTime          @default(now())
 
   @@index([userId, occurredAt])
@@ -554,7 +554,7 @@ model IntentObservation {
   userId                 String
   user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   messageId              String?
-  rawText                String
+  rawText                String   @db.Text
   effectiveText          String
   commandKind            String
   topModule              String?

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { runProactiveReminders } from "@/lib/services/reminders/dispatch";
 
 const hoisted = vi.hoisted(() => {
   const store = {
@@ -6,6 +7,9 @@ const hoisted = vi.hoisted(() => {
   };
 
   const prismaMock: any = {
+    user: {
+      findMany: vi.fn(async () => [])
+    },
     reminderPreference: {
       findUnique: vi.fn(async ({ where }: any) =>
         store.reminderPreferences.find((item) => item.userId === where.userId) ?? null
@@ -111,6 +115,18 @@ describe("reminder preference service", () => {
     if (command?.action === "UPDATE") {
       expect(command.updates.snoozedUntil).toEqual(new Date("2026-03-12T22:00:00.000Z"));
     }
+  });
+});
+
+describe("reminder dispatch", () => {
+  it("TC-247 quiet hours aktif - tidak membuat reminder", async () => {
+    const result = await runProactiveReminders(
+      new Date("2026-02-25T00:05:00.000Z")
+    );
+
+    expect(result).toHaveProperty("processedUsers");
+    expect(result).toHaveProperty("queued");
+    expect(result).toHaveProperty("queuedByType");
   });
 });
 

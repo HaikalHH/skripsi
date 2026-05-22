@@ -6,6 +6,11 @@ import {
   type GlobalContextRoute
 } from "@/lib/services/assistant/commands/global-context-router";
 import { parseMutationCommand } from "@/lib/services/transactions/mutation-command";
+import {
+  COMPARE_TERMS,
+  PREVIOUS_PERIOD_TERMS,
+  includesAnyPhrase
+} from "@/lib/services/reporting/query-language";
 
 type ConversationRole = "user" | "assistant";
 
@@ -605,7 +610,10 @@ export const resolveConversationMemory = async (params: {
   }
 
   const requestedReportPeriod = detectRequestedReportPeriod(currentText);
-  if (requestedReportPeriod && lastSafeReplay?.route.command.kind === "REPORT") {
+  const isStandaloneComparison =
+    includesAnyPhrase(currentText.toLowerCase(), COMPARE_TERMS) &&
+    includesAnyPhrase(currentText.toLowerCase(), PREVIOUS_PERIOD_TERMS);
+  if (requestedReportPeriod && !isStandaloneComparison && lastSafeReplay?.route.command.kind === "REPORT") {
     return {
       kind: "rewrite",
       effectiveText: buildReportFollowUpText(requestedReportPeriod),

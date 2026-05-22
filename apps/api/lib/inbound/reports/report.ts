@@ -12,6 +12,7 @@ import {
   type ReportComparisonRange,
   type ReportDateRange
 } from "@/lib/services/reporting/report-builder";
+import { buildExplicitRangeLabel } from "@/lib/services/reporting/report-builder/date-ranges";
 import type { ReportRangeMode } from "@/lib/services/assistant/commands/slash-command-parser";
 
 export type ReportResponse = {
@@ -24,11 +25,11 @@ export type ReportResponse = {
 type BuildReportParams =
   | ReportPeriod
   | {
-      period: ReportPeriod;
-      reportMode?: ReportRangeMode;
-      dateRange?: ReportDateRange | null;
-      comparisonRange?: ReportComparisonRange | null;
-    };
+    period: ReportPeriod;
+    reportMode?: ReportRangeMode;
+    dateRange?: ReportDateRange | null;
+    comparisonRange?: ReportComparisonRange | null;
+  };
 
 const buildDeltaLabel = (value: number) =>
   value > 0 ? `naik ${formatMoney(value)}` : value < 0 ? `turun ${formatMoney(Math.abs(value))}` : "stabil";
@@ -77,6 +78,7 @@ const resolveMonthlyReportRange = async (params: {
   if (params.dateRange) {
     return {
       dateRange: params.dateRange,
+      cycleStartDay: null as number | null,
       note: null as string | null
     };
   }
@@ -84,6 +86,7 @@ const resolveMonthlyReportRange = async (params: {
   if (params.reportMode === "calendar") {
     return {
       dateRange: buildMonthToDateRange(new Date()),
+      cycleStartDay: null,
       note: null
     };
   }
@@ -92,6 +95,7 @@ const resolveMonthlyReportRange = async (params: {
   if (cycleStartDay && cycleStartDay >= 1 && cycleStartDay <= 31) {
     return {
       dateRange: buildFinancialCycleDateRange(cycleStartDay, new Date()),
+      cycleStartDay,
       note:
         params.reportMode === "financial_cycle" || params.reportMode === "default"
           ? `Berdasarkan siklus gajian Boss setiap tanggal ${cycleStartDay}.`
@@ -101,10 +105,56 @@ const resolveMonthlyReportRange = async (params: {
 
   return {
     dateRange: buildMonthToDateRange(new Date()),
+    cycleStartDay: null,
     note:
       params.reportMode === "financial_cycle"
         ? "Tanggal mulai siklus gajian belum diset, jadi sementara saya pakai bulan kalender."
         : null
+  };
+};
+
+const buildFinancialComparisonRange = (
+  currentRange: ReportDateRange,
+  cycleStartDay: number | null
+): ReportComparisonRange => {
+  if (cycleStartDay && cycleStartDay >= 1 && cycleStartDay <= 31) {
+    const prevStart = new Date(
+      Date.UTC(
+        currentRange.start.getUTCFullYear(),
+        currentRange.start.getUTCMonth() - 1,
+        currentRange.start.getUTCDate(),
+        0, 0, 0, 0
+      )
+    );
+    const prevEnd = new Date(currentRange.start.getTime() - 1);
+    return {
+      current: currentRange,
+      previous: {
+        start: prevStart,
+        end: prevEnd,
+        label: buildExplicitRangeLabel(prevStart, prevEnd)
+      }
+    };
+  }
+
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const daySpan = Math.max(
+    1,
+    Math.round(
+      (new Date(currentRange.end.getUTCFullYear(), currentRange.end.getUTCMonth(), currentRange.end.getUTCDate()).getTime() -
+        new Date(currentRange.start.getUTCFullYear(), currentRange.start.getUTCMonth(), currentRange.start.getUTCDate()).getTime()) /
+      DAY_MS
+    ) + 1
+  );
+  const prevEnd = new Date(currentRange.start.getTime() - 1);
+  const prevStart = new Date(currentRange.start.getTime() - daySpan * DAY_MS);
+  return {
+    current: currentRange,
+    previous: {
+      start: prevStart,
+      end: prevEnd,
+      label: buildExplicitRangeLabel(prevStart, prevEnd)
+    }
   };
 };
 
@@ -118,27 +168,39 @@ const buildComparisonReportText = (params: {
   const previousBalance = params.previous.incomeTotal - params.previous.expenseTotal - previousSaving;
   const currentTopCategory = params.current.categoryBreakdown[0];
   const previousTopCategory = params.previous.categoryBreakdown[0];
+  const expenseDelta = params.current.expenseTotal - params.previous.expenseTotal;
+  const balanceDelta = currentBalance - previousBalance;
+  const expensePercentText =
+    params.previous.expenseTotal > 0
+      ? ` (${expenseDelta > 0 ? "+" : ""}${((expenseDelta / params.previous.expenseTotal) * 100).toFixed(1)}%)`
+      : "";
 
   return [
-    `Ringkasan ${params.current.periodLabel} dibanding ${params.previous.periodLabel}:`,
-    `- Income sekarang: ${formatMoney(params.current.incomeTotal)}`,
-    `- Expense sekarang: ${formatMoney(params.current.expenseTotal)}`,
-    currentSaving > 0 ? `- Saving/goal sekarang: ${formatMoney(currentSaving)}` : null,
-    `- Sisa sekarang: ${formatMoney(currentBalance)}`,
-    `- Income sebelumnya: ${formatMoney(params.previous.incomeTotal)}`,
-    `- Expense sebelumnya: ${formatMoney(params.previous.expenseTotal)}`,
-    previousSaving > 0 ? `- Saving/goal sebelumnya: ${formatMoney(previousSaving)}` : null,
-    `- Sisa sebelumnya: ${formatMoney(previousBalance)}`,
-    `- Perubahan expense: ${buildDeltaLabel(params.current.expenseTotal - params.previous.expenseTotal)}`,
-    `- Perubahan sisa: ${buildDeltaLabel(currentBalance - previousBalance)}`,
+    `Perbandingan ${params.current.periodLabel} vs ${params.previous.periodLabel}:`,
+    "",
+    `Bulan ini (${params.current.periodLabel}):`,
+    `- Income: ${formatMoney(params.current.incomeTotal)}`,
+    `- Expense: ${formatMoney(params.current.expenseTotal)}`,
+    currentSaving > 0 ? `- Saving/goal: ${formatMoney(currentSaving)}` : null,
+    `- Sisa: ${formatMoney(currentBalance)}`,
     currentTopCategory
-      ? `- Top kategori sekarang: ${currentTopCategory.category} (${formatMoney(currentTopCategory.total)})`
-      : null,
+      ? `- Top kategori: ${currentTopCategory.category} (${formatMoney(currentTopCategory.total)})`
+      : "- Top kategori: -",
+    "",
+    `Bulan lalu (${params.previous.periodLabel}):`,
+    `- Income: ${formatMoney(params.previous.incomeTotal)}`,
+    `- Expense: ${formatMoney(params.previous.expenseTotal)}`,
+    previousSaving > 0 ? `- Saving/goal: ${formatMoney(previousSaving)}` : null,
+    `- Sisa: ${formatMoney(previousBalance)}`,
     previousTopCategory
-      ? `- Top kategori sebelumnya: ${previousTopCategory.category} (${formatMoney(previousTopCategory.total)})`
-      : null
+      ? `- Top kategori: ${previousTopCategory.category} (${formatMoney(previousTopCategory.total)})`
+      : "- Top kategori: -",
+    "",
+    "Perubahan:",
+    `- Expense: ${buildDeltaLabel(expenseDelta)}${expensePercentText}`,
+    `- Sisa: ${buildDeltaLabel(balanceDelta)}`
   ]
-    .filter(Boolean)
+    .filter((line) => line !== null)
     .join("\n");
 };
 
@@ -150,21 +212,60 @@ export const buildReportResponse = async (
     typeof paramsOrPeriod === "string" ? { period: paramsOrPeriod } : paramsOrPeriod;
 
   if (params.comparisonRange) {
+    let resolvedComparison = params.comparisonRange;
+    if (params.period === "monthly" && !params.dateRange) {
+      const resolved = await resolveMonthlyReportRange({
+        userId,
+        reportMode: (params as { reportMode?: ReportRangeMode }).reportMode,
+        dateRange: null
+      });
+      resolvedComparison = buildFinancialComparisonRange(resolved.dateRange, resolved.cycleStartDay);
+    }
+
     const [currentData, previousData] = await Promise.all([
-      getUserReportData(userId, params.period, params.comparisonRange.current),
-      getUserReportData(userId, params.period, params.comparisonRange.previous)
+      getUserReportData(userId, params.period, resolvedComparison.current),
+      getUserReportData(userId, params.period, resolvedComparison.previous)
     ]);
 
-    if (
+    const currentEmpty =
       currentData.incomeTotal === 0 &&
       currentData.expenseTotal === 0 &&
-      (currentData.savingTotal ?? 0) === 0 &&
+      (currentData.savingTotal ?? 0) === 0;
+
+    const previousEmpty =
       previousData.incomeTotal === 0 &&
       previousData.expenseTotal === 0 &&
-      (previousData.savingTotal ?? 0) === 0
-    ) {
+      (previousData.savingTotal ?? 0) === 0;
+
+    if (currentEmpty && previousEmpty) {
       return {
-        replyText: `Belum ada transaksi untuk report ${params.comparisonRange.current.label}.`
+        replyText: `Belum ada transaksi untuk report ${resolvedComparison.current.label}.`
+      };
+    }
+
+    if (previousEmpty) {
+      return {
+        replyText: [
+          `Bulan lalu (${resolvedComparison.previous.label}) tidak ada transaksi yang tercatat.`,
+          `Jadi tidak bisa dibandingkan dengan bulan ini (${resolvedComparison.current.label}).`,
+          "",
+          `Ringkasan bulan ini (${resolvedComparison.current.label}):`,
+          `- Income: ${formatMoney(currentData.incomeTotal)}`,
+          `- Expense: ${formatMoney(currentData.expenseTotal)}`,
+          (currentData.savingTotal ?? 0) > 0
+            ? `- Saving/goal: ${formatMoney(currentData.savingTotal ?? 0)}`
+            : null,
+          `- Sisa: ${formatMoney(currentData.incomeTotal - currentData.expenseTotal - (currentData.savingTotal ?? 0))}`
+        ].filter((line) => line !== null).join("\n")
+      };
+    }
+
+    if (currentEmpty) {
+      return {
+        replyText: [
+          `Bulan ini (${resolvedComparison.current.label}) belum ada transaksi yang tercatat.`,
+          `Tidak bisa dibandingkan dengan bulan lalu (${resolvedComparison.previous.label}).`
+        ].join("\n")
       };
     }
 
@@ -179,10 +280,10 @@ export const buildReportResponse = async (
   const resolvedMonthlyRange =
     params.period === "monthly"
       ? await resolveMonthlyReportRange({
-          userId,
-          reportMode: params.reportMode,
-          dateRange: params.dateRange ?? null
-        })
+        userId,
+        reportMode: params.reportMode,
+        dateRange: params.dateRange ?? null
+      })
       : { dateRange: params.dateRange ?? null, note: null };
   const reportData = await getUserReportData(userId, params.period, resolvedMonthlyRange.dateRange);
   const attachMonthlyPdf = shouldAttachMonthlyPdf(

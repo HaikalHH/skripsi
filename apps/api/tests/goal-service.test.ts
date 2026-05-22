@@ -197,11 +197,8 @@ describe("goal service", () => {
 
   it("tracks explicit contribution per goal", async () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-05-10T10:00:00.000Z"));
+    vi.setSystemTime(new Date("2026-05-21T10:00:00.000Z"));
 
-    const now = new Date();
-    const twoMonthsAgo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 2, 15, 10, 0, 0, 0));
-    const twentyDaysAgo = new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000);
     hoisted.store.financialGoals = [
       {
         id: "goal_1",
@@ -220,14 +217,14 @@ describe("goal service", () => {
         userId: "user_1",
         goalId: "goal_1",
         amount: 2000000,
-        occurredAt: twoMonthsAgo
+        occurredAt: new Date("2026-03-15T10:00:00.000Z")
       },
       {
         id: "contrib_seed_2",
         userId: "user_1",
         goalId: "goal_1",
         amount: 2500000,
-        occurredAt: twentyDaysAgo
+        occurredAt: new Date("2026-04-15T10:00:00.000Z")
       }
     ];
 
@@ -236,11 +233,13 @@ describe("goal service", () => {
       goalType: FinancialGoalType.HOUSE
     });
 
+    vi.useRealTimers();
+
     expect(result.contributionAmount).toBe(500000);
     expect(hoisted.store.goalContributions).toHaveLength(3);
     expect(result.goalStatus.currentProgress).toBe(5000000);
     expect(result.goalStatus.progressSource).toBe("GOAL_CONTRIBUTIONS");
-    expect(result.goalStatus.goals[0]?.recentContributionTotal).toBe(3000000);
+    expect(result.goalStatus.goals[0]?.recentContributionTotal).toBe(500000);
     expect(result.goalStatus.goals[0]?.recommendedMonthlyContribution).toBe(6000000);
     expect(result.goalStatus.goals[0]?.contributionActiveMonths).toBe(3);
     expect(result.goalStatus.goals[0]?.contributionMonthStreak).toBe(3);

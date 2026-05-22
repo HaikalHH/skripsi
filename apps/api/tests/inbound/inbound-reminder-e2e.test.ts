@@ -61,6 +61,7 @@ const hoisted = vi.hoisted(() => {
           currency: data.currency ?? "IDR",
           monthlyBudget: data.monthlyBudget ?? null,
           registrationStatus: data.registrationStatus ?? "PENDING",
+          onboardingStatus: data.onboardingStatus ?? "NOT_STARTED",
           onboardingStep: data.onboardingStep ?? "WAIT_REGISTER",
           onboardingCompletedAt: data.onboardingCompletedAt ?? null,
           createdAt: new Date(store.now),
@@ -89,6 +90,12 @@ const hoisted = vi.hoisted(() => {
       },
       findMany: async ({ where, select }: any) => {
         let users = [...store.users];
+        if (where?.registrationStatus) {
+          users = users.filter((item) => item.registrationStatus === where.registrationStatus);
+        }
+        if (where?.onboardingStatus) {
+          users = users.filter((item) => item.onboardingStatus === where.onboardingStatus);
+        }
         if (where?.id?.in) {
           const idSet = new Set(where.id.in);
           users = users.filter((item) => idSet.has(item.id));
@@ -454,6 +461,8 @@ vi.mock("@/lib/services/ai/message-normalization", () => ({
 import { claimPendingOutboundMessages } from "@/lib/services/messaging/outbound";
 import { processInboundBody } from "@/lib/inbound/pipeline/process-inbound";
 import { runProactiveReminders } from "@/lib/services/reminders/dispatch";
+import { getWeeklySpendingAlert } from "@/lib/services/reminders/dispatch/weekly-spending-alert";
+import { buildGoalReachedAlertText } from "@/lib/services/reminders/dispatch/goal-alert";
 
 const store = hoisted.store;
 
@@ -467,6 +476,7 @@ const seedData = () => {
       salaryDate: 25,
       monthlyBudget: null,
       registrationStatus: "COMPLETED",
+      onboardingStatus: "COMPLETED",
       onboardingStep: "COMPLETED",
       onboardingCompletedAt: new Date("2026-02-01T00:00:00.000Z"),
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -604,6 +614,42 @@ describe("inbound + reminder e2e (mock DB)", () => {
     expect(saved.body.replyText).toContain("Warning: budget kategori makan hampir habis");
     expect(store.transactions).toHaveLength(5);
     expect(store.transactions.at(-1)?.amount).toBe(50_000);
+    expect(store.transactions.at(-1)?.category).toBe("Food & Drink");
+  });
+
+  it("TC-244 returns budget exceeded alert after expense passes category limit", async () => {
+    store.extractionResult = {
+      intent: "RECORD_TRANSACTION",
+      type: "EXPENSE",
+      amount: 200_000,
+      category: "makan",
+      merchant: null,
+      note: null,
+      occurredAt: "2026-02-24T12:00:00.000Z",
+      reportPeriod: null
+    } as any;
+
+    const result = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "makan 200rb",
+      sentAt: "2026-02-24T12:00:00.000Z"
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.body.replyText).toContain("Draf transaksi belum disimpan");
+
+    const saved = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "simpan",
+      sentAt: "2026-02-24T12:00:10.000Z"
+    });
+
+    expect(saved.status).toBe(200);
+    expect(saved.body.replyText).toContain("Transaksi berhasil dicatat");
+    expect(saved.body.replyText).toContain("Alert: budget kategori Food & Drink terlampaui");
+    expect(store.transactions.at(-1)?.amount).toBe(200_000);
     expect(store.transactions.at(-1)?.category).toBe("Food & Drink");
   });
 
@@ -2698,10 +2744,120 @@ describe("inbound + reminder e2e (mock DB)", () => {
     expect(secondRun.queued).toBe(0);
   });
 
+  it("TC-242 queues proactive reminders only for completed onboarding users", async () => {
+    store.users = [
+      {
+        id: "user_pending",
+        waNumber: "6281110002",
+        name: "Pending User",
+        currency: "IDR",
+        salaryDate: 25,
+        monthlyBudget: null,
+        registrationStatus: "PENDING",
+        onboardingStatus: "IN_PROGRESS",
+        onboardingStep: "ASK_PRIMARY_GOAL",
+        onboardingCompletedAt: null,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-01-01T00:00:00.000Z")
+      },
+      {
+        id: "user_completed",
+        waNumber: "6281110003",
+        name: "Completed User",
+        currency: "IDR",
+        salaryDate: 25,
+        monthlyBudget: null,
+        registrationStatus: "COMPLETED",
+        onboardingStatus: "COMPLETED",
+        onboardingStep: "COMPLETED",
+        onboardingCompletedAt: new Date("2026-02-01T00:00:00.000Z"),
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-01-01T00:00:00.000Z")
+      }
+    ];
+    store.transactions = [
+      {
+        id: "tx_pending_daily",
+        userId: "user_pending",
+        type: "EXPENSE",
+        amount: 100_000,
+        category: "Food & Drink",
+        merchant: null,
+        note: null,
+        occurredAt: new Date("2026-02-24T10:00:00.000Z"),
+        source: "TEXT",
+        rawText: "pending makan",
+        createdAt: new Date("2026-02-24T10:00:00.000Z")
+      },
+      {
+        id: "tx_completed_daily",
+        userId: "user_completed",
+        type: "EXPENSE",
+        amount: 125_000,
+        category: "Food & Drink",
+        merchant: null,
+        note: null,
+        occurredAt: new Date("2026-02-24T10:00:00.000Z"),
+        source: "TEXT",
+        rawText: "completed makan",
+        createdAt: new Date("2026-02-24T10:00:00.000Z")
+      }
+    ];
+
+    const result = await runProactiveReminders(new Date("2026-02-25T00:05:00.000Z"));
+
+    expect(result.processedUsers).toBe(1);
+    expect(result.queued).toBe(1);
+    expect(store.outboundMessages).toHaveLength(1);
+    expect(store.outboundMessages[0]?.userId).toBe("user_completed");
+    expect(store.reminderEvents).toHaveLength(1);
+    expect(store.reminderEvents[0]?.userId).toBe("user_completed");
+  });
+
   it("does not queue recap outside jam 7 pagi WIB", async () => {
     const result = await runProactiveReminders(new Date("2026-02-24T12:00:00.000Z"));
     expect(result.queued).toBe(0);
     expect(store.outboundMessages).toHaveLength(0);
+  });
+
+  it("TC-247 skips proactive reminders during active quiet hours", async () => {
+    store.transactions.push({
+      id: "tx_quiet_daily",
+      userId: "user_1",
+      type: "EXPENSE",
+      amount: 125_000,
+      category: "Food & Drink",
+      merchant: null,
+      note: null,
+      occurredAt: new Date("2026-02-24T10:00:00.000Z"),
+      source: "TEXT",
+      rawText: "makan kemarin",
+      createdAt: new Date("2026-02-24T10:00:00.000Z")
+    });
+    store.reminderPreferences = [
+      {
+        id: "pref_quiet",
+        userId: "user_1",
+        budgetEnabled: true,
+        weeklyEnabled: true,
+        weeklyReviewEnabled: true,
+        recurringEnabled: true,
+        cashflowEnabled: true,
+        goalEnabled: true,
+        monthlyClosingEnabled: true,
+        quietHoursStart: 7,
+        quietHoursEnd: 8,
+        minIntervalHours: 24,
+        maxPerDay: 3,
+        snoozedUntil: null
+      }
+    ];
+
+    const result = await runProactiveReminders(new Date("2026-02-25T00:05:00.000Z"));
+
+    expect(result.queued).toBe(0);
+    expect(store.outboundMessages).toHaveLength(0);
+    expect(store.reminderEvents).toHaveLength(0);
   });
 
   it("skips proactive reminders while snooze is active", async () => {
@@ -2726,6 +2882,57 @@ describe("inbound + reminder e2e (mock DB)", () => {
 
     const result = await runProactiveReminders(new Date("2026-02-25T00:05:00.000Z"));
     expect(result.queued).toBe(0);
+  });
+
+  it("TC-249 skips proactive reminders when max per day is reached", async () => {
+    store.transactions.push({
+      id: "tx_max_daily",
+      userId: "user_1",
+      type: "EXPENSE",
+      amount: 125_000,
+      category: "Food & Drink",
+      merchant: null,
+      note: null,
+      occurredAt: new Date("2026-02-24T10:00:00.000Z"),
+      source: "TEXT",
+      rawText: "makan kemarin",
+      createdAt: new Date("2026-02-24T10:00:00.000Z")
+    });
+    store.reminderPreferences = [
+      {
+        id: "pref_max",
+        userId: "user_1",
+        budgetEnabled: true,
+        weeklyEnabled: true,
+        weeklyReviewEnabled: true,
+        recurringEnabled: true,
+        cashflowEnabled: true,
+        goalEnabled: true,
+        monthlyClosingEnabled: true,
+        quietHoursStart: null,
+        quietHoursEnd: null,
+        minIntervalHours: 24,
+        maxPerDay: 1,
+        snoozedUntil: null
+      }
+    ];
+    store.reminderEvents = [
+      {
+        id: "re_today",
+        userId: "user_1",
+        reminderType: "weekly_review",
+        marker: "Recap Harian 2026-02-24",
+        messageText: "Recap Harian 2026-02-24\nSudah pernah dikirim.",
+        sentAt: new Date("2026-02-24T18:00:00.000Z"),
+        createdAt: new Date("2026-02-24T18:00:00.000Z")
+      }
+    ];
+
+    const result = await runProactiveReminders(new Date("2026-02-25T00:05:00.000Z"));
+
+    expect(result.queued).toBe(0);
+    expect(store.outboundMessages).toHaveLength(0);
+    expect(store.reminderEvents).toHaveLength(1);
   });
 
   it("does not queue legacy proactive reminders by default", async () => {
@@ -2768,6 +2975,56 @@ describe("inbound + reminder e2e (mock DB)", () => {
     expect(secondRun.queued).toBe(0);
     expect(store.reminderEvents.length).toBe(firstRun.queued);
   });
+
+  it("TC-245 builds weekly spending spike alert when current week rises significantly", async () => {
+    store.transactions = [
+      {
+        id: "tx_prev_week",
+        userId: "user_1",
+        type: "EXPENSE",
+        amount: 400_000,
+        category: "Food & Drink",
+        merchant: null,
+        note: null,
+        occurredAt: new Date("2026-02-15T10:00:00.000Z"),
+        source: "TEXT",
+        rawText: "makan minggu lalu",
+        createdAt: new Date("2026-02-15T10:00:00.000Z")
+      },
+      {
+        id: "tx_current_week",
+        userId: "user_1",
+        type: "EXPENSE",
+        amount: 700_000,
+        category: "Food & Drink",
+        merchant: null,
+        note: null,
+        occurredAt: new Date("2026-02-20T10:00:00.000Z"),
+        source: "TEXT",
+        rawText: "makan minggu ini",
+        createdAt: new Date("2026-02-20T10:00:00.000Z")
+      }
+    ];
+
+    const alert = await getWeeklySpendingAlert("user_1", new Date("2026-02-25T00:05:00.000Z"));
+
+    expect(alert?.marker).toBe("Reminder Mingguan 2026-02-19");
+    expect(alert?.message).toContain("Reminder Mingguan: pengeluaran 7 hari terakhir");
+  });
+
+  it("TC-246 builds goal reached alert text when progress reaches target", () => {
+    const alertText = buildGoalReachedAlertText({
+      targetAmount: 1_000_000,
+      currentProgress: 1_250_000
+    });
+
+    expect(alertText).toContain("Target tabungan tercapai");
+    expect(alertText).toContain("Rp1.250.000");
+    expect(alertText).toContain("Rp1.000.000");
+  });
+
+  it.todo("TC-245 BUG: weekly spending spike helper is not wired into runProactiveReminders dispatch sweep");
+  it.todo("TC-246 BUG: goal reached alert helper is not wired into runProactiveReminders dispatch sweep");
 
   it("answers deeper habit analytics queries from natural language", async () => {
     store.transactions = [
