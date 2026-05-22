@@ -342,12 +342,11 @@ export const extractComparisonRange = (params: {
   if (params.rangeWindow) {
     return buildComparisonRangeFromCurrent(
       buildWindowRange(params.rangeWindow, now),
-      `${params.rangeWindow.count} ${
-        params.rangeWindow.unit === "month"
-          ? "bulan"
-          : params.rangeWindow.unit === "week"
-            ? "minggu"
-            : "hari"
+      `${params.rangeWindow.count} ${params.rangeWindow.unit === "month"
+        ? "bulan"
+        : params.rangeWindow.unit === "week"
+          ? "minggu"
+          : "hari"
       } sebelumnya`
     );
   }
@@ -356,7 +355,31 @@ export const extractComparisonRange = (params: {
     return buildComparisonRangeFromCurrent(params.dateRange);
   }
 
-  return null;
+  const wantsWeekly = includesAnyPhrase(normalized, ["minggu lalu", "minggu kemarin", "pekan lalu"]);
+  const wantsDaily = includesAnyPhrase(normalized, ["kemarin", "hari lalu", "yesterday"]);
+
+  if (wantsDaily) {
+    return buildComparisonRangeFromCurrent(
+      { start: startOfUtcDay(now), end: endOfUtcDay(now), label: "hari ini" },
+      "kemarin"
+    );
+  }
+
+  if (wantsWeekly) {
+    const weekStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - now.getUTCDay() + 1, 0, 0, 0, 0));
+    const weekEnd = endOfUtcDay(now);
+    return buildComparisonRangeFromCurrent(
+      { start: weekStart, end: weekEnd, label: "minggu ini" },
+      "minggu lalu"
+    );
+  }
+
+  const currentMonthRange = buildMonthDateRange(now.getUTCFullYear(), now.getUTCMonth());
+  const previousMonthRange = buildMonthDateRange(now.getUTCFullYear(), now.getUTCMonth() - 1);
+  return {
+    current: currentMonthRange,
+    previous: previousMonthRange
+  };
 };
 
 export const stripDatePhrases = (value: string) =>
@@ -532,12 +555,11 @@ export const resolveComparisonRanges = (params: {
     const current = buildWindowRange(params.rangeWindow, params.now);
     const comparison = buildComparisonRangeFromCurrent(
       current,
-      `${params.rangeWindow.count} ${
-        params.rangeWindow.unit === "month"
-          ? "bulan"
-          : params.rangeWindow.unit === "week"
-            ? "minggu"
-            : "hari"
+      `${params.rangeWindow.count} ${params.rangeWindow.unit === "month"
+        ? "bulan"
+        : params.rangeWindow.unit === "week"
+          ? "minggu"
+          : "hari"
       } sebelumnya`
     );
     return {

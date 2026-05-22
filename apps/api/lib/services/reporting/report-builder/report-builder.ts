@@ -239,7 +239,7 @@ export const parseCategoryReportQuery = (rawText: string): CategoryReportQuery |
         ? detectComparisonPeriod(text)
         : mode === "EXPLAIN_CHANGE"
           ? detectRelativePeriod(text, "monthly")
-        : parseReportPeriod(
+          : parseReportPeriod(
             /\b(hari ini|today|harian|daily)\b/i.test(text)
               ? "daily"
               : /\b(minggu ini|pekan ini|weekly|mingguan)\b/i.test(text)
@@ -261,13 +261,19 @@ export const parseGeneralReportQuery = (rawText: string): GeneralReportQuery | n
   if (!text) return null;
 
   const normalized = text.toLowerCase();
-  if (!includesAnyPhrase(normalized, ["laporan", "report", "ringkasan", "summary", "rekap"])) {
+
+  const isComparisonRequest =
+    includesAnyPhrase(normalized, COMPARE_TERMS) &&
+    includesAnyPhrase(normalized, PREVIOUS_PERIOD_TERMS);
+
+  if (!isComparisonRequest && !includesAnyPhrase(normalized, ["laporan", "report", "ringkasan", "summary", "rekap"])) {
     return null;
   }
 
   const rangeWindow = extractRangeWindow(text);
   const absoluteDateRange = extractAbsoluteDateRange(text);
-  const namedDateRange = absoluteDateRange ? null : extractNamedDateRange(text);
+
+  const namedDateRange = absoluteDateRange || isComparisonRequest ? null : extractNamedDateRange(text);
   const dateRange =
     absoluteDateRange ?? namedDateRange ?? (rangeWindow ? buildWindowRange(rangeWindow) : null);
   const comparisonRange = extractComparisonRange({
@@ -789,10 +795,8 @@ export const buildCategoryDetailReport = async (params: {
       previousTotal > 0 ? ` (${((delta / previousTotal) * 100).toFixed(1)}%)` : "";
 
     return [
-      `Pengeluaran ${normalizedCategory}${buildFilterPhrase(filterText)}${
-        hasCustomComparisonContext ? ` untuk ${currentRange.label}` : ""
-      } ${
-        delta > 0 ? "naik" : delta < 0 ? "turun" : "stabil"
+      `Pengeluaran ${normalizedCategory}${buildFilterPhrase(filterText)}${hasCustomComparisonContext ? ` untuk ${currentRange.label}` : ""
+      } ${delta > 0 ? "naik" : delta < 0 ? "turun" : "stabil"
       } dibanding ${hasCustomComparisonContext ? previousRange.label : "periode sebelumnya"}.`,
       `- Periode sekarang${hasCustomComparisonContext ? ` (${currentRange.label})` : ""}: ${formatMoney(
         currentTotal
@@ -832,9 +836,8 @@ export const buildCategoryDetailReport = async (params: {
     const delta = currentTotal - previousTotal;
 
     if (delta <= 0) {
-      return `Pengeluaran ${normalizedCategory}${buildFilterPhrase(filterText)}${
-        hasCustomComparisonContext ? ` untuk ${currentRange.label}` : ""
-      } tidak naik dibanding ${hasCustomComparisonContext ? previousRange.label : "periode sebelumnya"}, jadi belum ada kenaikan yang perlu dijelaskan.`;
+      return `Pengeluaran ${normalizedCategory}${buildFilterPhrase(filterText)}${hasCustomComparisonContext ? ` untuk ${currentRange.label}` : ""
+        } tidak naik dibanding ${hasCustomComparisonContext ? previousRange.label : "periode sebelumnya"}, jadi belum ada kenaikan yang perlu dijelaskan.`;
     }
 
     const currentAverage = calculateAverageTransactionAmount(currentMatching);
@@ -868,15 +871,15 @@ export const buildCategoryDetailReport = async (params: {
       `- Porsi recurring: ${formatMoney(previousRecurringTotal)} -> ${formatMoney(currentRecurringTotal)}`,
       ...(topExisting
         ? [
-            `- Merchant lama dengan dorongan terbesar: ${topExisting.label} (+${formatMoney(topExisting.delta)})`
-          ]
+          `- Merchant lama dengan dorongan terbesar: ${topExisting.label} (+${formatMoney(topExisting.delta)})`
+        ]
         : []),
       ...(topNewEntries.length
         ? [
-            `- Merchant baru yang ikut mendorong kenaikan: ${topNewEntries
-              .map((entry) => `${entry.label} (+${formatMoney(entry.delta)})`)
-              .join(", ")}`
-          ]
+          `- Merchant baru yang ikut mendorong kenaikan: ${topNewEntries
+            .map((entry) => `${entry.label} (+${formatMoney(entry.delta)})`)
+            .join(", ")}`
+        ]
         : []),
       ...deltas.map(
         (entry, index) =>
@@ -1012,8 +1015,7 @@ export const buildCategoryDetailReport = async (params: {
       .slice(0, limit);
 
     return [
-      `${
-        mode === "TOP_MERCHANTS_BY_COUNT" ? "Merchant paling sering" : `Top ${topMerchants.length} merchant`
+      `${mode === "TOP_MERCHANTS_BY_COUNT" ? "Merchant paling sering" : `Top ${topMerchants.length} merchant`
       } di bucket ${normalizedCategory}${buildFilterPhrase(filterText)} untuk ${periodLabel}:`,
       ...topMerchants.map(
         (merchant, index) =>
@@ -1155,21 +1157,19 @@ export const buildGeneralAnalyticsReport = async (params: {
       });
 
     return [
-      `Kategori dengan kenaikan terbesar dibanding ${
-        hasCustomComparisonContext ? previousRange.label : "periode sebelumnya"
+      `Kategori dengan kenaikan terbesar dibanding ${hasCustomComparisonContext ? previousRange.label : "periode sebelumnya"
       } adalah ${topChange.category}.`,
       `- Periode sekarang${hasCustomComparisonContext ? ` (${currentRange.label})` : ""}: ${formatMoney(topChange.current)}`,
       `- Periode sebelumnya${hasCustomComparisonContext ? ` (${previousRange.label})` : ""}: ${formatMoney(topChange.previous)}`,
-      `- Kenaikan: ${formatMoney(topChange.delta)}${
-        topChange.percent != null ? ` (${topChange.percent.toFixed(1)}%)` : ""
+      `- Kenaikan: ${formatMoney(topChange.delta)}${topChange.percent != null ? ` (${topChange.percent.toFixed(1)}%)` : ""
       }`,
       `- Driver utama: ${topCategoryDriver}`,
       ...(topCategoryDeltaSnapshot.deltas[0]
         ? [
-            `- Merchant paling mendorong: ${topCategoryDeltaSnapshot.deltas[0].label} (+${formatMoney(
-              topCategoryDeltaSnapshot.deltas[0].delta
-            )})`
-          ]
+          `- Merchant paling mendorong: ${topCategoryDeltaSnapshot.deltas[0].label} (+${formatMoney(
+            topCategoryDeltaSnapshot.deltas[0].delta
+          )})`
+        ]
         : []),
       ...(topLines.length ? ["- Ranking kenaikan tertinggi:", ...topLines] : [])
     ].join("\n");
@@ -1463,14 +1463,12 @@ export const buildGeneralAnalyticsReport = async (params: {
     `Top recurring expense untuk ${periodLabel}:`,
     ...topRecurring.map(
       (entry, index) =>
-        `${index + 1}. ${entry.label} | ${entry.bucket} | ${formatMoney(entry.total)} | ${entry.count} transaksi${
-          entry.isRecurringLikeMerchant ? " | kemungkinan langganan" : ""
+        `${index + 1}. ${entry.label} | ${entry.bucket} | ${formatMoney(entry.total)} | ${entry.count} transaksi${entry.isRecurringLikeMerchant ? " | kemungkinan langganan" : ""
         } | ${buildRecurringCadenceLabel(entry.cadence)} | confidence ${Math.round(
           entry.confidenceScore * 100
-        )}%${
-          entry.nextExpectedAt
-            ? ` | prediksi berikutnya ${RECURRING_DATE_LABEL_FORMATTER.format(entry.nextExpectedAt)}`
-            : ""
+        )}%${entry.nextExpectedAt
+          ? ` | prediksi berikutnya ${RECURRING_DATE_LABEL_FORMATTER.format(entry.nextExpectedAt)}`
+          : ""
         }`
     )
   ].join("\n");
