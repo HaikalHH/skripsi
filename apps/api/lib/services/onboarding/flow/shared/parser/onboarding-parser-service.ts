@@ -54,20 +54,20 @@ export {
   getNumericAnswerMidpoint,
   isMoneyRangeAnswer,
   isNumericRangeAnswer,
+  parseAssetQuantityInput,
   parseAssetFreeText,
-  parseCryptoSymbolInput,
   parseDayOfMonth,
   parseGuidedOtherExpenseCategoryName,
   parseGuidedOtherExpenseInput,
   parseMoneyInput,
   parseMoneyInputPreservingRange,
-  parseMutualFundSymbolInput,
   parseStockSymbolInput
 } from "@/lib/services/onboarding/flow/shared/answers/value-parsers";
 
 export {
   getGoalTargetAnswerFromStoredValue,
   isStoredGoalTargetAnswer,
+  looksLikeGoalTargetDateInput,
   parseMonthYearInput,
   parseOptionalGoalTargetDate,
   type GoalTargetEvaluationStatus,

@@ -3,7 +3,7 @@ import { normalizeMarketSymbolForKind } from "@/lib/services/market/symbol";
 
 export const normalizeSpaces = (value: string) => value.trim().replace(/\s+/g, " ");
 
-export const normalizePortfolioSymbol = (kind: "stock" | "crypto" | "gold", value: string) =>
+export const normalizePortfolioSymbol = (kind: "stock" | "gold", value: string) =>
   normalizeMarketSymbolForKind(value, kind)?.canonicalSymbol ?? value.trim().toUpperCase();
 
 export const GRAM_FORMATTER = new Intl.NumberFormat("id-ID", {

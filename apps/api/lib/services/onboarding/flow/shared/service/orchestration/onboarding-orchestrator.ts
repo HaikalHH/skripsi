@@ -6,6 +6,7 @@ import {
   FinancialGoalType,
   GoalExecutionMode,
   GoalCalculationType,
+  IncomeStability,
   OnboardingQuestionKey,
   OnboardingStatus,
   OnboardingStep,
@@ -35,8 +36,10 @@ import {
 import { getPromptForStep } from "@/lib/services/onboarding/flow/get-prompt-for-step";
 import { getNextOnboardingStep } from "@/lib/services/onboarding/flow/next-step";
 import {
+  STEP_ACTIVE_INCOME_ADD_MORE,
   STEP_ACTIVE_INCOME_COUNT,
   STEP_ACTIVE_INCOME_CYCLE_CONFIRM,
+  STEP_ACTIVE_INCOME_CYCLE_SELECT,
   getActiveIncomeOnboardingState,
   syncActiveIncomeProfileFromSessions
 } from "@/lib/services/onboarding/flow/02-income/service/active-income-state";
@@ -49,7 +52,6 @@ import {
 import {
   buildAssetValuationNotes,
   buildGoldAssetName,
-  formatCryptoQuantity,
   formatQuantityValue,
   getGoldBrandLabel,
   getGoldKaratLabel,
@@ -57,11 +59,7 @@ import {
   getGoldPurityMultiplier,
   getGoldTypeLabel
 } from "@/lib/services/onboarding/flow/05-assets/service/asset-formatting";
-import {
-  getCurrentBatchAnswerValue,
-  isFinalAssetStep,
-  shouldAskManualMutualFundEstimatedValue
-} from "@/lib/services/onboarding/flow/05-assets/service/asset-state";
+import { isFinalAssetStep } from "@/lib/services/onboarding/flow/05-assets/service/asset-state";
 import type {
   GoldAssetBrandValue,
   GoldAssetKaratValue,
@@ -73,7 +71,7 @@ import type {
 import {
   buildInitialFinancialProfile,
   buildOnboardingPlanningAnalysis,
-  generateFinalTimelineCopy,
+  generateFinalTimelineReplyTexts,
   generateShortTargetEvaluationCopy,
   evaluateTargetAgainstCurrentPlan,
   type OnboardingPlanningAnalysis,
@@ -135,6 +133,10 @@ import {
   latestSessionForQuestion,
   normalizeText,
   parseAddMoreAnswer,
+  parseActiveIncomeAddMoreAnswer,
+  parseActiveIncomeCycleSelection,
+  parseActiveIncomeFrequency,
+  parseAssetQuantityInput,
   parseAssetSelections,
   parseAssetSelectionConflict,
   parseBooleanAnswer,
@@ -160,11 +162,10 @@ import {
   parseMonthYearInput,
   parseMoneyInput,
   parseMoneyInputPreservingRange,
+  looksLikeGoalTargetDateInput,
   parsePhoneInput,
   parsePersonalizationChoice,
   parseStockSymbolInput,
-  parseCryptoSymbolInput,
-  parseMutualFundSymbolInput,
   parseEmploymentTypes,
   isStoredGoalPriorityOrderAnswer,
   isStoredGoalTargetAnswer,
@@ -175,11 +176,7 @@ import {
   type SessionAnswerValue
 } from "@/lib/services/onboarding/flow/shared/parser/onboarding-parser-service";
 import { env } from "@/lib/env";
-import {
-  buildManualMutualFundSymbol,
-  getMarketQuoteBySymbol,
-  getMutualFundQuoteBySelection
-} from "@/lib/services/market/quote";
+import { getMarketQuoteBySymbol } from "@/lib/services/market/quote";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { formatMoney, formatPercent } from "@/lib/services/shared/money";
@@ -202,6 +199,7 @@ export type OnboardingState = {
   isCompleted: boolean;
   analysisText?: string | null;
   timelineText?: string | null;
+  timelineReplyTexts?: string[] | null;
 };
 
 type RuntimeContext = OnboardingPromptContext & {
@@ -214,6 +212,7 @@ type RuntimeContext = OnboardingPromptContext & {
     goalType: FinancialGoalType;
     goalName: string;
     targetAmount: number | null;
+    currentSavedAmount: number;
     targetMonth: number | null;
     targetYear: number | null;
     status: FinancialGoalStatus;
@@ -243,10 +242,6 @@ const ASSET_ONBOARDING_QUESTION_KEYS = new Set<OnboardingQuestionKey>([
   OnboardingQuestionKey.ASSET_GOLD_PLATFORM,
   OnboardingQuestionKey.ASSET_STOCK_SYMBOL,
   OnboardingQuestionKey.ASSET_STOCK_LOTS,
-  OnboardingQuestionKey.ASSET_CRYPTO_SYMBOL,
-  OnboardingQuestionKey.ASSET_CRYPTO_QUANTITY,
-  OnboardingQuestionKey.ASSET_MUTUAL_FUND_SYMBOL,
-  OnboardingQuestionKey.ASSET_MUTUAL_FUND_UNITS,
   OnboardingQuestionKey.ASSET_PROPERTY_NAME,
   OnboardingQuestionKey.ASSET_PROPERTY_ESTIMATED_VALUE
 ]);
@@ -257,6 +252,7 @@ const createState = (params: {
   prompt: OnboardingPrompt | null;
   analysisText?: string | null;
   timelineText?: string | null;
+  timelineReplyTexts?: string[] | null;
 }): OnboardingState => ({
   userId: params.user.id,
   onboardingStatus: params.user.onboardingStatus,
@@ -266,7 +262,8 @@ const createState = (params: {
   prompt: params.prompt,
   isCompleted: params.user.onboardingStatus === OnboardingStatus.COMPLETED,
   analysisText: params.analysisText ?? null,
-  timelineText: params.timelineText ?? null
+  timelineText: params.timelineText ?? null,
+  timelineReplyTexts: params.timelineReplyTexts ?? null
 });
 
 const buildValidationReply = (prompt: OnboardingPrompt, message: string): OnboardingResult =>
@@ -364,9 +361,6 @@ type OnboardingStepRedirect = {
 
 const buildOnboardingAssetError = (message: string) =>
   new Error(`${ONBOARDING_ASSET_ERROR_PREFIX}${message}`);
-
-const buildOnboardingStepRedirectError = (payload: OnboardingStepRedirect) =>
-  new Error(`${ONBOARDING_STEP_REDIRECT_PREFIX}${JSON.stringify(payload)}`);
 
 const getOnboardingAssetErrorMessage = (error: unknown) => {
   if (!(error instanceof Error)) return null;
@@ -549,6 +543,7 @@ const buildGoalTargetConfirmationSummary = (
             goalType: goal.goalType,
             goalName: goal.goalName,
             targetAmount: goal.targetAmount,
+            currentSavedAmount: goal.currentSavedAmount,
             targetMonth: goal.targetMonth,
             targetYear: goal.targetYear,
             status: goal.status
@@ -559,6 +554,7 @@ const buildGoalTargetConfirmationSummary = (
           goalType: goal.goalType,
           goalName: currentGoalName,
           targetAmount: targetAmount ?? goal.targetAmount,
+          currentSavedAmount: goal.currentSavedAmount,
           targetMonth: targetAnswer.month,
           targetYear: targetAnswer.year,
           status: goal.status
@@ -773,12 +769,6 @@ const parseGoalTargetPendingDecision = (
     return { kind: "confirm_custom_date", target: parsedMonthYear };
   }
 
-  if (!summary.deadlineMissedBeforeStart && (summary.gap ?? 0) <= 0) {
-    if (isPositiveAnswerConfirmation(rawAnswer)) return { kind: "confirm_original" };
-    if (isNegativeAnswerConfirmation(rawAnswer)) return { kind: "restart_amount" };
-    return { kind: "unknown" };
-  }
-
   if (
     text === "1" ||
     text === "tetap" ||
@@ -837,11 +827,16 @@ const parseGoalTargetPendingDecision = (
     return { kind: "confirm_ai_suggestion", target: summary.suggestedTarget };
   }
 
+  if (text === "2") {
+    return { kind: "confirm_original" };
+  }
+
   if (
-    text === "3" ||
+    text === "4" ||
     text.includes("ganti bulan") ||
     text.includes("ganti tahun") ||
     text.includes("ubah tanggal") ||
+    text.includes("ubah deadline") ||
     text.includes("ubah target") ||
     text.includes("bulan tahun lain")
   ) {
@@ -849,6 +844,7 @@ const parseGoalTargetPendingDecision = (
   }
 
   if (
+    text === "3" ||
     text.includes("ubah nominal") ||
     text.includes("ganti nominal") ||
     text.includes("nominalnya salah") ||
@@ -907,6 +903,7 @@ const buildRuntimeContext = async (userId: string, existingUser?: User): Promise
             userId,
             status: { in: [FinancialGoalStatus.ACTIVE, FinancialGoalStatus.PENDING_CALCULATION] }
           },
+          include: { contributions: { select: { amount: true } } },
           orderBy: [{ priorityOrder: "asc" }, { createdAt: "asc" }]
         })
       : Promise.resolve([])
@@ -1006,6 +1003,13 @@ const buildRuntimeContext = async (userId: string, existingUser?: User): Promise
       goalType: goal.goalType,
       goalName: goal.goalName,
       targetAmount: toNumberOrNull(goal.targetAmount),
+      currentSavedAmount: Array.isArray(goal.contributions)
+        ? goal.contributions.reduce(
+            (sum: number, contribution: { amount?: unknown }) =>
+              sum + (toNumberOrNull(contribution.amount) ?? 0),
+            0
+          )
+        : 0,
       targetMonth: goal.targetMonth ?? null,
       targetYear: goal.targetYear ?? null,
       status: goal.status,
@@ -1027,12 +1031,12 @@ const buildRuntimeContext = async (userId: string, existingUser?: User): Promise
     pendingAssetStep: pendingAssetDetail?.step ?? null,
     currentAssetType: getCurrentAssetType(confirmedSessions, user.onboardingStep),
     currentGoldType: getCurrentGoldType(confirmedSessions),
-    hasCurrentMutualFundUnits:
-      getCurrentBatchAnswerValue<number>(confirmedSessions, OnboardingQuestionKey.ASSET_MUTUAL_FUND_UNITS) != null,
     expenseAvailable: Boolean(activePlan || monthlyExpenseTotal != null),
     hasExpenseDependentGoal: hasExpenseDependentGoalSelection(confirmedSessions),
     goalExpenseStrategy: getGoalExpenseStrategy(confirmedSessions),
+    activeIncomeMode: activeIncomeState.activeIncomeMode,
     activeIncomeCount: activeIncomeState.activeIncomeCount,
+    activeIncomePaydays: activeIncomeState.activeIncomePaydays,
     activeIncomeAmountCount: activeIncomeState.activeIncomeAmounts.length,
     activeIncomePaydayCount: activeIncomeState.activeIncomePaydays.length,
     activeIncomeLatestPayday: activeIncomeState.activeIncomeLatestPayday,
@@ -1402,77 +1406,6 @@ const buildAssetCreatePayload = async (
         })
       };
     }
-    case OnboardingStep.ASK_ASSET_CRYPTO_QUANTITY: {
-      const symbol =
-        getLatestAnswerValue<string>(context, OnboardingQuestionKey.ASSET_CRYPTO_SYMBOL) ??
-        getLatestAssetName(context.sessions, OnboardingQuestionKey.ASSET_NAME);
-      if (!symbol) {
-        throw buildOnboardingAssetError("Saya belum nangkep crypto yang dimaksud. Coba kirim lagi simbolnya ya Boss.");
-      }
-
-      let quote;
-      try {
-        quote = await getMarketQuoteBySymbol(symbol);
-      } catch {
-        throw buildOnboardingAssetError("Crypto ini belum ketemu. Coba pakai simbol seperti `BTC`, `ETH`, atau `SOL` ya Boss.");
-      }
-      const quantityAnswer = normalizedAnswer as number | NumericRangeAnswer;
-      const quantity = getNumericAnswerValue(quantityAnswer);
-      if (!quantity || quantity <= 0) {
-        throw buildOnboardingAssetError("Jumlah crypto belum lengkap. Jawab lagi pertanyaan yang ini ya Boss.");
-      }
-      return {
-        assetType: AssetType.CRYPTO,
-        assetName: quote.symbol,
-        symbol: quote.symbol,
-        quantity,
-        unit: "coin",
-        unitPrice: quote.price,
-        estimatedValue: Math.round(quote.price * quantity),
-        notes: buildAssetValuationNotes("MARKET_LIVE", {
-          priceSource: quote.source,
-          ...buildNumericRangeNote("reportedQuantityRange", quantityAnswer)
-        })
-      };
-    }
-    case OnboardingStep.ASK_ASSET_MUTUAL_FUND_UNITS: {
-      const rawSelection =
-        getLatestAnswerValue<string>(context, OnboardingQuestionKey.ASSET_MUTUAL_FUND_SYMBOL) ??
-        getLatestAssetName(context.sessions, OnboardingQuestionKey.ASSET_NAME);
-      if (!rawSelection) {
-        throw buildOnboardingAssetError("Saya belum nangkep nama atau kode reksa dananya. Jawab lagi yang ini ya Boss.");
-      }
-
-      let quote;
-      try {
-        quote = await getMutualFundQuoteBySelection(rawSelection);
-      } catch {
-        throw buildOnboardingStepRedirectError({
-          step: OnboardingStep.ASK_ASSET_ESTIMATED_VALUE,
-          message:
-            "Produk reksa dana ini belum ketemu data NAB terbarunya. Saya catat unitnya dulu, sekarang kirim estimasi total nilainya ya Boss."
-        });
-      }
-      const quantityAnswer = normalizedAnswer as number | NumericRangeAnswer;
-      const quantity = getNumericAnswerValue(quantityAnswer);
-      if (!quantity || quantity <= 0) {
-        throw buildOnboardingAssetError("Jumlah unit reksa dananya belum lengkap. Jawab lagi pertanyaan yang ini ya Boss.");
-      }
-      return {
-        assetType: AssetType.MUTUAL_FUND,
-        assetName: quote.displayName,
-        symbol: quote.symbol,
-        quantity,
-        unit: "unit",
-        unitPrice: quote.price,
-        estimatedValue: Math.round(quote.price * quantity),
-        notes: buildAssetValuationNotes("NAV_DELAYED", {
-          rawSelection,
-          priceSource: quote.source,
-          ...buildNumericRangeNote("reportedUnitRange", quantityAnswer)
-        })
-      };
-    }
     case OnboardingStep.ASK_ASSET_PROPERTY_ESTIMATED_VALUE: {
       const assetName =
         getLatestAnswerValue<string>(context, OnboardingQuestionKey.ASSET_PROPERTY_NAME) ??
@@ -1524,58 +1457,6 @@ const buildAssetCreatePayload = async (
         context = {
           ...context,
           user: { ...context.user, onboardingStep: OnboardingStep.ASK_ASSET_STOCK_LOTS }
-        };
-        return buildAssetCreatePayload(context, normalizedAnswer);
-      }
-
-      if (context.currentAssetType === AssetType.CRYPTO) {
-        context = {
-          ...context,
-          user: { ...context.user, onboardingStep: OnboardingStep.ASK_ASSET_CRYPTO_QUANTITY }
-        };
-        return buildAssetCreatePayload(context, normalizedAnswer);
-      }
-
-      if (context.currentAssetType === AssetType.MUTUAL_FUND) {
-        if (shouldAskManualMutualFundEstimatedValue(context)) {
-          const rawSelection =
-            getCurrentBatchAnswerValue<string>(
-              context.sessions,
-              OnboardingQuestionKey.ASSET_MUTUAL_FUND_SYMBOL
-            ) ??
-            getLatestAssetName(context.sessions, OnboardingQuestionKey.ASSET_NAME);
-          const quantityAnswer = getCurrentBatchAnswerValue<number | NumericRangeAnswer>(
-            context.sessions,
-            OnboardingQuestionKey.ASSET_MUTUAL_FUND_UNITS
-          );
-          const quantity = getNumericAnswerValue(quantityAnswer);
-
-          if (!rawSelection || !quantity || quantity <= 0) {
-            throw buildOnboardingAssetError(
-              "Detail reksa dananya belum lengkap. Jawab lagi pertanyaan yang ini ya Boss."
-            );
-          }
-
-          const totalValue = normalizedAnswer as number;
-          return {
-            assetType: AssetType.MUTUAL_FUND,
-            assetName: rawSelection,
-            symbol: buildManualMutualFundSymbol(rawSelection),
-            quantity,
-            unit: "unit",
-            unitPrice: Math.round(totalValue / Math.max(quantity, 1)),
-            estimatedValue: totalValue,
-            notes: buildAssetValuationNotes("MANUAL_USER", {
-              rawSelection,
-              manualValuationReason: "quote_not_found",
-              ...buildNumericRangeNote("reportedUnitRange", quantityAnswer)
-            })
-          };
-        }
-
-        context = {
-          ...context,
-          user: { ...context.user, onboardingStep: OnboardingStep.ASK_ASSET_MUTUAL_FUND_UNITS }
         };
         return buildAssetCreatePayload(context, normalizedAnswer);
       }
@@ -1922,7 +1803,9 @@ const describeStoredAnswer = (
         ? "sekarang ada income aktif rutin"
         : "sekarang belum ada income aktif rutin";
     case STEP_ACTIVE_INCOME_COUNT:
-      return `income aktif rutin masuk ${normalizedAnswer as number} kali sebulan`;
+      return normalizedAnswer === "MULTIPLE"
+        ? "income aktif rutin masuk lebih dari satu kali gajian"
+        : "income aktif rutin masuk satu kali gajian";
     case OnboardingStep.ASK_ACTIVE_INCOME:
       return `income aktifnya sekitar ${formatMoney(normalizedAnswer as number)} per bulan`;
     case OnboardingStep.ASK_SALARY_DATE:
@@ -1931,6 +1814,12 @@ const describeStoredAnswer = (
       return (normalizedAnswer as boolean)
         ? "tanggal ini dipakai sebagai awal periode report"
         : "tanggal ini belum dipakai sebagai awal periode report";
+    case STEP_ACTIVE_INCOME_ADD_MORE:
+      return (normalizedAnswer as boolean)
+        ? "masih ada income aktif lain yang mau ditambahkan"
+        : "income aktifnya sudah selesai ditambahkan";
+    case STEP_ACTIVE_INCOME_CYCLE_SELECT:
+      return `awal periode report bulanan memakai tanggal ${normalizedAnswer as number}`;
     case OnboardingStep.ASK_HAS_PASSIVE_INCOME:
       return (normalizedAnswer as boolean)
         ? "selain itu ada income pasif juga"
@@ -2039,21 +1928,6 @@ const describeStoredAnswer = (
         ? `jumlah ${symbol} di kisaran ${formatNumericRange(normalizedAnswer)} lot`
         : `jumlah ${symbol} sekitar ${formatQuantityValue(normalizedAnswer as number)} lot`;
     }
-    case OnboardingStep.ASK_ASSET_CRYPTO_SYMBOL:
-      return `crypto yang mau dipantau "${normalizedAnswer as string}"`;
-    case OnboardingStep.ASK_ASSET_CRYPTO_QUANTITY: {
-      const symbol =
-        getLatestAnswerValue<string>(context, OnboardingQuestionKey.ASSET_CRYPTO_SYMBOL) ?? "crypto ini";
-      return isNumericRangeAnswer(normalizedAnswer)
-        ? `jumlah ${symbol} di kisaran ${formatCryptoQuantity(normalizedAnswer.low)} sampai ${formatCryptoQuantity(normalizedAnswer.high)} coin`
-        : `jumlah ${symbol} sekitar ${formatCryptoQuantity(normalizedAnswer as number)} coin`;
-    }
-    case OnboardingStep.ASK_ASSET_MUTUAL_FUND_SYMBOL:
-      return `reksa dana yang mau dipantau "${normalizedAnswer as string}"`;
-    case OnboardingStep.ASK_ASSET_MUTUAL_FUND_UNITS:
-      return isNumericRangeAnswer(normalizedAnswer)
-        ? `unit reksa dananya di kisaran ${formatNumericRange(normalizedAnswer)} unit`
-        : `unit reksa dananya sekitar ${formatQuantityValue(normalizedAnswer as number)} unit`;
     case OnboardingStep.ASK_ASSET_PROPERTY_NAME:
       return `nama propertinya "${normalizedAnswer as string}"`;
     case OnboardingStep.ASK_ASSET_PROPERTY_ESTIMATED_VALUE:
@@ -2061,27 +1935,12 @@ const describeStoredAnswer = (
     case OnboardingStep.ASK_ASSET_NAME:
       return `nama asetnya "${normalizedAnswer as string}"`;
     case OnboardingStep.ASK_ASSET_ESTIMATED_VALUE:
-      if (shouldAskManualMutualFundEstimatedValue(context)) {
-        return `estimasi nilai reksa dananya sekitar ${formatMoney(normalizedAnswer as number)}`;
-      }
       if (context.currentAssetType === AssetType.STOCK) {
         const symbol =
           getLatestAnswerValue<string>(context, OnboardingQuestionKey.ASSET_STOCK_SYMBOL) ?? "saham ini";
         return isNumericRangeAnswer(normalizedAnswer)
           ? `jumlah ${symbol} di kisaran ${formatNumericRange(normalizedAnswer)} lot`
           : `jumlah ${symbol} sekitar ${formatQuantityValue(normalizedAnswer as number)} lot`;
-      }
-      if (context.currentAssetType === AssetType.CRYPTO) {
-        const symbol =
-          getLatestAnswerValue<string>(context, OnboardingQuestionKey.ASSET_CRYPTO_SYMBOL) ?? "crypto ini";
-        return isNumericRangeAnswer(normalizedAnswer)
-          ? `jumlah ${symbol} di kisaran ${formatCryptoQuantity(normalizedAnswer.low)} sampai ${formatCryptoQuantity(normalizedAnswer.high)} coin`
-          : `jumlah ${symbol} sekitar ${formatCryptoQuantity(normalizedAnswer as number)} coin`;
-      }
-      if (context.currentAssetType === AssetType.MUTUAL_FUND) {
-        return isNumericRangeAnswer(normalizedAnswer)
-          ? `unit reksa dananya di kisaran ${formatNumericRange(normalizedAnswer)} unit`
-          : `unit reksa dananya sekitar ${formatQuantityValue(normalizedAnswer as number)} unit`;
       }
       return context.currentAssetType === AssetType.PROPERTY
         ? `estimasi nilai propertinya sekitar ${formatMoney(normalizedAnswer as number)}`
@@ -2097,49 +1956,334 @@ const describeStoredAnswer = (
   }
 };
 
+const getTargetSimulationEmoji = (goalType: FinancialGoalType | null) => {
+  switch (goalType) {
+    case FinancialGoalType.HOUSE:
+      return "🏠";
+    case FinancialGoalType.VEHICLE:
+      return "🚗";
+    case FinancialGoalType.VACATION:
+      return "🏖️";
+    default:
+      return "🎯";
+  }
+};
+
+const formatGoalNameList = (goalNames: string[]) => {
+  if (!goalNames.length) return "target sebelumnya";
+  if (goalNames.length === 1) return goalNames[0];
+  if (goalNames.length === 2) return `${goalNames[0]} dan ${goalNames[1]}`;
+  return `${goalNames.slice(0, -1).join(", ")}, dan ${goalNames.at(-1)}`;
+};
+
+const getEmergencyFundMultiplierForUser = (context: RuntimeContext) =>
+  context.user.incomeStability === IncomeStability.STABLE
+    ? env.EMERGENCY_FUND_STABLE_MULTIPLIER
+    : env.EMERGENCY_FUND_UNSTABLE_MULTIPLIER;
+
+const formatEmergencyFundMultiplier = (multiplier: number) =>
+  Number.isInteger(multiplier)
+    ? `${multiplier}`
+    : multiplier.toFixed(2).replace(/\.?0+$/, "");
+
+const getEmergencyFundDisplayMultiplier = (
+  context: RuntimeContext,
+  targetAmount: number
+) => {
+  if (context.monthlyExpenseTotal !== null && context.monthlyExpenseTotal > 0) {
+    const inferredMultiplier = targetAmount / context.monthlyExpenseTotal;
+
+    if (Number.isFinite(inferredMultiplier) && inferredMultiplier > 0) {
+      return formatEmergencyFundMultiplier(inferredMultiplier);
+    }
+  }
+
+  return formatEmergencyFundMultiplier(getEmergencyFundMultiplierForUser(context));
+};
+
+const formatTargetAmountLine = (
+  context: RuntimeContext,
+  item: {
+    goalType: FinancialGoalType | null;
+    targetAmount: number | null;
+  }
+) => {
+  if (item.targetAmount === null) return null;
+
+  if (
+    item.goalType === FinancialGoalType.EMERGENCY_FUND &&
+    context.monthlyExpenseTotal !== null &&
+    context.monthlyExpenseTotal > 0
+  ) {
+    const multiplier = getEmergencyFundDisplayMultiplier(context, item.targetAmount);
+    return `Target ${formatMoney(item.targetAmount)} = ${formatMoney(context.monthlyExpenseTotal)} (pengeluaran bulanan) × ${multiplier}`;
+  }
+
+  return `Target: ${formatMoney(item.targetAmount)}`;
+};
+
+const compareGoalMonthYear = (
+  left: { month: number; year: number } | null,
+  right: { month: number; year: number } | null
+) => {
+  if (!left || !right) return null;
+  return left.year === right.year ? left.month - right.month : left.year - right.year;
+};
+
+const getCurrentPlanningGoal = (summary: GoalTargetConfirmationSummary) =>
+  summary.planningAnalysis?.goalSummaries.find(
+    (goal) =>
+      goal.goalName === summary.goalName &&
+      goal.targetDateLabel === summary.targetAnswer.label
+  ) ?? null;
+
+const getAggressiveGoalTimelineContext = (
+  context: RuntimeContext,
+  summary: GoalTargetConfirmationSummary
+) => {
+  const roadmapGoals =
+    summary.planningAnalysis?.goalSummaries.filter((goal) => goal.targetAmount !== null) ?? [];
+  const currentGoalIndex = roadmapGoals.findIndex(
+    (goal) =>
+      goal.goalName === summary.goalName &&
+      goal.targetDateLabel === summary.targetAnswer.label
+  );
+  const previousGoals = currentGoalIndex > 0 ? roadmapGoals.slice(0, currentGoalIndex) : [];
+  const storedTargetAnswers =
+    summary.planningAnalysis && previousGoals.length
+      ? getStoredCompletedGoalTargetAnswers(context.sessions)
+      : [];
+  const previousCommitments = buildGoalTimelineCommitments({
+    roadmapGoals: previousGoals,
+    storedTargetAnswers
+  });
+  const previousBlocks = previousGoals
+    .map((goal, index) => {
+      const commitment = previousCommitments[index];
+      const startLabel = commitment?.startRef.label ?? goal.startLabel;
+      const endLabel = commitment?.endRef.label ?? goal.targetDateLabel ?? goal.realisticTargetLabel;
+      const allocation =
+        commitment?.allocation ??
+        goal.requiredMonthlyAllocation ??
+        (goal.availableMonthlyAllocation > 0 ? goal.availableMonthlyAllocation : null);
+
+      if (!startLabel || !endLabel || allocation === null || allocation <= 0) return null;
+
+      return {
+        goalName: goal.goalName,
+        goalType: goal.goalType,
+        targetAmount: goal.targetAmount,
+        startLabel,
+        endLabel,
+        allocation
+      };
+    })
+    .filter(
+      (item): item is {
+        goalName: string;
+        goalType: FinancialGoalType;
+        targetAmount: number | null;
+        startLabel: string;
+        endLabel: string;
+        allocation: number;
+      } => Boolean(item)
+    );
+
+  return { previousBlocks };
+};
+
+const buildAggressiveGoalTargetChoiceReplyTexts = (
+  context: RuntimeContext,
+  summary: GoalTargetConfirmationSummary
+) => {
+  const { previousBlocks } = getAggressiveGoalTimelineContext(context, summary);
+  const currentPlanningGoal = getCurrentPlanningGoal(summary);
+  const previousGoalNames =
+    previousBlocks.length > 0
+      ? previousBlocks.map((item) => item.goalName)
+      : summary.previousGoalNames;
+  const previousGoalText = formatGoalNameList(previousGoalNames);
+  const previousAllocationTotal = previousBlocks.reduce(
+    (sum, item) => sum + item.allocation,
+    0
+  );
+  const isSequentialDeadlineSafe =
+    currentPlanningGoal !== null
+      ? !currentPlanningGoal.deadlineMissedBeforeStart &&
+        (currentPlanningGoal.gapMonthly ?? 0) <= 0
+      : !summary.deadlineMissedBeforeStart && (summary.gap ?? 0) <= 0;
+  const requestedMonthly =
+    isSequentialDeadlineSafe
+      ? currentPlanningGoal?.requiredMonthlyAllocation ?? summary.requiredMonthly ?? 0
+      : summary.requestedParallelPreview?.allocation ?? summary.requiredMonthly ?? 0;
+  const fullCapacityMonthly =
+    currentPlanningGoal?.availableMonthlyAllocation && currentPlanningGoal.availableMonthlyAllocation > 0
+      ? currentPlanningGoal.availableMonthlyAllocation
+      : summary.monthlySurplus;
+  const totalParallelMonthly =
+    summary.requestedParallelPreview?.totalParallelAllocation ??
+    requestedMonthly + previousAllocationTotal;
+  const parallelEndLabel =
+    summary.requestedParallelPreview?.parallelEndLabel ??
+    previousBlocks.at(-1)?.endLabel ??
+    summary.targetAnswer.label;
+  const realisticStartLabel =
+    currentPlanningGoal?.startLabel ??
+    summary.targetEvaluation?.realisticStartDate?.label ??
+    summary.startLabel ??
+    (previousBlocks.length > 0 ? `setelah ${previousGoalText} selesai` : null);
+  const realisticEndLabel =
+    currentPlanningGoal?.realisticTargetLabel ??
+    summary.suggestedTarget?.label ??
+    summary.targetEvaluation?.realisticEndDate?.label ??
+    summary.realisticTargetLabel;
+  const finishComparison = compareGoalMonthYear(
+    currentPlanningGoal?.realisticTargetMonth && currentPlanningGoal.realisticTargetYear
+      ? {
+          month: currentPlanningGoal.realisticTargetMonth,
+          year: currentPlanningGoal.realisticTargetYear
+        }
+      : summary.suggestedTarget,
+    summary.targetAnswer
+  );
+  const finishesBeforeRequestedDeadline =
+    isSequentialDeadlineSafe && finishComparison !== null && finishComparison < 0;
+  const emergencyBlock = previousBlocks.find(
+    (item) => item.goalType === FinancialGoalType.EMERGENCY_FUND
+  );
+  const targetAmountLine = formatTargetAmountLine(context, {
+    goalType: summary.goalType,
+    targetAmount: summary.targetAmount
+  });
+  const activeTargetLines = previousBlocks.flatMap((item) =>
+    [
+      `✅ ${item.goalName}`,
+      formatTargetAmountLine(context, item),
+      `${item.startLabel} – ${item.endLabel}`,
+      `Setoran: ${formatMoney(item.allocation)}/bulan`
+    ].filter((line): line is string => typeof line === "string")
+  );
+
+  const firstBubble = [
+    `🎯 Target Baru: ${summary.goalName}`,
+    targetAmountLine,
+    `Deadline awal: ${summary.targetAnswer.label}`,
+    previousBlocks.length > 0 ? "" : null,
+    previousBlocks.length > 0 ? "Saat ini Boss masih punya target aktif:" : null,
+    previousBlocks.length > 0 ? "" : null,
+    ...activeTargetLines,
+    previousBlocks.length > 0 ? "" : null,
+    previousBlocks.length > 0
+      ? `Karena target berjalan berurutan, surplus bulanan Boss masih diprioritaskan dulu ke ${previousGoalText}.`
+      : null
+  ].filter((item): item is string => typeof item === "string");
+
+  const secondBubble = isSequentialDeadlineSafe
+    ? [
+        `${getTargetSimulationEmoji(summary.goalType)} Simulasi ${summary.goalName}`,
+        "",
+        `Kalau tetap mau selesai ${summary.targetAnswer.label}, Boss perlu setoran:`,
+        "",
+        `${formatMoney(requestedMonthly)}/bulan`,
+        "",
+        previousBlocks.length > 0
+          ? `Setoran ${summary.goalName} bisa dimulai setelah ${previousGoalText} selesai, jadi tidak perlu ditumpuk sementara.`
+          : "Target ini masih masuk dengan cashflow yang kebaca sekarang.",
+        emergencyBlock?.targetAmount !== null && emergencyBlock?.targetAmount !== undefined
+          ? ""
+          : null,
+        emergencyBlock?.targetAmount !== null && emergencyBlock?.targetAmount !== undefined
+          ? "Dana Darurat yang perlu dikumpulkan dulu:"
+          : null,
+        emergencyBlock?.targetAmount !== null && emergencyBlock?.targetAmount !== undefined
+          ? ""
+          : null,
+        emergencyBlock?.targetAmount !== null && emergencyBlock?.targetAmount !== undefined
+          ? formatMoney(emergencyBlock.targetAmount)
+          : null,
+        emergencyBlock?.targetAmount !== null && emergencyBlock?.targetAmount !== undefined
+          ? `sampai ${emergencyBlock.endLabel}.`
+          : null
+      ].filter((item): item is string => typeof item === "string")
+    : [
+        `${getTargetSimulationEmoji(summary.goalType)} Simulasi ${summary.goalName}`,
+        "",
+        `Kalau tetap mau selesai ${summary.targetAnswer.label}, Boss perlu setoran:`,
+        "",
+        `${formatMoney(requestedMonthly)}/bulan`,
+        "",
+        previousBlocks.length > 0
+          ? `Tapi karena ${previousGoalText} masih berjalan, total kebutuhan sementara jadi:`
+          : "Dengan cashflow saat ini, kebutuhan bulanannya jadi:",
+        "",
+        `${formatMoney(totalParallelMonthly)}/bulan`,
+        parallelEndLabel ? `sampai ${parallelEndLabel}.` : null
+      ].filter((item): item is string => typeof item === "string");
+
+  const thirdBubble = isSequentialDeadlineSafe
+    ? [
+        "📌 Rekomendasi AI",
+        "",
+        previousBlocks.length > 0
+          ? `Deadline ${summary.targetAnswer.label} masih aman. Target ${summary.goalName} tidak perlu dipaksa jalan bareng ${previousGoalText}.`
+          : `Deadline ${summary.targetAnswer.label} masih aman untuk target ${summary.goalName}.`,
+        "",
+        emergencyBlock?.targetAmount !== null && emergencyBlock?.targetAmount !== undefined
+          ? `✅ Dana Darurat dulu: ${formatMoney(emergencyBlock.targetAmount)} sampai ${emergencyBlock.endLabel}`
+          : null,
+        realisticStartLabel ? `✅ Mulai ${summary.goalName}: ${realisticStartLabel}` : null,
+        realisticEndLabel
+          ? finishesBeforeRequestedDeadline
+            ? `✅ Estimasi selesai lebih cepat: ${realisticEndLabel}`
+            : `✅ Estimasi selesai: ${realisticEndLabel}`
+          : null,
+        finishesBeforeRequestedDeadline
+          ? `✅ Kalau pakai kemampuan penuh ${formatMoney(fullCapacityMonthly)}/bulan, deadline Boss masih longgar sampai ${summary.targetAnswer.label}`
+          : `✅ Deadline Boss tetap: ${summary.targetAnswer.label}`
+      ].filter((item): item is string => typeof item === "string")
+    : [
+        "📌 Rekomendasi AI",
+        "",
+        previousBlocks.length > 0
+          ? `Agar cashflow lebih realistis, target ${summary.goalName} lebih aman dimulai setelah ${previousGoalText} selesai.`
+          : `Agar cashflow lebih realistis, target ${summary.goalName} lebih aman pakai versi realistis.`,
+        "",
+        realisticStartLabel ? `✅ Mulai: ${realisticStartLabel}` : null,
+        realisticEndLabel ? `✅ Estimasi selesai: ${realisticEndLabel}` : null,
+        "✅ Setoran tetap sesuai kemampuan saat ini"
+      ].filter((item): item is string => typeof item === "string");
+
+  const fourthBubble = [
+    "Boss mau pilih yang mana?",
+    "",
+    `1️⃣ Tetap deadline ${summary.targetAnswer.label}`,
+    isSequentialDeadlineSafe && realisticEndLabel
+      ? finishesBeforeRequestedDeadline
+        ? `2️⃣ Pakai target selesai lebih cepat ${realisticEndLabel}`
+        : `2️⃣ Pakai ritme aman ${realisticEndLabel}`
+      : realisticEndLabel
+        ? `2️⃣ Pakai versi realistis ${realisticEndLabel}`
+        : "2️⃣ Pakai versi realistis",
+    "3️⃣ Ubah nominal target",
+    "4️⃣ Ubah deadline target"
+  ];
+
+  return [
+    firstBubble.join("\n").trim(),
+    secondBubble.join("\n").trim(),
+    thirdBubble.join("\n").trim(),
+    fourthBubble.join("\n").trim()
+  ];
+};
+
 const buildGoalTargetConfirmationReplyTexts = (
   context: RuntimeContext,
   targetAnswer: MonthYearTargetAnswer
 ) => {
   const summary = buildGoalTargetConfirmationSummary(context, targetAnswer);
-  const roadmapText = buildGoalTimelineRoadmapText(context, targetAnswer);
-  const summaryLines = [
-    summary.targetAmount && summary.targetAmount > 0
-      ? `Saya catat target ${summary.goalName} sebesar ${formatMoney(summary.targetAmount)}, target ${targetAnswer.label}.`
-      : `Saya catat target ${summary.goalName} dengan target waktu ${targetAnswer.label}.`
-  ];
-  if (summary.targetEvaluation) {
-    const evaluationCopy = generateShortTargetEvaluationCopy({
-      evaluation: summary.targetEvaluation,
-      monthlySurplus: summary.requestedParallelPreview?.availableMonthly ?? summary.monthlySurplus,
-      totalMonthlySurplus: Math.max(0, context.potentialMonthlySaving ?? 0),
-      previousGoalNames: summary.previousGoalNames
-    });
-    if (evaluationCopy) {
-      summaryLines.push(evaluationCopy);
-    }
-  }
-
-  if (summary.deadlineMissedBeforeStart || (summary.gap ?? 0) > 0) {
-    const decisionLines = [
-      `Kalau Boss tetap mau pegang target ${targetAnswer.label}, saya simpan seperti itu.`
-    ];
-    if (summary.suggestedTarget) {
-      decisionLines.push(
-        `Kalau mau saya pakai versi yang lebih realistis, saya bisa geser ke ${summary.suggestedTarget.label}.`
-      );
-    }
-    decisionLines.push("Kalau ada bulan dan tahun lain yang lebih cocok, langsung kirim aja.");
-    return [summaryLines.join("\n"), roadmapText, decisionLines.join("\n")].filter(
-      (item): item is string => typeof item === "string" && item.trim().length > 0
-    );
-  }
-
-  return [
-    summaryLines.join("\n"),
-    roadmapText,
-    "Kalau catatan ini sudah pas, saya lanjut pakai target ini. Kalau ada yang mau diubah, bilang aja dari nominal atau target waktunya."
-  ].filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+  return buildAggressiveGoalTargetChoiceReplyTexts(context, summary).filter(
+    (item): item is string => typeof item === "string" && item.trim().length > 0
+  );
 };
 
 const buildConfirmationReplyTexts = (
@@ -2264,7 +2408,7 @@ const getTimelineOverallNote = (
     return "📌 Overall agak ketat, karena masih ada target yang butuh deadline lebih longgar atau setoran tambahan.";
   }
 
-  return "📌 Overall aman, karena target-target ini masih masuk dalam kapasitas tabungan kamu sekarang.";
+  return "📌 Rekomendasi AI\n\nTimeline target Boss masih masuk kapasitas tabungan saat ini.";
 };
 
 const buildCompactTimelineGoalLine = (params: {
@@ -2430,7 +2574,7 @@ const buildGoalTimelineRoadmapText = (
 
   if (!confirmedLines.length && !pendingLines.length) return null;
 
-  const lines = ["🎯 Timeline Keuangan Boss:", ""];
+  const lines = ["🎯 Timeline Target Boss", ""];
 
   if (confirmedLines.length) {
     lines.push(...confirmedLines, "");
@@ -2468,8 +2612,8 @@ const buildPendingConfirmationReminder = (
       )
         ? "Kalau mau tetap pakai target yang sekarang, tinggal bilang lanjut dengan target ini."
         : step === OnboardingStep.ASK_GOAL_TARGET_DATE
-          ? "Kalau target ini sudah pas, saya lanjut dari sini."
-        : "Kalau catatan ini sudah pas, saya lanjut pakai yang ini.",
+          ? "Pilih opsi yang mau dipakai ya Boss: 1 tetap deadline, 2 versi realistis, 3 ubah nominal, atau 4 ubah deadline."
+        : "Kalau sudah sesuai, saya lanjut pakai yang ini.",
       step === OnboardingStep.ASK_GOAL_TARGET_DATE &&
       pendingConfirmation &&
       isAggressiveGoalTargetConfirmation(
@@ -2536,10 +2680,25 @@ const validateAnswerForStep = (context: RuntimeContext, rawAnswer: unknown) => {
         ? buildValidationReply(prompt, "Balas `iya` kalau tanggal ini mau jadi awal periode report, atau `bukan` kalau mau lanjut ke income berikutnya ya Boss.")
         : { value: parsed };
     }
+    case STEP_ACTIVE_INCOME_ADD_MORE: {
+      const parsed = parseActiveIncomeAddMoreAnswer(rawAnswer);
+      return parsed === null
+        ? buildValidationReply(prompt, "Balas `masih ada` kalau mau tambah income aktif lain, atau `udah itu aja` kalau selesai ya Boss.")
+        : { value: parsed };
+    }
+    case STEP_ACTIVE_INCOME_CYCLE_SELECT: {
+      const parsed = parseActiveIncomeCycleSelection(
+        rawAnswer,
+        context.activeIncomePaydays ?? []
+      );
+      return parsed === null
+        ? buildValidationReply(prompt, "Pilih salah satu income yang tadi, misalnya `income pertama` atau tanggal gajiannya ya Boss.")
+        : { value: parsed };
+    }
     case STEP_ACTIVE_INCOME_COUNT: {
-      const parsed = parseDayOfMonth(rawAnswer);
-      return parsed === null || parsed < 1 || parsed > 12
-        ? buildValidationReply(prompt, "Jumlah gajian per bulan harus angka 1-12 ya Boss.")
+      const parsed = parseActiveIncomeFrequency(rawAnswer);
+      return parsed === null
+        ? buildValidationReply(prompt, "Pilih `satu kali gajian` atau `lebih dari satu kali gajian` ya Boss.")
         : { value: parsed };
     }
     case OnboardingStep.ASK_GOAL_ADD_MORE:
@@ -2582,7 +2741,7 @@ const validateAnswerForStep = (context: RuntimeContext, rawAnswer: unknown) => {
         : { value: parsed };
     }
     case OnboardingStep.ASK_GOAL_TARGET_AMOUNT: {
-      if (parseMonthYearInput(rawAnswer)) {
+      if (looksLikeGoalTargetDateInput(rawAnswer)) {
         return buildValidationReply(
           prompt,
           "Itu kebaca sebagai target waktu. Untuk langkah ini, kirim nominal dana dulu ya Boss. Contohnya `50jt` atau `Rp50.000.000`."
@@ -2753,31 +2912,8 @@ const validateAnswerForStep = (context: RuntimeContext, rawAnswer: unknown) => {
         : buildValidationReply(prompt, "Kode sahamnya belum valid. Coba kirim kode seperti `BBRI` atau `BBCA` ya Boss.");
     }
     case OnboardingStep.ASK_ASSET_STOCK_LOTS: {
-      const parsed = parseDecimalInputPreservingRange(rawAnswer);
+      const parsed = parseAssetQuantityInput(rawAnswer, "stock_lots");
       return parsed ? { value: parsed } : buildValidationReply(prompt, "Jumlah lot saham belum valid ya Boss.");
-    }
-    case OnboardingStep.ASK_ASSET_CRYPTO_SYMBOL: {
-      const parsed = parseCryptoSymbolInput(rawAnswer);
-      return parsed
-        ? { value: parsed }
-        : buildValidationReply(
-            prompt,
-            "Saya belum nangkep crypto yang dimaksud. Coba pakai simbol seperti `BTC`, `ETH`, atau `SOL` ya Boss."
-          );
-    }
-    case OnboardingStep.ASK_ASSET_CRYPTO_QUANTITY: {
-      const parsed = parseDecimalInputPreservingRange(rawAnswer);
-      return parsed ? { value: parsed } : buildValidationReply(prompt, "Jumlah crypto belum valid ya Boss.");
-    }
-    case OnboardingStep.ASK_ASSET_MUTUAL_FUND_SYMBOL: {
-      const parsed = parseMutualFundSymbolInput(rawAnswer);
-      return parsed
-        ? { value: parsed }
-        : buildValidationReply(prompt, "Saya belum nangkep nama atau kode reksa dananya ya Boss.");
-    }
-    case OnboardingStep.ASK_ASSET_MUTUAL_FUND_UNITS: {
-      const parsed = parseDecimalInputPreservingRange(rawAnswer);
-      return parsed ? { value: parsed } : buildValidationReply(prompt, "Jumlah unit reksa dana belum valid ya Boss.");
     }
     case OnboardingStep.ASK_ASSET_NAME: {
       if (context.currentAssetType === AssetType.STOCK) {
@@ -2785,21 +2921,6 @@ const validateAnswerForStep = (context: RuntimeContext, rawAnswer: unknown) => {
         return parsed
           ? { value: parsed }
           : buildValidationReply(prompt, "Kode sahamnya belum valid. Coba kirim kode seperti `BBRI` atau `BBCA` ya Boss.");
-      }
-      if (context.currentAssetType === AssetType.CRYPTO) {
-        const parsed = parseCryptoSymbolInput(rawAnswer);
-        return parsed
-          ? { value: parsed }
-          : buildValidationReply(
-              prompt,
-              "Saya belum nangkep crypto yang dimaksud. Coba pakai simbol seperti `BTC`, `ETH`, atau `SOL` ya Boss."
-            );
-      }
-      if (context.currentAssetType === AssetType.MUTUAL_FUND) {
-        const parsed = parseMutualFundSymbolInput(rawAnswer);
-        return parsed
-          ? { value: parsed }
-          : buildValidationReply(prompt, "Saya belum nangkep nama atau kode reksa dananya ya Boss.");
       }
       return parseAssetFreeText(rawAnswer)
         ? { value: parseAssetFreeText(rawAnswer)! }
@@ -2830,17 +2951,12 @@ const validateAnswerForStep = (context: RuntimeContext, rawAnswer: unknown) => {
         : buildValidationReply(prompt, "Pilih minimal satu aset dulu ya Boss.");
     }
     case OnboardingStep.ASK_ASSET_GOLD_GRAMS: {
-      const parsed = parseDecimalInputPreservingRange(rawAnswer);
+      const parsed = parseAssetQuantityInput(rawAnswer, "gold_grams");
       return parsed ? { value: parsed } : buildValidationReply(prompt, "Jumlah gram emas belum valid ya Boss.");
     }
     case OnboardingStep.ASK_ASSET_ESTIMATED_VALUE: {
-      if (
-        context.currentAssetType === AssetType.STOCK ||
-        context.currentAssetType === AssetType.CRYPTO ||
-        (context.currentAssetType === AssetType.MUTUAL_FUND &&
-          !shouldAskManualMutualFundEstimatedValue(context))
-      ) {
-        const parsed = parseDecimalInputPreservingRange(rawAnswer);
+      if (context.currentAssetType === AssetType.STOCK) {
+        const parsed = parseAssetQuantityInput(rawAnswer, "stock_lots");
         return parsed ? { value: parsed } : buildValidationReply(prompt, "Jumlah unitnya belum valid ya Boss.");
       }
       const parsed = parseMoneyInput(rawAnswer);
@@ -2873,12 +2989,9 @@ const persistConfirmedAnswerEffects = async (
       await syncActiveIncomeProfileFromSessions(context.user.id);
       break;
     case OnboardingStep.ASK_SALARY_DATE: {
-      const incomeCount = context.activeIncomeCount ?? 1;
-      const paydayIndex = (context.activeIncomePaydayCount ?? 0) + 1;
-      const shouldUseAsCycleStart =
-        incomeCount <= 1 ||
-        (!context.activeIncomeCycleStartDay && paydayIndex >= incomeCount);
-      if (shouldUseAsCycleStart) {
+      const isSingleActiveIncome =
+        context.activeIncomeMode !== "MULTIPLE" && (context.activeIncomeCount ?? 1) <= 1;
+      if (isSingleActiveIncome) {
         await prisma.user.update({ where: { id: context.user.id }, data: { salaryDate: normalizedAnswer as number } });
       }
       break;
@@ -2887,6 +3000,9 @@ const persistConfirmedAnswerEffects = async (
       if ((normalizedAnswer as boolean) === true && context.activeIncomeLatestPayday) {
         await prisma.user.update({ where: { id: context.user.id }, data: { salaryDate: context.activeIncomeLatestPayday } });
       }
+      break;
+    case STEP_ACTIVE_INCOME_CYCLE_SELECT:
+      await prisma.user.update({ where: { id: context.user.id }, data: { salaryDate: normalizedAnswer as number } });
       break;
     case OnboardingStep.ASK_HAS_PASSIVE_INCOME:
       await prisma.user.update({ where: { id: context.user.id }, data: { hasPassiveIncome: normalizedAnswer as boolean } });
@@ -3087,8 +3203,6 @@ const persistConfirmedAnswerEffects = async (
     case OnboardingStep.ASK_ASSET_GOLD_KARAT:
     case OnboardingStep.ASK_ASSET_GOLD_PLATFORM:
     case OnboardingStep.ASK_ASSET_STOCK_LOTS:
-    case OnboardingStep.ASK_ASSET_CRYPTO_QUANTITY:
-    case OnboardingStep.ASK_ASSET_MUTUAL_FUND_UNITS:
     case OnboardingStep.ASK_ASSET_PROPERTY_ESTIMATED_VALUE:
     case OnboardingStep.ASK_ASSET_ESTIMATED_VALUE:
       {
@@ -3178,7 +3292,7 @@ const buildSafeCompletedAnalysisText = async (userId: string) => {
   }
 };
 
-const buildCompletedTimelineText = async (userId: string) => {
+const buildCompletedTimelineReplyTexts = async (userId: string) => {
   const context = await buildRuntimeContext(userId);
   if (!context.activeGoals.length) return null;
 
@@ -3227,14 +3341,14 @@ const buildCompletedTimelineText = async (userId: string) => {
     });
   });
 
-  return generateFinalTimelineCopy({
+  return generateFinalTimelineReplyTexts({
     evaluations
   });
 };
 
-const buildSafeCompletedTimelineText = async (userId: string) => {
+const buildSafeCompletedTimelineReplyTexts = async (userId: string) => {
   try {
-    return await buildCompletedTimelineText(userId);
+    return await buildCompletedTimelineReplyTexts(userId);
   } catch (error) {
     logger.error({ err: error, userId }, "Failed to generate onboarding timeline");
     return null;
@@ -3243,12 +3357,13 @@ const buildSafeCompletedTimelineText = async (userId: string) => {
 
 const finalizeOnboarding = async (userId: string) => {
   await buildInitialFinancialProfile(userId);
-  const [analysisText, timelineText] = await Promise.all([
+  const [analysisText, timelineReplyTexts] = await Promise.all([
     buildSafeCompletedAnalysisText(userId),
-    buildSafeCompletedTimelineText(userId)
+    buildSafeCompletedTimelineReplyTexts(userId)
   ]);
+  const timelineText = timelineReplyTexts?.join("\n\n").trim() ?? null;
   const user = await prisma.user.update({ where: { id: userId }, data: { registrationStatus: RegistrationStatus.COMPLETED, onboardingStatus: OnboardingStatus.COMPLETED, onboardingStep: OnboardingStep.COMPLETED, onboardingCompletedAt: new Date(), analysisReady: true } });
-  return createState({ user, prompt: null, analysisText, timelineText });
+  return createState({ user, prompt: null, analysisText, timelineText, timelineReplyTexts });
 };
 
 const buildPostOnboardingActiveText = () =>
@@ -3257,14 +3372,18 @@ const buildPostOnboardingActiveText = () =>
     "- Catat transaksi natural: `makan 35rb`, `gaji 9,2jt`, atau `beli bensin 100rb`.",
     "- Cek laporan: `laporan minggu ini`, `/monthly report`, atau `/cashflow report`.",
     "- Lihat arah target: kirim `lihat timeline` kapan pun.",
-    "- Atur reminder: `ingatkan bayar listrik tanggal 20` atau `status reminder aku`.",
-    "- Update aset/target: catat tabungan, emas, saham, crypto, atau progress nabung lewat chat."
+    "- Reminder otomatis: `status reminder aku`, `matikan reminder budget`, atau `pause reminder 12 jam`.",
+    "- Update aset/target: `catat tabungan 10jt`, `catat emas`, `catat saham BBCA 2 lot harga 9000`, `catat properti rumah senilai 300jt`, atau `nabung 500rb`."
   ].join("\n");
 
 const buildCompletedReplyTexts = (state: OnboardingState) =>
   [
     state.analysisText ?? "Onboarding selesai.",
-    state.timelineText,
+    ...(state.timelineReplyTexts?.length
+      ? state.timelineReplyTexts
+      : state.timelineText
+        ? [state.timelineText]
+        : []),
     buildPostOnboardingActiveText()
   ].filter((item): item is string => typeof item === "string" && item.trim().length > 0);
 
@@ -3723,11 +3842,12 @@ export const getOnboardingState = async (params: { userId: string }): Promise<On
   }
   const context = await buildRuntimeContext(params.userId, user);
   if (context.user.onboardingStatus === OnboardingStatus.COMPLETED) {
-    const [analysisText, timelineText] = await Promise.all([
+    const [analysisText, timelineReplyTexts] = await Promise.all([
       context.user.analysisReady ? buildSafeCompletedAnalysisText(params.userId) : Promise.resolve(null),
-      buildSafeCompletedTimelineText(params.userId)
+      buildSafeCompletedTimelineReplyTexts(params.userId)
     ]);
-    return createState({ user: context.user, prompt: null, analysisText, timelineText });
+    const timelineText = timelineReplyTexts?.join("\n\n").trim() ?? null;
+    return createState({ user: context.user, prompt: null, analysisText, timelineText, timelineReplyTexts });
   }
   const prompt = resolvePrompt(context);
   return createState({ user: context.user, prompt });
@@ -3755,11 +3875,12 @@ export const handleOnboarding = async (params: {
   if (params.user.onboardingStatus === OnboardingStatus.COMPLETED || params.user.registrationStatus === RegistrationStatus.COMPLETED) {
     const rawText = (params.text ?? "").trim();
     if (params.messageType === "TEXT" && rawText && isTimelineRequest(rawText)) {
-      const timelineText = await buildSafeCompletedTimelineText(params.user.id);
-      if (timelineText) {
+      const timelineReplyTexts = await buildSafeCompletedTimelineReplyTexts(params.user.id);
+      if (timelineReplyTexts?.length) {
+        const timelineText = timelineReplyTexts.join("\n\n").trim();
         return buildReplyResult(
-          [timelineText],
-          createState({ user: params.user, prompt: null, timelineText }),
+          timelineReplyTexts,
+          createState({ user: params.user, prompt: null, timelineText, timelineReplyTexts }),
           { preserveReplyTextBubbles: true }
         );
       }
@@ -3798,11 +3919,12 @@ export const handleOnboarding = async (params: {
   }
 
   if (isTimelineRequest(rawText)) {
-    const timelineText = await buildSafeCompletedTimelineText(context.user.id);
-    if (timelineText) {
+    const timelineReplyTexts = await buildSafeCompletedTimelineReplyTexts(context.user.id);
+    if (timelineReplyTexts?.length) {
+      const timelineText = timelineReplyTexts.join("\n\n").trim();
       return buildReplyResult(
-        [timelineText, ...getPromptReplyTexts(prompt)],
-        createState({ user: context.user, prompt }),
+        [...timelineReplyTexts, ...getPromptReplyTexts(prompt)],
+        createState({ user: context.user, prompt, timelineText, timelineReplyTexts }),
         { preserveReplyTextBubbles: true }
       );
     }

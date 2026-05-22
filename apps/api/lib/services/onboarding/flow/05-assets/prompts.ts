@@ -118,40 +118,6 @@ const getAssetPromptForStep = (
         body: "Kamu pegang berapa lot saham ini Boss?",
         inputType: "decimal"
       };
-    case OnboardingStep.ASK_ASSET_CRYPTO_SYMBOL:
-      return {
-        stepKey: step,
-        questionKey: OnboardingQuestionKey.ASSET_CRYPTO_SYMBOL,
-        title: "Detail Crypto",
-        body: "Aset crypto apa yang kamu punya Boss? Contohnya `BTC`, `ETH`, atau `SOL`.",
-        inputType: "text"
-      };
-    case OnboardingStep.ASK_ASSET_CRYPTO_QUANTITY:
-      return {
-        stepKey: step,
-        questionKey: OnboardingQuestionKey.ASSET_CRYPTO_QUANTITY,
-        title: "Jumlah Crypto",
-        body: "Kamu punya berapa coin atau token Boss?",
-        inputType: "decimal"
-      };
-    case OnboardingStep.ASK_ASSET_MUTUAL_FUND_SYMBOL:
-      return {
-        stepKey: step,
-        questionKey: OnboardingQuestionKey.ASSET_MUTUAL_FUND_SYMBOL,
-        title: "Detail Reksa Dana",
-        body:
-          "Nama atau kode produk reksa dananya apa Boss? Kalau produknya ketemu, nanti saya bantu pakai NAB terakhir yang tersedia.",
-        inputType: "text"
-      };
-    case OnboardingStep.ASK_ASSET_MUTUAL_FUND_UNITS:
-      return {
-        stepKey: step,
-        questionKey: OnboardingQuestionKey.ASSET_MUTUAL_FUND_UNITS,
-        title: "Unit Reksa Dana",
-        body:
-          "Kamu punya berapa unit reksa dana ini Boss? Kalau produknya saya kenali, nanti nilainya saya bantu hitung dari NAB terakhir.",
-        inputType: "decimal"
-      };
     case OnboardingStep.ASK_ASSET_PROPERTY_NAME:
       return {
         stepKey: step,
@@ -175,12 +141,6 @@ const getAssetPromptForStep = (
       if (context.currentAssetType === AssetType.STOCK) {
         return getAssetPromptForStep(OnboardingStep.ASK_ASSET_STOCK_SYMBOL, context);
       }
-      if (context.currentAssetType === AssetType.CRYPTO) {
-        return getAssetPromptForStep(OnboardingStep.ASK_ASSET_CRYPTO_SYMBOL, context);
-      }
-      if (context.currentAssetType === AssetType.MUTUAL_FUND) {
-        return getAssetPromptForStep(OnboardingStep.ASK_ASSET_MUTUAL_FUND_SYMBOL, context);
-      }
       if (context.currentAssetType === AssetType.PROPERTY) {
         return getAssetPromptForStep(OnboardingStep.ASK_ASSET_PROPERTY_NAME, context);
       }
@@ -197,21 +157,6 @@ const getAssetPromptForStep = (
       }
       if (context.currentAssetType === AssetType.STOCK) {
         return getAssetPromptForStep(OnboardingStep.ASK_ASSET_STOCK_LOTS, context);
-      }
-      if (context.currentAssetType === AssetType.CRYPTO) {
-        return getAssetPromptForStep(OnboardingStep.ASK_ASSET_CRYPTO_QUANTITY, context);
-      }
-      if (context.currentAssetType === AssetType.MUTUAL_FUND) {
-        if (context.hasCurrentMutualFundUnits) {
-          return {
-            stepKey: step,
-            questionKey: OnboardingQuestionKey.ASSET_ESTIMATED_VALUE,
-            title: "Nilai Reksa Dana",
-            body: "Produk reksa dana ini belum ketemu data NAB terbarunya. Kira-kira total nilainya sekarang berapa Boss?",
-            inputType: "money"
-          };
-        }
-        return getAssetPromptForStep(OnboardingStep.ASK_ASSET_MUTUAL_FUND_UNITS, context);
       }
       if (context.currentAssetType === AssetType.PROPERTY) {
         return getAssetPromptForStep(OnboardingStep.ASK_ASSET_PROPERTY_ESTIMATED_VALUE, context);

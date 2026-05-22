@@ -1,4 +1,4 @@
-import { AssetType, BudgetMode, FinancialGoalType, OnboardingStep } from "@prisma/client";
+import { BudgetMode, FinancialGoalType, OnboardingStep } from "@prisma/client";
 import { describe, expect, it } from "vitest";
 import { formatPromptForChat } from "@/lib/services/onboarding/flow/shared/questions/chat-format";
 import { getPromptForStep } from "@/lib/services/onboarding/flow/get-prompt-for-step";
@@ -137,19 +137,17 @@ describe("onboarding flow service", () => {
     expect(formatPromptForChat(addMorePrompt)).toContain("Masih ada pengeluaran lain lagi");
   });
 
-  it("switches mutual fund fallback copy to manual value when nab data is unavailable", () => {
-    const symbolPrompt = getPromptForStep(OnboardingStep.ASK_ASSET_MUTUAL_FUND_SYMBOL, baseContext);
-    const manualValuePrompt = getPromptForStep(OnboardingStep.ASK_ASSET_ESTIMATED_VALUE, {
-      ...baseContext,
-      currentAssetType: AssetType.MUTUAL_FUND,
-      hasCurrentMutualFundUnits: true
-    });
-    const propertyPrompt = getPromptForStep(OnboardingStep.ASK_ASSET_PROPERTY_ESTIMATED_VALUE, baseContext);
+  it("keeps removed asset classes out of onboarding asset choices", () => {
+    const prompt = getPromptForStep(OnboardingStep.ASK_ASSET_SELECTION, baseContext);
+    const text = formatPromptForChat(prompt);
 
-    expect(symbolPrompt.body).toContain("NAB terakhir");
-    expect(manualValuePrompt.inputType).toBe("money");
-    expect(manualValuePrompt.body).toContain("belum ketemu data NAB");
-    expect(propertyPrompt.body.toLowerCase()).toContain("patokan awal");
+    expect(text).toContain("1. Tabungan");
+    expect(text).toContain("2. Emas");
+    expect(text).toContain("3. Saham");
+    expect(text).toContain("4. Properti");
+    expect(text).toContain("5. Belum punya");
+    expect(text).not.toContain("Crypto");
+    expect(text).not.toContain("Reksa dana");
   });
 
   it("uses the saved custom goal name and next month examples in target date prompt", () => {
@@ -184,6 +182,68 @@ describe("onboarding flow service", () => {
     expect(text.toLowerCase()).toContain("gaya santai");
     expect(text.toLowerCase()).toContain("saya bantu rapihin");
     expect(text.toLowerCase()).toContain("contoh kalau mau");
+  });
+
+  it("asks active income frequency as choices instead of numeric examples", () => {
+    const prompt = getPromptForStep("ASK_ACTIVE_INCOME_COUNT" as OnboardingStep, baseContext);
+    const text = formatPromptForChat(prompt);
+
+    expect(text).toContain("Dalam sebulan biasanya Boss menerima income aktif dengan pola yang mana?");
+    expect(text).toContain("1. Satu kali gajian");
+    expect(text).toContain("2. Lebih dari satu kali gajian");
+    expect(text).not.toContain("Contoh:");
+    expect(text).not.toContain("Balas angkanya aja");
+  });
+
+  it("keeps multi-active-income open ended until cycle start and completion are known", () => {
+    expect(
+      getNextOnboardingStep(
+        OnboardingStep.ASK_SALARY_DATE,
+        {
+          ...baseContext,
+          activeIncomeMode: "MULTIPLE",
+          activeIncomePaydayCount: 1,
+          activeIncomeCycleStartDay: null
+        },
+        25
+      )
+    ).toBe("ASK_ACTIVE_INCOME_CYCLE_CONFIRM");
+    expect(
+      getNextOnboardingStep(
+        "ASK_ACTIVE_INCOME_CYCLE_CONFIRM" as OnboardingStep,
+        {
+          ...baseContext,
+          activeIncomeMode: "MULTIPLE",
+          activeIncomePaydayCount: 1,
+          activeIncomeCycleStartDay: null
+        },
+        false
+      )
+    ).toBe("ASK_ACTIVE_INCOME_ADD_MORE");
+    expect(
+      getNextOnboardingStep(
+        "ASK_ACTIVE_INCOME_ADD_MORE" as OnboardingStep,
+        {
+          ...baseContext,
+          activeIncomeMode: "MULTIPLE",
+          activeIncomePaydayCount: 1,
+          activeIncomeCycleStartDay: null
+        },
+        false
+      )
+    ).toBe("ASK_ACTIVE_INCOME_CYCLE_SELECT");
+    expect(
+      getNextOnboardingStep(
+        "ASK_ACTIVE_INCOME_CYCLE_SELECT" as OnboardingStep,
+        {
+          ...baseContext,
+          activeIncomeMode: "MULTIPLE",
+          activeIncomePaydays: [25, 10],
+          activeIncomeCycleStartDay: null
+        },
+        10
+      )
+    ).toBe(OnboardingStep.ASK_HAS_PASSIVE_INCOME);
   });
 
   it("moves from positioning to goals before asking income details", () => {

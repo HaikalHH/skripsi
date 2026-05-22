@@ -20,7 +20,7 @@ const CAPABILITY_PATTERN =
 const OUT_OF_SCOPE_PATTERN =
   /\b(cuaca|weather|film|lagu|musik|game|bola|skor|berita artis|coding|programming|kode program)\b/i;
 const FINANCE_RELATED_PATTERN =
-  /\b(keuangan|uang|transaksi|pengeluaran|pemasukan|income|expense|budget|anggaran|laporan|report|goal|target|tabungan|saving|investasi|investment|portfolio|portofolio|aset|asset|saham|crypto|kripto|emas|harga|market|dana darurat|nabung)\b/i;
+  /\b(keuangan|uang|transaksi|pengeluaran|pemasukan|income|expense|budget|anggaran|laporan|report|goal|target|tabungan|saving|investasi|investment|portfolio|portofolio|aset|asset|saham|emas|harga|market|dana darurat|nabung)\b/i;
 
 const normalizeText = (value: string) => value.trim().replace(/\s+/g, " ");
 

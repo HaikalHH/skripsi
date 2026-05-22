@@ -1,7 +1,6 @@
 export type SupportedPortfolioAssetType =
   | "GOLD"
   | "STOCK"
-  | "CRYPTO"
   | "DEPOSIT"
   | "PROPERTY"
   | "BUSINESS"

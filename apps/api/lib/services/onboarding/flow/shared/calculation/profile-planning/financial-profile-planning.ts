@@ -134,6 +134,7 @@ type AllocationGoalInput = {
   goalType: FinancialGoalType;
   goalName: string;
   targetAmount: bigint | number | string | null;
+  currentSavedAmount?: bigint | number | string | null;
   targetMonth?: number | null;
   targetYear?: number | null;
   status?: FinancialGoalStatus;
@@ -242,6 +243,7 @@ export type TargetEvaluation = {
   status: TargetEvaluationStatus;
   userDecision: TargetUserDecision;
   targetAmount: number | null;
+  currentSavedAmount?: number | null;
   targetDateLabel: string | null;
   basis: GoalPlanningBasis | null;
   note: string;
@@ -258,6 +260,7 @@ export type TimelinePeriod = {
   gapMonthly: number | null;
   status: TargetEvaluationStatus;
   targetAmount: number | null;
+  currentSavedAmount?: number | null;
   note: string;
   userDecision: TargetUserDecision;
 };
@@ -717,16 +720,15 @@ export const createOnboardingAsset = async (params: {
     }
   });
 
-  const portfolioTypeMap: Record<AssetType, PortfolioAssetType> = {
+  const portfolioTypeMap: Partial<Record<AssetType, PortfolioAssetType>> = {
     CASH: PortfolioAssetType.DEPOSIT,
     SAVINGS: PortfolioAssetType.DEPOSIT,
     GOLD: PortfolioAssetType.GOLD,
     STOCK: PortfolioAssetType.STOCK,
-    CRYPTO: PortfolioAssetType.CRYPTO,
-    MUTUAL_FUND: PortfolioAssetType.MUTUAL_FUND,
     PROPERTY: PortfolioAssetType.PROPERTY,
     OTHER: PortfolioAssetType.OTHER
   };
+  const portfolioAssetType = portfolioTypeMap[params.assetType] ?? PortfolioAssetType.OTHER;
 
   const symbol =
     params.symbol?.trim() ||
@@ -736,7 +738,7 @@ export const createOnboardingAsset = async (params: {
     where: {
       userId_assetType_symbol: {
         userId: params.userId,
-        assetType: portfolioTypeMap[params.assetType],
+        assetType: portfolioAssetType,
         symbol
       }
     },
@@ -748,7 +750,7 @@ export const createOnboardingAsset = async (params: {
     },
     create: {
       userId: params.userId,
-      assetType: portfolioTypeMap[params.assetType],
+      assetType: portfolioAssetType,
       symbol,
       displayName: params.assetName,
       quantity,
@@ -1144,6 +1146,7 @@ const buildPlanningGoalSummaries = (params: {
     goalType: FinancialGoalType;
     goalName: string;
     targetAmount: number | null;
+    currentSavedAmount?: number | null;
     targetMonth: number | null;
     targetYear: number | null;
     status: FinancialGoalStatus;
@@ -1166,8 +1169,11 @@ const buildPlanningGoalSummaries = (params: {
       goal,
       emergencyFundTarget: params.emergencyFundTarget
     });
+    const storedCurrentSavedAmount = Math.max(0, toNumber(goal.currentSavedAmount ?? 0));
     const currentSavedAmount =
-      goal.goalType === FinancialGoalType.EMERGENCY_FUND ? params.emergencyFundMappedProgress : 0;
+      goal.goalType === FinancialGoalType.EMERGENCY_FUND
+        ? Math.max(params.emergencyFundMappedProgress, storedCurrentSavedAmount)
+        : storedCurrentSavedAmount;
     const monthsUntilTarget = getMonthsUntilGoalTargetDate(goal.targetMonth, goal.targetYear);
     const targetDateLabel =
       goal.targetMonth && goal.targetYear
@@ -1378,6 +1384,7 @@ export const evaluateTargetAgainstCurrentPlan = (params: {
     status,
     userDecision,
     targetAmount: params.goal.targetAmount,
+    currentSavedAmount: params.goal.currentSavedAmount,
     targetDateLabel: params.goal.targetDateLabel,
     basis: params.goal.basis,
     note
@@ -1427,6 +1434,7 @@ export const buildSequentialTimeline = (evaluations: TargetEvaluation[]): Timeli
         gapMonthly: evaluation.gapMonthly,
         status: evaluation.status,
         targetAmount: evaluation.amount,
+        currentSavedAmount: evaluation.currentSavedAmount,
         note: evaluation.note,
         userDecision: evaluation.userDecision
       } satisfies TimelinePeriod
@@ -1438,6 +1446,39 @@ export const buildSequentialTimeline = (evaluations: TargetEvaluation[]): Timeli
 
 const validateTimelinePeriods = (periods: TimelinePeriod[]) =>
   periods.filter((period) => compareMonthYearReferences(period.startDate, period.endDate) <= 0);
+
+const TIMELINE_PROGRESS_SEGMENTS = 10;
+
+const clampProgressPercent = (value: number) =>
+  Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0));
+
+const formatProgressPercent = (value: number) => {
+  const rounded = Math.round(value * 10) / 10;
+  return Number.isInteger(rounded) ? `${rounded}%` : `${rounded.toFixed(1)}%`;
+};
+
+const buildTimelineProgressBar = (percent: number) => {
+  const filledSegments = Math.round(
+    (clampProgressPercent(percent) / 100) * TIMELINE_PROGRESS_SEGMENTS
+  );
+  return `${"█".repeat(filledSegments)}${"░".repeat(
+    TIMELINE_PROGRESS_SEGMENTS - filledSegments
+  )}`;
+};
+
+const buildTimelineProgressLines = (period: TimelinePeriod) => {
+  if (period.targetAmount === null || period.targetAmount <= 0) return [];
+
+  const currentProgress = Math.max(0, period.currentSavedAmount ?? 0);
+  const progressPercent = clampProgressPercent(
+    (currentProgress / period.targetAmount) * 100
+  );
+
+  return [
+    `Progress: ${formatProgressPercent(progressPercent)}`,
+    buildTimelineProgressBar(progressPercent)
+  ];
+};
 
 export const generateShortTargetEvaluationCopy = (params: {
   evaluation: TargetEvaluation;
@@ -1514,16 +1555,23 @@ export const generateShortTargetEvaluationCopy = (params: {
   return lines.join("\n");
 };
 
-export const generateFinalTimelineCopy = (params: {
+export const generateFinalTimelineReplyTexts = (params: {
   evaluations: TargetEvaluation[];
   title?: string;
 }) => {
   const periods = buildSequentialTimeline(params.evaluations);
   if (!periods.length) return null;
 
-  const lines = [params.title ?? "🎯 Timeline Keuangan Boss:", ""];
+  const bubbles = [
+    [
+      params.title ?? "🎯 Timeline Target Boss",
+      "",
+      `Total target aktif: ${periods.length}`,
+      "Target berjalan berurutan sesuai prioritas."
+    ].join("\n")
+  ];
 
-  for (const period of periods) {
+  for (const [index, period] of periods.entries()) {
     const gapMonthly = period.gapMonthly ?? 0;
     const needsDeadlineWarning =
       period.desiredDate?.label &&
@@ -1532,48 +1580,55 @@ export const generateFinalTimelineCopy = (params: {
         period.status === "needs_parallel" ||
         period.status === "impossible_sequential");
 
-    lines.push(`📍 ${period.startDate.label} - ${period.endDate.label}`);
-    lines.push(`Fokus: ${period.goalName}`);
-    lines.push(`Nabung sekitar: ${formatMoney(period.monthlyAllocation)}/bulan`);
+    const lines: string[] = [];
+    lines.push(`${needsDeadlineWarning ? "🟡" : "✅"} ${period.goalName}`);
+    lines[0] = `${index + 1}. ${lines[0]}`;
+    lines.push("");
+    lines.push(`${period.startDate.label} – ${period.endDate.label}`);
+    lines.push(`Setoran: ${formatMoney(period.monthlyAllocation)}/bulan`);
     if (period.targetAmount !== null) {
-      lines.push(`Target tercapai: ${formatMoney(period.targetAmount)}`);
+      lines.push(`Target: ${formatMoney(period.targetAmount)}`);
+      lines.push(...buildTimelineProgressLines(period));
     }
     if (needsDeadlineWarning && period.desiredDate?.label) {
-      lines.push(`Deadline versi Boss: ${period.desiredDate.label}`);
+      lines.push(`Deadline awal: ${period.desiredDate.label}`);
     }
     if (
       needsDeadlineWarning &&
       period.realisticEndDate?.label &&
       compareMonthYearReferences(period.realisticEndDate, period.endDate) !== 0
     ) {
-      lines.push(`Versi realistis berurutan: ${period.realisticEndDate.label}`);
+      lines.push(`Estimasi realistis: ${period.realisticEndDate.label}`);
     }
     if (gapMonthly > 0) {
       lines.push(`Gap: ${formatMoney(gapMonthly)}/bulan`);
     }
-    lines.push(
-      `Catatan: ${
-        needsDeadlineWarning
-          ? "Deadline ini saya simpan sebagai versi Boss, tapi perlu jalan paralel atau tambah setoran. Kalau benar-benar berurutan, target ini mengikuti prioritas sebelumnya."
-          : period.note
-      }`
-    );
-    lines.push("");
+    bubbles.push(lines.join("\n"));
   }
 
+  const recommendationLines = ["📌 Ringkasan timeline", ""];
   if (periods.some((period) => period.status === "impossible_sequential")) {
-    lines.push(
-      "📌 Overall masih perlu penyesuaian, karena ada target yang tidak feasible kalau dikejar berurutan."
+    recommendationLines.push(
+      "Ada target yang perlu penyesuaian karena tidak feasible kalau dikejar berurutan."
     );
   } else if (periods.some((period) => (period.gapMonthly ?? 0) > 0)) {
-    lines.push(
-      "📌 Overall agak ketat, karena masih ada target yang butuh deadline lebih longgar atau setoran tambahan."
+    recommendationLines.push(
+      "Timeline ini masih agak ketat karena ada target yang butuh deadline lebih longgar atau setoran tambahan."
     );
   } else {
-    lines.push("📌 Overall aman, karena target-target ini masih masuk dalam kapasitas tabungan kamu.");
+    recommendationLines.push("Timeline target Boss masih masuk kapasitas tabungan saat ini.");
   }
+  bubbles.push(recommendationLines.join("\n"));
 
-  return lines.join("\n").trim();
+  return bubbles.map((bubble) => bubble.trim()).filter(Boolean);
+};
+
+export const generateFinalTimelineCopy = (params: {
+  evaluations: TargetEvaluation[];
+  title?: string;
+}) => {
+  const replyTexts = generateFinalTimelineReplyTexts(params);
+  return replyTexts?.join("\n\n").trim() ?? null;
 };
 
 export const buildOnboardingPlanningAnalysis = (params: {
@@ -1586,6 +1641,7 @@ export const buildOnboardingPlanningAnalysis = (params: {
     goalType: FinancialGoalType;
     goalName: string;
     targetAmount: number | null;
+    currentSavedAmount?: number | null;
     targetMonth: number | null;
     targetYear: number | null;
     status: FinancialGoalStatus;

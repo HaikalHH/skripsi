@@ -1,7 +1,7 @@
 export const GOLD_ADD_INTENT_PATTERN = /\b(?:tambah|beli|catat|punya)\s+emas\b/i;
 export const STOCK_ADD_INTENT_PATTERN = /\b(?:tambah|beli|catat|punya)\s+saham\b/i;
 export const GOLD_COMMAND_HINT_PATTERN =
-  /\b(?:berita|news|harga sekarang|cek harga|price|laporan|portfolio|portofolio|pengeluaran|transaksi|budget|goal|cashflow|alokasi|reminder|saham|crypto|kripto|btc|eth|sol|rebalance|diversifikasi)\b/i;
+  /\b(?:berita|news|harga sekarang|cek harga|price|laporan|portfolio|portofolio|pengeluaran|transaksi|budget|goal|cashflow|alokasi|reminder|saham|rebalance|diversifikasi)\b/i;
 export const GOLD_NON_ANSWER_PATTERN =
   /^(?:ok(?:e|ay)?|sip|siap|lanjut|next|terus|halo|hai|hi|makasih|terima kasih|tolong|bantu)$/i;
 export const STOCK_NON_ANSWER_PATTERN =

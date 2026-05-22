@@ -8,10 +8,9 @@ import {
   STOCK_METADATA
 } from "@/lib/services/market/symbol/stock-registry";
 import {
-  buildCryptoSymbol,
+  BLOCKED_CRYPTO_MARKET_SYMBOLS,
   buildGoldSymbol,
   buildStockSymbol,
-  findCryptoMetadata,
   normalizeRawSymbol
 } from "@/lib/services/market/symbol/symbol-builders";
 export {
@@ -32,12 +31,8 @@ export const normalizeMarketSymbolForKind = (
 
   if (kind === "gold") return buildGoldSymbol(raw);
 
-  if (kind === "crypto") {
-    const metadata = findCryptoMetadata(cleaned);
-    return metadata ? buildCryptoSymbol(raw, metadata) : null;
-  }
-
   const stockKey = cleaned.replace(/\.JK$/, "");
+  if (BLOCKED_CRYPTO_MARKET_SYMBOLS.has(stockKey)) return null;
   const canonicalSymbol = STOCK_ALIAS_TO_CANONICAL[stockKey] ?? stockKey;
   if (!/^[A-Z]{1,6}$/.test(canonicalSymbol)) return null;
 
@@ -50,8 +45,7 @@ export const normalizeMarketSymbol = (raw: string): NormalizedMarketSymbol | nul
 
   if (GOLD_ALIASES.includes(cleaned)) return buildGoldSymbol(raw);
 
-  const cryptoCandidate = normalizeMarketSymbolForKind(raw, "crypto");
-  if (cryptoCandidate) return cryptoCandidate;
+  if (BLOCKED_CRYPTO_MARKET_SYMBOLS.has(cleaned.replace(/\.JK$/, ""))) return null;
 
   const stockCandidate = normalizeMarketSymbolForKind(raw, "stock");
   if (stockCandidate) return stockCandidate;

@@ -30,6 +30,7 @@ export type GoldAssetTypeValue = "BULLION" | "JEWELRY" | "DIGITAL";
 export type GoldAssetBrandValue = "ANTAM" | "UBS" | "GALERI24" | "OTHER";
 export type GoldAssetKaratValue = "24K" | "23K" | "22K" | "18K" | "17K";
 export type GoldAssetPlatformValue = "PEGADAIAN" | "OTHER";
+export type ActiveIncomeFrequencyMode = "SINGLE" | "MULTIPLE";
 
 export type OnboardingPromptContext = {
   needsPhoneVerification: boolean;
@@ -48,11 +49,12 @@ export type OnboardingPromptContext = {
   pendingAssetStep?: OnboardingStep | null;
   currentAssetType: AssetType | null;
   currentGoldType?: GoldAssetTypeValue | null;
-  hasCurrentMutualFundUnits?: boolean;
   expenseAvailable: boolean;
   hasExpenseDependentGoal: boolean;
   goalExpenseStrategy: GoalExpenseStrategyValue | null;
+  activeIncomeMode?: ActiveIncomeFrequencyMode | null;
   activeIncomeCount?: number | null;
+  activeIncomePaydays?: number[];
   activeIncomeAmountCount?: number;
   activeIncomePaydayCount?: number;
   activeIncomeLatestPayday?: number | null;

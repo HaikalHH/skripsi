@@ -6,6 +6,9 @@ describe("global context router service", () => {
     const route = routeGlobalTextContext("budget makan sekitar 2 juta per bulan");
     expect(route.command).toEqual({ kind: "NONE" });
     expect(routeGlobalTextContext("/budget set").command).toEqual({ kind: "BUDGET_SET_FLOW_START" });
+    expect(routeGlobalTextContext("lihat list kategori budget").command).toEqual({
+      kind: "BUDGET_CATEGORY_LIST"
+    });
   });
 
   it("keeps goal writes behind explicit conversational command flows", () => {

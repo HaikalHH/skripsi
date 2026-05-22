@@ -478,6 +478,7 @@ export const parseFlexibleBoolean = (raw: unknown) => {
     "g",
     "gada",
     "g ada",
+    "bukan",
     "gak",
     "gk",
     "ngga",

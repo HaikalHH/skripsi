@@ -295,7 +295,7 @@ const buildAddMoreClarificationReply = () =>
   "Kalau masih mau tambah, balas `Ada`. Kalau sudah selesai, balas `Ga ada` ya Boss.";
 
 const buildGenericClarificationReply = () =>
-  "Saya belum yakin konteks `yang tadi` itu yang mana, jadi saya belum mau asumsi. Coba tulis ulang singkat, misalnya `laporan bulan ini`, `harga BTC`, atau `ga ada lagi`.";
+  "Saya belum yakin konteks `yang tadi` itu yang mana, jadi saya belum mau asumsi. Coba tulis ulang singkat, misalnya `laporan bulan ini`, `harga BBCA`, atau `ga ada lagi`.";
 
 const buildMutationOptionReplayText = (params: {
   previousText: string;

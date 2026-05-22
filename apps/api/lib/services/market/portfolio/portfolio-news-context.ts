@@ -31,19 +31,17 @@ const getPortfolioModel = () =>
 
 const normalizeSpaces = (value: string) => value.trim().replace(/\s+/g, " ");
 
-const normalizePortfolioSymbol = (kind: "stock" | "crypto" | "gold", value: string) =>
+const normalizePortfolioSymbol = (kind: "stock" | "gold", value: string) =>
   normalizeMarketSymbolForKind(value, kind)?.canonicalSymbol ?? value.trim().toUpperCase();
 
 const resolveNormalizedDetails = (asset: PortfolioNewsAssetRow, normalizedSymbol: string) => {
   if (asset.assetType === "GOLD") return normalizeMarketSymbolForKind(normalizedSymbol, "gold");
-  if (asset.assetType === "CRYPTO") return normalizeMarketSymbolForKind(normalizedSymbol, "crypto");
   if (asset.assetType === "STOCK") return normalizeMarketSymbolForKind(normalizedSymbol, "stock");
   return null;
 };
 
 const resolveNormalizedSymbol = (asset: PortfolioNewsAssetRow) => {
   if (asset.assetType === "GOLD") return normalizePortfolioSymbol("gold", asset.symbol || asset.displayName);
-  if (asset.assetType === "CRYPTO") return normalizePortfolioSymbol("crypto", asset.symbol || asset.displayName);
   if (asset.assetType === "STOCK") return normalizePortfolioSymbol("stock", asset.symbol || asset.displayName);
   return asset.symbol.toUpperCase();
 };

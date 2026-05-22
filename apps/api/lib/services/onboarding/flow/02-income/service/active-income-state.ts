@@ -6,17 +6,26 @@ import {
   latestSessionForQuestion
 } from "@/lib/services/onboarding/flow/shared/answers/common-input";
 import {
+  QUESTION_ACTIVE_INCOME_ADD_MORE,
   QUESTION_ACTIVE_INCOME_COUNT,
   QUESTION_ACTIVE_INCOME_CYCLE_CONFIRM,
+  QUESTION_ACTIVE_INCOME_CYCLE_SELECT,
+  STEP_ACTIVE_INCOME_ADD_MORE,
   STEP_ACTIVE_INCOME_COUNT,
-  STEP_ACTIVE_INCOME_CYCLE_CONFIRM
+  STEP_ACTIVE_INCOME_CYCLE_CONFIRM,
+  STEP_ACTIVE_INCOME_CYCLE_SELECT
 } from "@/lib/services/onboarding/flow/helpers/custom-step-keys";
+import type { ActiveIncomeFrequencyMode } from "@/lib/services/onboarding/flow/shared/questions/question-types";
 
 export {
+  QUESTION_ACTIVE_INCOME_ADD_MORE,
   QUESTION_ACTIVE_INCOME_COUNT,
   QUESTION_ACTIVE_INCOME_CYCLE_CONFIRM,
+  QUESTION_ACTIVE_INCOME_CYCLE_SELECT,
+  STEP_ACTIVE_INCOME_ADD_MORE,
   STEP_ACTIVE_INCOME_COUNT,
-  STEP_ACTIVE_INCOME_CYCLE_CONFIRM
+  STEP_ACTIVE_INCOME_CYCLE_CONFIRM,
+  STEP_ACTIVE_INCOME_CYCLE_SELECT
 };
 
 const getOnboardingSessionModel = () => (prisma as { onboardingSession?: any }).onboardingSession;
@@ -34,13 +43,25 @@ export const getActiveIncomeOnboardingState = (params: {
   sessions: OnboardingSession[];
   salaryDate: number | null;
 }) => {
+  const activeIncomeFrequencyAnswer = getSessionNormalizedValue<
+    number | ActiveIncomeFrequencyMode
+  >(
+    latestSessionForQuestion(
+      params.sessions.filter((session) => session.isCompleted === true),
+      QUESTION_ACTIVE_INCOME_COUNT
+    )
+  );
   const activeIncomeCount =
-    getSessionNormalizedValue<number>(
-      latestSessionForQuestion(
-        params.sessions.filter((session) => session.isCompleted === true),
-        QUESTION_ACTIVE_INCOME_COUNT
-      )
-    ) ?? null;
+    typeof activeIncomeFrequencyAnswer === "number" ? activeIncomeFrequencyAnswer : null;
+  const activeIncomeMode: ActiveIncomeFrequencyMode | null =
+    activeIncomeFrequencyAnswer === "SINGLE" ||
+    activeIncomeFrequencyAnswer === "MULTIPLE"
+      ? activeIncomeFrequencyAnswer
+      : typeof activeIncomeFrequencyAnswer === "number"
+        ? activeIncomeFrequencyAnswer > 1
+          ? "MULTIPLE"
+          : "SINGLE"
+        : null;
   const activeIncomeAmounts = getConfirmedSessionValues<number>(
     params.sessions,
     OnboardingQuestionKey.ACTIVE_INCOME_MONTHLY
@@ -52,6 +73,7 @@ export const getActiveIncomeOnboardingState = (params: {
   const activeIncomeLatestPayday = activeIncomePaydays.at(-1) ?? null;
 
   return {
+    activeIncomeMode,
     activeIncomeCount,
     activeIncomeAmounts,
     activeIncomePaydays,

@@ -31,10 +31,6 @@ export const assetLabel = (assetType: AssetType | null) => {
       return "Emas";
     case AssetType.STOCK:
       return "Saham";
-    case AssetType.CRYPTO:
-      return "Crypto";
-    case AssetType.MUTUAL_FUND:
-      return "Reksa dana";
     case AssetType.PROPERTY:
       return "Properti";
     default:

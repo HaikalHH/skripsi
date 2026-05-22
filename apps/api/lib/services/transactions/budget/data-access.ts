@@ -1,8 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import { normalizeExpenseBucketCategory } from "../category";
 import { toNumber } from "../helpers/number";
-
-const normalizeCategory = (value: string) => normalizeExpenseBucketCategory(value);
+import {
+  getBudgetCategoryBucket,
+  getBudgetCategoryLookupKey,
+  normalizeBudgetCategoryName
+} from "./category";
 
 export const getMonthRange = (baseDate: Date) => {
   const start = new Date(Date.UTC(baseDate.getUTCFullYear(), baseDate.getUTCMonth(), 1, 0, 0, 0, 0));
@@ -28,25 +30,54 @@ export const getMonthlyCategorySpent = async (params: {
       }
     }
   });
+  const lookupKey = getBudgetCategoryLookupKey(params.category);
+  const bucket = getBudgetCategoryBucket(params.category);
 
   return transactions.reduce((sum, transaction) => {
-    if (normalizeCategory(transaction.category) !== params.category) return sum;
+    const transactionCategory = String(transaction.category ?? "");
+    if (
+      getBudgetCategoryLookupKey(transactionCategory) !== lookupKey &&
+      getBudgetCategoryBucket(transactionCategory) !== bucket
+    ) {
+      return sum;
+    }
     return sum + toNumber(transaction.amount);
   }, 0);
 };
 
-export const pickMatchingBudget = async (params: { userId: string; category: string }) => {
+export const findBudgetByCategoryName = async (params: { userId: string; category: string }) => {
   const budgets = await prisma.budget.findMany({
     where: {
       userId: params.userId
     }
   });
-
-  const matchingBudgets = budgets.filter((budget) => normalizeCategory(budget.category) === params.category);
+  const lookupKey = getBudgetCategoryLookupKey(params.category);
+  const matchingBudgets = budgets.filter(
+    (budget) => getBudgetCategoryLookupKey(budget.category) === lookupKey
+  );
   if (!matchingBudgets.length) return null;
 
   return (
-    matchingBudgets.find((budget) => budget.category === params.category) ??
+    matchingBudgets.find((budget) => budget.category === normalizeBudgetCategoryName(params.category)) ??
+    matchingBudgets.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())[0] ??
+    null
+  );
+};
+
+export const pickMatchingBudget = async (params: { userId: string; category: string }) => {
+  const exactBudget = await findBudgetByCategoryName(params);
+  if (exactBudget) return exactBudget;
+
+  const budgets = await prisma.budget.findMany({
+    where: {
+      userId: params.userId
+    }
+  });
+  const bucket = getBudgetCategoryBucket(params.category);
+  const matchingBudgets = budgets.filter((budget) => getBudgetCategoryBucket(budget.category) === bucket);
+  if (!matchingBudgets.length) return null;
+
+  return (
     matchingBudgets.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())[0] ??
     null
   );

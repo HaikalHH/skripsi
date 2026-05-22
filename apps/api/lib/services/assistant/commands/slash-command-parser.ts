@@ -9,6 +9,7 @@ export type ParsedCommand =
   | { kind: "REPORT_MENU" }
   | { kind: "REPORT"; period: ReportPeriod; reportMode?: ReportRangeMode }
   | { kind: "BUDGET_SET_FLOW_START" }
+  | { kind: "BUDGET_CATEGORY_LIST" }
   | { kind: "GOAL_SET_FLOW_START" }
   | { kind: "GOAL_ADD_FLOW_START" }
   | { kind: "GOAL_STATUS_FLOW_START" }
@@ -50,6 +51,14 @@ export const parseCommand = (rawText: string | undefined): ParsedCommand => {
   }
   if (lowerText === "/budget set" || lowerText.startsWith("/budget set ")) {
     return { kind: "BUDGET_SET_FLOW_START" };
+  }
+  if (
+    lowerText === "/budget list" ||
+    lowerText === "/budget kategori" ||
+    lowerText === "/kategori" ||
+    lowerText === "/list kategori"
+  ) {
+    return { kind: "BUDGET_CATEGORY_LIST" };
   }
   if (lowerText === "/tambah aset" || lowerText.startsWith("/tambah aset ")) {
     return { kind: "ASSET_ADD_FLOW_START" };

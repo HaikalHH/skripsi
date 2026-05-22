@@ -56,6 +56,13 @@ export const loadUserFinancialContext = async (params: {
             }
           }
         },
+        budgets: {
+          orderBy: { updatedAt: "desc" },
+          select: {
+            category: true,
+            monthlyLimit: true
+          }
+        },
         financialGoals: {
           where: {
             status: {
@@ -161,10 +168,15 @@ export const loadUserFinancialContext = async (params: {
     savingRate:
       user?.financialProfile?.savingRate != null ? toNumber(user.financialProfile.savingRate) : null,
     expenseBuckets:
-      user?.expensePlans[0]?.items.map((item) => ({
-        categoryKey: item.categoryKey,
-        amount: toNumber(item.amount)
-      })) ?? [],
+      user?.expensePlans[0]?.items.length
+        ? user.expensePlans[0].items.map((item) => ({
+            categoryKey: item.categoryKey,
+            amount: toNumber(item.amount)
+          }))
+        : user?.budgets.map((budget) => ({
+            categoryKey: budget.category,
+            amount: toNumber(budget.monthlyLimit)
+          })) ?? [],
     manualExpenseDetails: [
       ...(manualExpenseRaw ? parseManualExpenseBreakdownDetails(manualExpenseRaw) : []),
       ...guidedOtherExpenseDetails

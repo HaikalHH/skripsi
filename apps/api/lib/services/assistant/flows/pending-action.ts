@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { createAIAnalysisLog } from "@/lib/services/ai/analysis-logs";
 import {
   getMatchingCategoryBudget,
+  normalizeBudgetCategoryName,
   upsertCategoryBudget
 } from "@/lib/services/transactions/budget";
 import {
@@ -15,7 +16,7 @@ import { setSavingsGoalTarget } from "@/lib/services/planning/goal";
 import { formatMoney } from "@/lib/services/shared/money";
 import {
   buildBudgetSetText,
-  buildGoalStatusText,
+  buildGoalStatusReplyPayload,
   confirmTransactionText
 } from "@/lib/inbound/formatting/formatters";
 import { ok, type InboundHandlerResult } from "@/lib/inbound/shared/result";
@@ -65,7 +66,7 @@ type PendingDraft = {
 };
 
 const ACTION_TEXT =
-  "Balas dengan salah satu:\n- simpan: kalau sudah benar\n- edit (Transaksi): contoh `edit 50rb` atau `edit kategori Food & Drink`\n- buang: kalau batal";
+  "Balas dengan salah satu:\n✅ simpan: kalau sudah benar\n✏️ edit (Transaksi): contoh `edit 50rb` atau `edit kategori Food & Drink`\n🗑️ buang: kalau batal";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -109,7 +110,7 @@ const buildTransactionDraftText = (payload: PendingTransactionDraftPayload) =>
         ? normalizeExpenseBucketCategory(payload.extraction.category ?? "")
         : payload.extraction.category ?? "Others";
     return [
-    "Draf transaksi belum disimpan:",
+    "📝 Draf transaksi belum disimpan:",
     `- Tipe: ${payload.extraction.type ?? "EXPENSE"}`,
     `- Amount: ${formatMoney(payload.extraction.amount ?? 0)}`,
     `- Category: ${category}`,
@@ -291,7 +292,7 @@ const patchBudgetDraft = (
   const nextPayload = {
     ...payload,
     ...(amount ? { monthlyLimit: amount } : {}),
-    ...(category ? { category: titleCase(category) } : {})
+    ...(category ? { category: normalizeBudgetCategoryName(category) } : {})
   };
 
   return nextPayload.monthlyLimit !== payload.monthlyLimit || nextPayload.category !== payload.category
@@ -465,7 +466,7 @@ const savePendingDraft = async (params: {
     targetMonth: payload.targetMonth ?? null,
     targetYear: payload.targetYear ?? null
   });
-  return ok({ replyText: buildGoalStatusText(goalStatus) });
+  return ok(buildGoalStatusReplyPayload(goalStatus));
 };
 
 const editPendingDraft = async (params: {

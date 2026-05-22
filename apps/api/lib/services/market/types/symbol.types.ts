@@ -1,4 +1,4 @@
-export type MarketAssetKind = "stock" | "crypto" | "gold";
+export type MarketAssetKind = "stock" | "gold";
 
 export type NormalizedMarketSymbol = {
   rawInput: string;
@@ -11,7 +11,6 @@ export type NormalizedMarketSymbol = {
   providerSymbols: {
     finnhub?: string;
     yahoo?: string;
-    coingeckoId?: string;
     goldApi?: string;
     rssQuery?: string;
   };

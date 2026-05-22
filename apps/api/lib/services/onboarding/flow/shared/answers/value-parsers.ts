@@ -1,4 +1,3 @@
-import { normalizeSupportedCryptoSymbol } from "@/lib/services/market/quote";
 import {
   extractIntegerFromFreeText,
   extractMoneyFromFreeText,
@@ -10,6 +9,7 @@ import {
   normalizeToken,
   parseAddMoreAnswer,
   parseBooleanAnswer,
+  parseDecimalInputPreservingRange,
   type MoneyRangeAnswer,
   type NumericRangeAnswer
 } from "@/lib/services/onboarding/flow/shared/answers/common-input";
@@ -35,17 +35,6 @@ export const parseStockSymbolInput = (raw: unknown) => {
   const normalized = normalizeMarketText(candidates.at(-1) ?? raw);
   if (!/^[A-Z]{4,6}$/.test(normalized)) return null;
   return normalized;
-};
-
-export const parseCryptoSymbolInput = (raw: unknown) => {
-  if (typeof raw !== "string") return null;
-  return normalizeSupportedCryptoSymbol(raw);
-};
-
-export const parseMutualFundSymbolInput = (raw: unknown) => {
-  if (typeof raw !== "string") return null;
-  const normalized = normalizeText(raw);
-  return normalized.length >= 2 ? normalized : null;
 };
 
 export const parseMoneyInput = (raw: unknown) => {
@@ -139,4 +128,62 @@ export const parseDayOfMonth = (raw: unknown) => {
         : NaN;
   if (value === null || !Number.isInteger(value) || value < 1 || value > 31) return null;
   return value;
+};
+
+export type AssetQuantityUnitContext = "gold_grams" | "stock_lots";
+
+const QUANTITY_NEUTRAL_WORDS = new Set([
+  "aku",
+  "angka",
+  "aja",
+  "boss",
+  "ini",
+  "isi",
+  "jumlah",
+  "kira",
+  "kira-kira",
+  "kurang",
+  "lebih",
+  "pegang",
+  "punya",
+  "saja",
+  "saya",
+  "sekitar",
+  "sebanyak",
+  "total",
+  "yang",
+  "sampe",
+  "sampai",
+  "sd",
+  "s",
+  "d",
+  "to"
+]);
+
+const QUANTITY_ALLOWED_WORDS: Record<AssetQuantityUnitContext, Set<string>> = {
+  gold_grams: new Set(["emas", "gram", "grams", "gr", "g"]),
+  stock_lots: new Set(["lot", "lots", "saham", "stock"])
+};
+
+const getQuantityWords = (raw: string) =>
+  raw
+    .toLowerCase()
+    .match(/[a-z]+(?:-[a-z]+)?/g) ?? [];
+
+export const parseAssetQuantityInput = (
+  raw: unknown,
+  unitContext: AssetQuantityUnitContext
+): number | NumericRangeAnswer | null => {
+  const parsed = parseDecimalInputPreservingRange(raw);
+  if (!parsed || typeof raw !== "string") return parsed;
+
+  const words = getQuantityWords(raw);
+  if (!words.length) return parsed;
+
+  const allowedWords = QUANTITY_ALLOWED_WORDS[unitContext];
+  const hasInvalidUnitOrText = words.some(
+    (word) => !QUANTITY_NEUTRAL_WORDS.has(word) && !allowedWords.has(word)
+  );
+
+  return hasInvalidUnitOrText ? null : parsed;
 };

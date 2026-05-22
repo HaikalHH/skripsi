@@ -14,6 +14,11 @@ describe("command parser", () => {
     expect(parseCommand("/goal status rumah")).toEqual({ kind: "GOAL_STATUS_FLOW_START" });
   });
 
+  it("parses category list slash aliases", () => {
+    expect(parseCommand("/budget list")).toEqual({ kind: "BUDGET_CATEGORY_LIST" });
+    expect(parseCommand("/kategori")).toEqual({ kind: "BUDGET_CATEGORY_LIST" });
+  });
+
   it("starts conversational asset add flow", () => {
     expect(parseCommand("/tambah aset")).toEqual({ kind: "ASSET_ADD_FLOW_START" });
     expect(parseCommand("/tambah aset saham")).toEqual({ kind: "ASSET_ADD_FLOW_START" });

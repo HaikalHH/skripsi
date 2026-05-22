@@ -1,5 +1,5 @@
 import { FinancialGoalStatus, FinancialGoalType } from "@prisma/client";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const hoisted = vi.hoisted(() => {
   const store = {
@@ -112,8 +112,13 @@ vi.mock("@/lib/prisma", () => ({
 
 import { getSavingsGoalStatus, setSavingsGoalTarget } from "@/lib/services/planning/goal";
 import { addGoalContribution } from "@/lib/services/planning/goal";
+import { buildGoalStatusReplyTexts } from "@/lib/inbound/formatting/formatters";
 
 describe("goal service", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   beforeEach(() => {
     hoisted.store.transactions = [
       { userId: "user_1", type: "INCOME", amount: 10000000 },
@@ -178,9 +183,21 @@ describe("goal service", () => {
     expect(status.goals.find((goal) => goal.goalName === "Dana Darurat")?.isPrimary).toBe(true);
     expect(status.recommendedPlan).toHaveLength(2);
     expect(status.recommendedPlan[0]?.recommendedMonthlyContribution).toBeGreaterThan(0);
+
+    const replyTexts = buildGoalStatusReplyTexts(status);
+    const replyText = replyTexts.join("\n\n");
+    expect(replyTexts.length).toBeGreaterThan(3);
+    expect(replyText).toContain("🎯 Status target keuangan");
+    expect(replyText).toContain("Progress: Rp0 / Rp36.000.000 (0.0%)");
+    expect(replyText).toContain("░░░░░░░░░░");
+    expect(replyTexts.at(-1)).toContain("📌 Ringkasan");
+    expect(replyText).toContain("✅ Dana Darurat (prioritas)");
   });
 
   it("tracks explicit contribution per goal", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-10T10:00:00.000Z"));
+
     const now = new Date();
     const twoMonthsAgo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 2, 15, 10, 0, 0, 0));
     const twentyDaysAgo = new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000);

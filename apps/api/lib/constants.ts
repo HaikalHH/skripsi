@@ -9,7 +9,7 @@ export const HELP_TEXT = [
   "- 💵Cek goal: `/goal status`, lalu pilih goal yang mau dicek",
   "- 💎Tambah aset: `/tambah aset`, lalu isi detail aset seperti onboarding",
   "- 📈Portfolio: `portfolio`, `aset saya berapa sekarang`, atau `komposisi aset`",
-  "- 🛒Market: `Harga BBCA hari ini`, `BTC sekarang berapa?`, `Harga emas hari ini`",
+  "- 🛒Market: `Harga BBCA hari ini` atau `Harga emas hari ini`",
   "- 📰News: `Berita finance hari ini`, `berita lagi`, atau `Ada news penting tentang aset aku gak?`",
   "- 🏦`/report daily`",
   "- 🏦`/report weekly`",

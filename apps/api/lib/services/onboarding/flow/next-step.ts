@@ -9,8 +9,10 @@ import {
 } from "@/lib/services/onboarding/flow/shared/questions/answer-options";
 import type { OnboardingPromptContext } from "@/lib/services/onboarding/flow/shared/questions/question-types";
 import {
+  STEP_ACTIVE_INCOME_ADD_MORE,
   STEP_ACTIVE_INCOME_COUNT,
-  STEP_ACTIVE_INCOME_CYCLE_CONFIRM
+  STEP_ACTIVE_INCOME_CYCLE_CONFIRM,
+  STEP_ACTIVE_INCOME_CYCLE_SELECT
 } from "@/lib/services/onboarding/flow/helpers/custom-step-keys";
 
 const normalizeEmploymentTypeList = (
@@ -124,10 +126,6 @@ export const getNextOnboardingStep = (
     case OnboardingStep.ASK_ASSET_GOLD_PLATFORM:
     case OnboardingStep.ASK_ASSET_STOCK_SYMBOL:
     case OnboardingStep.ASK_ASSET_STOCK_LOTS:
-    case OnboardingStep.ASK_ASSET_CRYPTO_SYMBOL:
-    case OnboardingStep.ASK_ASSET_CRYPTO_QUANTITY:
-    case OnboardingStep.ASK_ASSET_MUTUAL_FUND_SYMBOL:
-    case OnboardingStep.ASK_ASSET_MUTUAL_FUND_UNITS:
     case OnboardingStep.ASK_ASSET_PROPERTY_NAME:
     case OnboardingStep.ASK_ASSET_PROPERTY_ESTIMATED_VALUE:
     case OnboardingStep.ASK_ASSET_NAME:
@@ -154,20 +152,20 @@ export const getNextOnboardingStep = (
     case OnboardingStep.ASK_ACTIVE_INCOME:
       return OnboardingStep.ASK_SALARY_DATE;
     case OnboardingStep.ASK_SALARY_DATE:
-      if ((context.activeIncomeCount ?? 1) <= 1) return OnboardingStep.ASK_HAS_PASSIVE_INCOME;
-      if (context.activeIncomeCycleStartDay) {
-        return (context.activeIncomeAmountCount ?? 0) < (context.activeIncomeCount ?? 1)
-          ? OnboardingStep.ASK_ACTIVE_INCOME
-          : OnboardingStep.ASK_HAS_PASSIVE_INCOME;
-      }
-      if ((context.activeIncomePaydayCount ?? 0) >= (context.activeIncomeCount ?? 1)) {
+      if (context.activeIncomeMode !== "MULTIPLE" && (context.activeIncomeCount ?? 1) <= 1) {
         return OnboardingStep.ASK_HAS_PASSIVE_INCOME;
       }
+      if (context.activeIncomeCycleStartDay) return STEP_ACTIVE_INCOME_ADD_MORE;
       return STEP_ACTIVE_INCOME_CYCLE_CONFIRM;
     case STEP_ACTIVE_INCOME_CYCLE_CONFIRM:
-      return (context.activeIncomeAmountCount ?? 0) < (context.activeIncomeCount ?? 1)
-        ? OnboardingStep.ASK_ACTIVE_INCOME
-        : OnboardingStep.ASK_HAS_PASSIVE_INCOME;
+      return STEP_ACTIVE_INCOME_ADD_MORE;
+    case STEP_ACTIVE_INCOME_ADD_MORE:
+      if (answer === true) return OnboardingStep.ASK_ACTIVE_INCOME;
+      return context.activeIncomeCycleStartDay
+        ? OnboardingStep.ASK_HAS_PASSIVE_INCOME
+        : STEP_ACTIVE_INCOME_CYCLE_SELECT;
+    case STEP_ACTIVE_INCOME_CYCLE_SELECT:
+      return OnboardingStep.ASK_HAS_PASSIVE_INCOME;
     case OnboardingStep.ASK_HAS_PASSIVE_INCOME:
       return answer === true ? OnboardingStep.ASK_PASSIVE_INCOME : getPostIncomeStep(context);
     case OnboardingStep.ASK_ESTIMATED_MONTHLY_INCOME:

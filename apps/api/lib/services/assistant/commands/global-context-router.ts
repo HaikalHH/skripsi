@@ -314,6 +314,18 @@ const parseFlexibleHelpCommand = (text: string): GlobalContextCommand => {
   return { kind: "HELP" };
 };
 
+const parseFlexibleBudgetCategoryCommand = (text: string): GlobalContextCommand => {
+  if (
+    /\b(kategori|category|budget|anggaran)\b/i.test(text) &&
+    /\b(list|daftar|lihat|cek|tampilkan|apa aja|apa saja)\b/i.test(text) &&
+    !/\b(naik|turun|lonjakan|dibanding|report|laporan)\b/i.test(text)
+  ) {
+    return { kind: "BUDGET_CATEGORY_LIST" };
+  }
+
+  return { kind: "NONE" };
+};
+
 const parseNaturalLanguageCommand = (rawText: string): GlobalContextCommand => {
   const slashCommand = parseCommand(rawText);
   if (slashCommand.kind !== "NONE") return slashCommand;
@@ -321,6 +333,9 @@ const parseNaturalLanguageCommand = (rawText: string): GlobalContextCommand => {
   const text = normalizeText(rawText);
   const help = parseFlexibleHelpCommand(text);
   if (help.kind !== "NONE") return help;
+
+  const budgetCategory = parseFlexibleBudgetCategoryCommand(text);
+  if (budgetCategory.kind !== "NONE") return budgetCategory;
 
   const categoryDetail = parseFlexibleCategoryDetailCommand(text);
   if (categoryDetail.kind !== "NONE") return categoryDetail;
@@ -371,7 +386,7 @@ const looksLikeTransactionMutation = (text: string) =>
   /\b(hapus|delete|ubah|edit|ganti|koreksi)\b/i.test(text);
 
 const looksLikePortfolio = (text: string) =>
-  /\b(portfolio|portofolio|aset investasi|aset saya|asetku|nilai aset|berapa aset|komposisi aset|risiko portfolio|risiko portofolio|rebalance|rebalancing|aset paling dominan|holding terbesar|aset terbesar|portfolio terlalu numpuk|portofolio terlalu numpuk|aset paling cuan|aset paling rugi|performa portfolio|performa portofolio|profit portfolio|rugi portfolio|diversifikasi portfolio|diversifikasi portofolio|portfolio terdiversifikasi|portofolio terdiversifikasi|tambah emas|beli emas|tambah saham|tambah crypto|tambah kripto|tambah reksa dana|tambah reksadana|tambah properti|tambah deposito|tambah bisnis|tambah tabungan|tambah cash|tambah kas|catat emas|catat saham|catat crypto|catat kripto|catat tabungan)\b/i.test(
+  /\b(portfolio|portofolio|aset investasi|aset saya|asetku|nilai aset|berapa aset|komposisi aset|risiko portfolio|risiko portofolio|rebalance|rebalancing|aset paling dominan|holding terbesar|aset terbesar|portfolio terlalu numpuk|portofolio terlalu numpuk|aset paling cuan|aset paling rugi|performa portfolio|performa portofolio|profit portfolio|rugi portfolio|diversifikasi portfolio|diversifikasi portofolio|portfolio terdiversifikasi|portofolio terdiversifikasi|tambah emas|beli emas|tambah saham|tambah properti|tambah deposito|tambah bisnis|tambah tabungan|tambah cash|tambah kas|catat emas|catat saham|catat tabungan)\b/i.test(
     text
   );
 

@@ -12,10 +12,6 @@ export const resolveMarketSymbolForAsset = (asset: {
     return normalizeMarketSymbolForKind(asset.symbol || "XAU", "gold")?.canonicalSymbol ?? "XAU";
   }
 
-  if (asset.assetType === PortfolioAssetType.CRYPTO) {
-    return normalizeMarketSymbolForKind(asset.symbol, "crypto")?.canonicalSymbol ?? asset.symbol;
-  }
-
   if (asset.assetType === PortfolioAssetType.STOCK) {
     return normalizeMarketSymbolForKind(asset.symbol, "stock")?.canonicalSymbol ?? asset.symbol;
   }

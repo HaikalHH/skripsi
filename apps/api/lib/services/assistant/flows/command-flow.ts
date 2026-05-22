@@ -9,11 +9,11 @@ import {
 } from "@/lib/services/planning/goal";
 import { tryHandlePortfolioCommand } from "@/lib/services/market/commands";
 import { parsePositiveAmount } from "@/lib/services/transactions/amount";
-import { normalizeExpenseBucketCategory } from "@/lib/services/transactions/category";
+import { normalizeBudgetCategoryName } from "@/lib/services/transactions/budget";
 import { formatMoney } from "@/lib/services/shared/money";
 import {
   buildGoalContributionText,
-  buildGoalStatusText
+  buildGoalStatusReplyPayload
 } from "@/lib/inbound/formatting/formatters";
 import { ok, type InboundHandlerResult } from "@/lib/inbound/shared/result";
 import {
@@ -76,16 +76,11 @@ type AssetAddFlowPayload = {
   step:
   | "ASK_TYPE"
   | "ASK_NAME"
-  | "ASK_VALUE"
-  | "ASK_CRYPTO_SYMBOL"
-  | "ASK_CRYPTO_QUANTITY"
-  | "ASK_CRYPTO_PRICE";
+  | "ASK_VALUE";
   data: {
-    assetKind?: "DEPOSIT" | "PROPERTY" | "BUSINESS" | "OTHER" | "CRYPTO" | null;
+    assetKind?: "DEPOSIT" | "PROPERTY" | "BUSINESS" | "OTHER" | null;
     rawType?: string | null;
     displayName?: string | null;
-    symbol?: string | null;
-    quantity?: number | null;
   };
   sourceMessageId: string;
 };
@@ -115,7 +110,7 @@ const FLOW_START_PROMPTS: Record<CommandFlowName, string> = {
   GOAL_STATUS: "Mau cek progress goal yang mana Boss? 📊",
   BUDGET_SET: "Mau atur budget untuk kategori apa Boss? 📋",
   ASSET_ADD:
-    "Mau tambah aset apa nih Boss?\n\nPilih salah satu: emas, saham, crypto, tabungan/kas, deposito, properti, bisnis, atau lainnya."
+    "Mau tambah aset apa nih Boss?\n\nPilih salah satu: emas, saham, tabungan/kas, deposito, properti, bisnis, atau lainnya."
 };
 
 const MONTH_ALIASES: Array<{ month: number; aliases: string[] }> = [
@@ -317,7 +312,6 @@ const parseAssetType = (text: string) => {
   const normalized = normalizeText(text).toLowerCase();
   if (/\bemas|gold\b/i.test(normalized)) return { kind: "GOLD" as const };
   if (/\bsaham|stock\b/i.test(normalized)) return { kind: "STOCK" as const };
-  if (/\bcrypto|kripto|coin\b/i.test(normalized)) return { kind: "CRYPTO" as const, rawType: "crypto" };
   if (/\b(tabungan|kas|cash)\b/i.test(normalized)) return { kind: "DEPOSIT" as const, rawType: "tabungan" };
   if (/\bdeposito\b/i.test(normalized)) return { kind: "DEPOSIT" as const, rawType: "deposito" };
   if (/\bproperti|property\b/i.test(normalized)) return { kind: "PROPERTY" as const, rawType: "properti" };
@@ -519,12 +513,12 @@ export const tryHandleCommandFlowAnswer = async (params: {
     const resolvedText = await resolveGoalAnswerText(params.userId, text);
     const goal = parseGoalSelectionAnswer(resolvedText);
     const status = await getSavingsGoalStatus(params.userId, goal);
-    return ok({ replyText: buildGoalStatusText(status) });
+    return ok(buildGoalStatusReplyPayload(status));
   }
 
   if (payload.flow === "BUDGET_SET") {
     if (payload.step === "ASK_CATEGORY") {
-      const category = normalizeExpenseBucketCategory(text);
+      const category = normalizeBudgetCategoryName(text);
       await replaceFlow({
         userId: params.userId,
         messageId: params.messageId,
@@ -562,7 +556,7 @@ export const tryHandleCommandFlowAnswer = async (params: {
       if (!assetType) {
         return ok({
           replyText:
-            "Jenis asetnya belum kebaca. Pilih salah satu: emas, saham, crypto, tabungan/kas, deposito, properti, bisnis, atau lainnya."
+            "Jenis asetnya belum kebaca. Pilih salah satu: emas, saham, tabungan/kas, deposito, properti, bisnis, atau lainnya."
         });
       }
 
@@ -578,20 +572,6 @@ export const tryHandleCommandFlowAnswer = async (params: {
           messageId: params.messageId,
           text: assetType.kind === "GOLD" ? "tambah emas" : "tambah saham"
         });
-      }
-
-      if (assetType.kind === "CRYPTO") {
-        await replaceFlow({
-          userId: params.userId,
-          messageId: params.messageId,
-          currentFlowId: activeFlow.id,
-          payload: {
-            ...payload,
-            step: "ASK_CRYPTO_SYMBOL",
-            data: { assetKind: "CRYPTO", rawType: "crypto" }
-          }
-        });
-        return ok({ replyText: "Kode crypto-nya apa Boss? Contoh: BTC, ETH, SOL." });
       }
 
       const needsName = assetType.kind !== "DEPOSIT";
@@ -655,60 +635,6 @@ export const tryHandleCommandFlowAnswer = async (params: {
         text: syntheticText
       });
     }
-
-    if (payload.step === "ASK_CRYPTO_SYMBOL") {
-      await replaceFlow({
-        userId: params.userId,
-        messageId: params.messageId,
-        currentFlowId: activeFlow.id,
-        payload: {
-          ...payload,
-          step: "ASK_CRYPTO_QUANTITY",
-          data: {
-            ...payload.data,
-            symbol: text.toUpperCase().replace(/[^A-Z0-9]/g, "")
-          }
-        }
-      });
-      return ok({ replyText: `Jumlah ${text.toUpperCase()} yang kamu punya berapa Boss?` });
-    }
-
-    if (payload.step === "ASK_CRYPTO_QUANTITY") {
-      const quantity = Number(text.replace(",", ".").replace(/[^0-9.]/g, ""));
-      if (!Number.isFinite(quantity) || quantity <= 0) {
-        return ok({ replyText: "Jumlah crypto-nya belum kebaca. Contoh: `0.05` atau `1,5`." });
-      }
-      await replaceFlow({
-        userId: params.userId,
-        messageId: params.messageId,
-        currentFlowId: activeFlow.id,
-        payload: {
-          ...payload,
-          step: "ASK_CRYPTO_PRICE",
-          data: {
-            ...payload.data,
-            quantity
-          }
-        }
-      });
-      return ok({ replyText: "Harga beli per unitnya berapa Boss?" });
-    }
-
-    const price = parsePositiveAmount(text);
-    if (!price) {
-      return ok({ replyText: "Harga belinya belum kebaca. Tulis misalnya `900jt` atau `Rp900.000.000`." });
-    }
-    await markFlowResolved({
-      userId: params.userId,
-      messageId: params.messageId,
-      flowId: activeFlow.id,
-      action: "COMPLETED"
-    });
-    return runPortfolioSyntheticCommand({
-      userId: params.userId,
-      messageId: params.messageId,
-      text: `tambah crypto ${payload.data.symbol ?? ""} ${payload.data.quantity ?? ""} harga ${formatMoney(price)}`
-    });
   }
 
   return null;

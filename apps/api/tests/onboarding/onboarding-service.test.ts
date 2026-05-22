@@ -269,11 +269,7 @@ vi.mock("@/lib/services/assistant/memory/conversation-memory", () => ({
 
 vi.mock("@/lib/services/market/quote", () => ({
   TROY_OUNCE_TO_GRAM: 31.1034768,
-  buildManualMutualFundSymbol: vi.fn((raw: string) => `MANUAL_${raw}`),
   getMarketQuoteBySymbol: vi.fn(async () => {
-    throw new Error("not used");
-  }),
-  getMutualFundQuoteBySelection: vi.fn(async () => {
     throw new Error("not used");
   })
 }));
@@ -529,10 +525,8 @@ describe("onboarding service", () => {
         "1. Tabungan",
         "2. Emas",
         "3. Saham",
-        "4. Crypto",
-        "5. Reksa dana",
-        "6. Properti",
-        "7. Belum punya"
+        "4. Properti",
+        "5. Belum punya"
       ].join("\n")
     ]);
     expect(completed.preserveReplyTextBubbles).toBe(true);
@@ -564,6 +558,36 @@ describe("onboarding service", () => {
     expect(result.replyText).toContain("Untuk target rumah, kira-kira dana yang mau disiapkan berapa Boss?");
     expect(result.replyText).not.toContain("Analisa awalnya sudah kebentuk.");
     expect(hoisted.store.users[0].onboardingStep).toBe(OnboardingStep.ASK_GOAL_TARGET_AMOUNT);
+  });
+
+  it("keeps the gold gram step when the answer uses a wrong quantity unit", async () => {
+    seedUser({
+      onboardingStep: OnboardingStep.ASK_ASSET_GOLD_GRAMS
+    });
+    addSession({
+      stepKey: OnboardingStep.ASK_ASSET_SELECTION,
+      questionKey: OnboardingQuestionKey.ASSET_SELECTION,
+      normalizedAnswerJson: ["GOLD"],
+      rawAnswerJson: "emas"
+    });
+    addSession({
+      stepKey: OnboardingStep.ASK_ASSET_GOLD_TYPE,
+      questionKey: OnboardingQuestionKey.ASSET_GOLD_TYPE,
+      normalizedAnswerJson: "BULLION",
+      rawAnswerJson: "batangan"
+    });
+
+    const result = await sendText("2 lot", "msg_gold_wrong_quantity_unit");
+
+    expect(result.handled).toBe(true);
+    expect(result.replyText).toContain("Jumlah gram emas belum valid");
+    expect(result.replyText).toContain("Berapa gram emas batangannya Boss?");
+    expect(hoisted.store.users[0].onboardingStep).toBe(OnboardingStep.ASK_ASSET_GOLD_GRAMS);
+    expect(
+      hoisted.store.sessions.some(
+        (session) => session.questionKey === OnboardingQuestionKey.ASSET_GOLD_GRAMS
+      )
+    ).toBe(false);
   });
 
   it("migrates users off the removed personalization choice step into the next real question", async () => {
@@ -622,12 +646,64 @@ describe("onboarding service", () => {
     expect(hoisted.store.users[0].onboardingStep).toBe("ASK_ACTIVE_INCOME_COUNT" as OnboardingStep);
   });
 
+  it("collects multiple active incomes with NLP and asks cycle selection when none was confirmed", async () => {
+    seedUser({
+      onboardingStep: "ASK_ACTIVE_INCOME_COUNT" as OnboardingStep,
+      budgetMode: BudgetMode.GUIDED_PLAN
+    });
+
+    const frequency = await sendText("gaji utama sama freelance", "msg_income_frequency");
+    expect(frequency.handled).toBe(true);
+    expect(frequency.replyText).toContain("Income aktif ke-1 nominalnya berapa Boss?");
+    expect(hoisted.store.sessions.at(-1)?.normalizedAnswerJson).toBe("MULTIPLE");
+    expect(hoisted.store.users[0].onboardingStep).toBe(OnboardingStep.ASK_ACTIVE_INCOME);
+
+    const firstAmount = await sendText("10jt", "msg_income_first_amount");
+    expect(firstAmount.replyText).toContain("Income aktif ke-1 biasanya masuk tanggal berapa");
+    expect(hoisted.store.users[0].onboardingStep).toBe(OnboardingStep.ASK_SALARY_DATE);
+
+    const firstPayday = await sendText("tanggal 25", "msg_income_first_payday");
+    expect(firstPayday.replyText).toContain("Tanggal 25 ini mau dijadikan awal periode report bulanan");
+    expect(hoisted.store.users[0].onboardingStep).toBe("ASK_ACTIVE_INCOME_CYCLE_CONFIRM" as OnboardingStep);
+
+    const firstNotCycle = await sendText("engga", "msg_income_first_not_cycle");
+    expect(firstNotCycle.replyText).toContain("Masih ada income aktif lain lagi");
+    expect(hoisted.store.users[0].salaryDate).toBeNull();
+    expect(hoisted.store.users[0].onboardingStep).toBe("ASK_ACTIVE_INCOME_ADD_MORE" as OnboardingStep);
+
+    const addMore = await sendText("masih", "msg_income_add_more");
+    expect(addMore.replyText).toContain("Income aktif ke-2 nominalnya berapa Boss?");
+    expect(hoisted.store.users[0].onboardingStep).toBe(OnboardingStep.ASK_ACTIVE_INCOME);
+
+    const secondAmount = await sendText("2jt", "msg_income_second_amount");
+    expect(secondAmount.replyText).toContain("Income aktif ke-2 biasanya masuk tanggal berapa");
+
+    const secondPayday = await sendText("tanggal 10", "msg_income_second_payday");
+    expect(secondPayday.replyText).toContain("Tanggal 10 ini mau dijadikan awal periode report bulanan");
+
+    const secondNotCycle = await sendText("nggak", "msg_income_second_not_cycle");
+    expect(secondNotCycle.replyText).toContain("Masih ada income aktif lain lagi");
+    expect(hoisted.store.users[0].salaryDate).toBeNull();
+
+    const doneWithoutCycle = await sendText("udah itu aja", "msg_income_done_without_cycle");
+    expect(doneWithoutCycle.replyText).toContain("mana yang mau dijadikan awal periode report bulanan");
+    expect(doneWithoutCycle.replyText).toContain("Income aktif ke-1, tanggal 25");
+    expect(doneWithoutCycle.replyText).toContain("Income aktif ke-2, tanggal 10");
+    expect(hoisted.store.users[0].onboardingStep).toBe("ASK_ACTIVE_INCOME_CYCLE_SELECT" as OnboardingStep);
+
+    const selectedCycle = await sendText("income kedua aja", "msg_income_select_cycle");
+    expect(selectedCycle.replyText).toContain("Selain itu ada income pasif juga Boss?");
+    expect(hoisted.store.users[0].salaryDate).toBe(10);
+    expect(hoisted.store.financialProfiles[0]?.activeIncomeMonthly).toBe(12000000);
+    expect(hoisted.store.users[0].onboardingStep).toBe(OnboardingStep.ASK_HAS_PASSIVE_INCOME);
+  });
+
   it("ignores exclusive asset none choice when concrete assets are also selected", async () => {
     seedUser({
       onboardingStep: OnboardingStep.ASK_ASSET_SELECTION
     });
 
-    const result = await sendText("1-4 dan 7", "msg_asset_conflict");
+    const result = await sendText("1-4 dan 5", "msg_asset_conflict");
 
     expect(result.handled).toBe(true);
     expect(result.replyText).not.toContain('pilihan "Belum punya" nggak bisa digabung');
@@ -635,7 +711,7 @@ describe("onboarding service", () => {
       "SAVINGS",
       "GOLD",
       "STOCK",
-      "CRYPTO"
+      "PROPERTY"
     ]);
     expect(hoisted.store.users[0].onboardingStep).toBe(OnboardingStep.ASK_ASSET_SAVINGS_NAME);
   });
@@ -900,7 +976,7 @@ describe("onboarding service", () => {
     const completedTimeline = result.replyTexts?.join("\n\n") ?? result.replyText;
 
     expect(result.handled).toBe(true);
-    expect(completedTimeline).toContain("Timeline Keuangan Boss");
+    expect(completedTimeline).toContain("Timeline Target Boss");
     expect(completedTimeline).toContain("Dana Nikah");
     expect(completedTimeline).toContain("Beli Rumah");
     expect((completedTimeline.indexOf("Dana Nikah") ?? -1)).toBeLessThan(
@@ -917,7 +993,7 @@ describe("onboarding service", () => {
     const combinedTimeline = timelineResult.replyTexts?.join("\n\n") ?? timelineResult.replyText;
 
     expect(timelineResult.handled).toBe(true);
-    expect(combinedTimeline).toContain("Timeline Keuangan Boss");
+    expect(combinedTimeline).toContain("Timeline Target Boss");
     expect(combinedTimeline).toContain("Dana Nikah");
     expect(combinedTimeline).toContain("Beli Rumah");
     expect((combinedTimeline.indexOf("Dana Nikah") ?? -1)).toBeLessThan(
@@ -951,9 +1027,36 @@ describe("onboarding service", () => {
     expect(amountResult.replyText).toContain("maunya tercapai kapan Boss");
     expect(hoisted.store.users[0].onboardingStep).toBe(OnboardingStep.ASK_GOAL_TARGET_DATE);
     expect(dateResult.handled).toBe(true);
-    expect(dateResult.replyText).toContain(
-      "Saya catat target Beli Rumah sebesar Rp700.000.000, target Juni 2030."
-    );
+    expect(dateResult.replyTexts?.[0]).toContain("🎯 Target Baru: Beli Rumah");
+    expect(dateResult.replyTexts?.[0]).toContain("Target: Rp700.000.000");
+    expect(dateResult.replyTexts?.[0]).toContain("Deadline awal: Juni 2030");
     expect(dateResult.replyText).not.toContain("kira-kira dana yang mau disiapkan berapa Boss?");
+  });
+
+  it("keeps asking for target amount when the answer is a full date", async () => {
+    seedUser({
+      onboardingStep: OnboardingStep.ASK_GOAL_TARGET_AMOUNT
+    });
+    addSession({
+      stepKey: OnboardingStep.ASK_GOAL_SELECTION,
+      questionKey: OnboardingQuestionKey.GOAL_SELECTION,
+      normalizedAnswerJson: [FinancialGoalType.HOUSE],
+      rawAnswerJson: "rumah"
+    });
+
+    const result = await sendText("16 juni 2036", "msg_goal_amount_full_date_guard");
+
+    expect(result.handled).toBe(true);
+    expect(result.replyText).toContain("Itu kebaca sebagai target waktu");
+    expect(result.replyText).toContain("kirim nominal dana dulu");
+    expect(result.replyText).toContain("Untuk target rumah, kira-kira dana yang mau disiapkan berapa Boss?");
+    expect(hoisted.store.users[0].onboardingStep).toBe(OnboardingStep.ASK_GOAL_TARGET_AMOUNT);
+    expect(
+      hoisted.store.sessions.some(
+        (session) =>
+          session.questionKey === OnboardingQuestionKey.GOAL_TARGET_AMOUNT &&
+          session.normalizedAnswerJson === 16
+      )
+    ).toBe(false);
   });
 });

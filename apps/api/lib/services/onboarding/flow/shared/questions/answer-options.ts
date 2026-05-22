@@ -69,6 +69,11 @@ export const ADD_MORE_OPTIONS: OnboardingOption[] = [
   { value: "NO", label: "Ga ada" }
 ];
 
+export const ACTIVE_INCOME_FREQUENCY_OPTIONS: OnboardingOption[] = [
+  { value: "SINGLE", label: "Satu kali gajian" },
+  { value: "MULTIPLE", label: "Lebih dari satu kali gajian" }
+];
+
 export const PERSONALIZATION_OPTIONS: OnboardingOption[] = [
   { value: "YES", label: "Lanjut sekarang" },
   { value: "NO", label: "Nanti dulu" }
@@ -78,8 +83,6 @@ export const ASSET_OPTIONS: OnboardingOption[] = [
   { value: AssetType.SAVINGS, label: "Tabungan" },
   { value: AssetType.GOLD, label: "Emas" },
   { value: AssetType.STOCK, label: "Saham" },
-  { value: AssetType.CRYPTO, label: "Crypto" },
-  { value: AssetType.MUTUAL_FUND, label: "Reksa dana" },
   { value: AssetType.PROPERTY, label: "Properti" },
   { value: ASSET_NONE_VALUE, label: "Belum punya" }
 ];

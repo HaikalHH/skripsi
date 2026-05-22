@@ -177,6 +177,23 @@ const parseMonthYearToken = (value: string) => {
     return buildMonthYearTargetAnswer(Number(yearMonthMatch[2]), Number(yearMonthMatch[1]));
   }
 
+  const fullNumericDateMatch = normalized.match(/^(\d{1,2})\s*[\/.-]\s*(\d{1,2})\s*[\/.-]\s*(\d{4})$/);
+  if (fullNumericDateMatch) {
+    const day = Number(fullNumericDateMatch[1]);
+    return day >= 1 && day <= 31
+      ? buildMonthYearTargetAnswer(Number(fullNumericDateMatch[2]), Number(fullNumericDateMatch[3]))
+      : undefined;
+  }
+
+  const dayMonthNameYearMatch = normalized.match(/^(?:(?:tgl|tanggal)\s+)?(\d{1,2})\s+([a-z]+)\s+(\d{4})$/i);
+  if (dayMonthNameYearMatch) {
+    const day = Number(dayMonthNameYearMatch[1]);
+    const month = MONTH_TOKEN_MAP[dayMonthNameYearMatch[2]];
+    return day >= 1 && day <= 31 && month
+      ? buildMonthYearTargetAnswer(month, Number(dayMonthNameYearMatch[3]))
+      : undefined;
+  }
+
   const monthNameFirstMatch = normalized.match(/^([a-z]+)\s+(\d{4})$/i);
   if (monthNameFirstMatch) {
     const month = MONTH_TOKEN_MAP[monthNameFirstMatch[1]];
@@ -208,11 +225,16 @@ const looksLikeMonthYearToken = (value: string) => {
   return (
     /^(\d{1,2})\s*[\/.-]\s*(\d{4})$/.test(normalized) ||
     /^(\d{4})\s*[\/.-]\s*(\d{1,2})$/.test(normalized) ||
+    /^(\d{1,2})\s*[\/.-]\s*(\d{1,2})\s*[\/.-]\s*(\d{4})$/.test(normalized) ||
+    /^(?:(?:tgl|tanggal)\s+)?(\d{1,2})\s+([a-z]+)\s+(\d{4})$/i.test(normalized) ||
     /^([a-z]+)\s+(\d{4})$/i.test(normalized) ||
     /^(\d{4})\s+([a-z]+)$/i.test(normalized) ||
     /bulan\s*\d{1,2}.*tahun\s*\d{4}/i.test(normalized)
   );
 };
+
+export const looksLikeGoalTargetDateInput = (raw: unknown) =>
+  typeof raw === "string" && looksLikeMonthYearToken(raw);
 
 export const parseMonthYearInput = (raw: unknown) => {
   if (typeof raw !== "string") return null;
@@ -225,7 +247,7 @@ export const parseOptionalGoalTargetDate = (raw: unknown) => {
   if (typeof raw === "string") {
     const parsedMonthYear = parseMonthYearInput(raw);
     if (parsedMonthYear) return parsedMonthYear;
-    if (looksLikeMonthYearToken(raw)) return undefined;
+    if (looksLikeGoalTargetDateInput(raw)) return undefined;
   }
 
   const yearOffset =

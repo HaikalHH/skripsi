@@ -7,6 +7,39 @@ const TRANSACTION_DATE_FORMATTER = new Intl.DateTimeFormat("id-ID", {
   year: "numeric"
 });
 
+const GOAL_PROGRESS_BAR_SEGMENTS = 10;
+
+const clampProgressPercent = (value: number) =>
+  Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0));
+
+const buildGoalProgressBar = (progressPercent: number) => {
+  const filledSegments = Math.round(
+    (clampProgressPercent(progressPercent) / 100) * GOAL_PROGRESS_BAR_SEGMENTS
+  );
+  return `${"█".repeat(filledSegments)}${"░".repeat(
+    GOAL_PROGRESS_BAR_SEGMENTS - filledSegments
+  )}`;
+};
+
+const buildGoalProgressLines = (params: {
+  currentProgress: number;
+  targetAmount: number;
+  progressPercent: number;
+}) => [
+  `Progress: ${formatMoney(params.currentProgress)} / ${formatMoney(params.targetAmount)} (${formatPercent(clampProgressPercent(params.progressPercent))})`,
+  buildGoalProgressBar(params.progressPercent)
+];
+
+const getGoalTrackingEmoji = (goal: {
+  isPrimary?: boolean;
+  trackingStatus?: "ON_TRACK" | "WATCH" | "OFF_TRACK";
+}) => {
+  if (goal.isPrimary) return "✅";
+  if (goal.trackingStatus === "OFF_TRACK") return "🔴";
+  if (goal.trackingStatus === "WATCH") return "🟡";
+  return "✅";
+};
+
 export const confirmTransactionText = (params: {
   type: "INCOME" | "EXPENSE" | "SAVING";
   amount: number;
@@ -16,7 +49,7 @@ export const confirmTransactionText = (params: {
   merchant?: string | null;
 }) =>
   [
-    "Transaksi berhasil dicatat:",
+    "✅ Transaksi berhasil dicatat:",
     `- Tipe: ${params.type}${params.type === "SAVING" ? " ✅" : ""}`,
     `- Amount: ${formatMoney(params.amount)}`,
     `- Category: ${params.category}${params.detailTag ? ` / ${params.detailTag}` : ""}`,
@@ -31,14 +64,24 @@ export const buildBudgetSetText = (params: {
   monthlyLimit: number;
   spentThisMonth: number;
   remainingThisMonth: number;
+  totalMonthlyExpense?: number | null;
+  potentialMonthlySaving?: number | null;
 }) =>
   [
-    "Budget kategori berhasil disimpan:",
+    "✅ Budget kategori berhasil disimpan:",
     `- Category: ${params.category}`,
     `- Limit bulanan: ${formatMoney(params.monthlyLimit)}`,
     `- Terpakai bulan ini: ${formatMoney(params.spentThisMonth)}`,
-    `- Sisa bulan ini: ${formatMoney(params.remainingThisMonth)}`
-  ].join("\n");
+    `- Sisa bulan ini: ${formatMoney(params.remainingThisMonth)}`,
+    params.totalMonthlyExpense != null
+      ? `- Total pengeluaran bulanan: ${formatMoney(params.totalMonthlyExpense)}`
+      : null,
+    params.potentialMonthlySaving != null
+      ? `- Sisa untuk target: ${formatMoney(params.potentialMonthlySaving)}/bulan`
+      : null
+  ]
+    .filter(Boolean)
+    .join("\n");
 
 export const buildGoalStatusText = (params: {
   goalName?: string | null;
@@ -97,11 +140,11 @@ export const buildGoalStatusText = (params: {
       : null;
   const paceText =
     params.monthlyContributionPace != null && Number.isFinite(params.monthlyContributionPace)
-      ? `- Ritme progress: ${formatMoney(Math.round(params.monthlyContributionPace))}/bulan`
+      ? `- Rata-rata setor tercatat: ${formatMoney(Math.round(params.monthlyContributionPace))}/bulan`
       : null;
   const recommendedText =
     params.recommendedPlan?.[0]?.recommendedMonthlyContribution != null
-      ? `- Rekomendasi setoran utama: ${formatMoney(params.recommendedPlan[0].recommendedMonthlyContribution)}/bulan`
+      ? `- Setoran bulanan disarankan: ${formatMoney(params.recommendedPlan[0].recommendedMonthlyContribution)}/bulan`
       : null;
   const capacityText =
     params.monthlySavingCapacity != null && Number.isFinite(params.monthlySavingCapacity)
@@ -121,28 +164,41 @@ export const buildGoalStatusText = (params: {
       : null;
 
   if ((params.totalGoals ?? 0) > 1 && params.goals?.length) {
-    const goalLines = params.goals.slice(0, 5).flatMap((goal, index) => [
-      `${index + 1}. ${goal.goalName}${goal.isPrimary ? " (prioritas)" : ""}`,
-      `   Target: ${formatMoney(goal.targetAmount)}`,
-      `   Progress: ${formatPercent(goal.progressPercent)} (${formatMoney(goal.remainingAmount)} lagi)`,
-      goal.estimatedMonthsToGoal != null
-        ? `   Estimasi: ${formatDurationFromMonths(goal.estimatedMonthsToGoal)}`
-        : null,
-      goal.recommendedMonthlyContribution != null
-        ? `   Saran setoran: ${formatMoney(goal.recommendedMonthlyContribution)}/bulan`
-        : null,
-      goal.recentContributionTotal > 0
-        ? `   Masuk 30 hari ini: ${formatMoney(goal.recentContributionTotal)}`
-        : null,
-      goal.lastContributionAt ? `   Update terakhir: ${DATE_LABEL_FORMATTER.format(goal.lastContributionAt)}` : null,
-      ""
-    ].filter((line): line is string => line != null));
+    const goalLines = params.goals.slice(0, 5).flatMap((goal, index) => {
+      const currentProgress = Math.max(0, goal.targetAmount - goal.remainingAmount);
+
+      return [
+        `${index + 1}. ${getGoalTrackingEmoji(goal)} ${goal.goalName}${goal.isPrimary ? " (prioritas)" : ""}`,
+        `Target: ${formatMoney(goal.targetAmount)}`,
+        ...buildGoalProgressLines({
+          currentProgress,
+          targetAmount: goal.targetAmount,
+          progressPercent: goal.progressPercent
+        }),
+        `Sisa: ${formatMoney(goal.remainingAmount)}`,
+        goal.estimatedMonthsToGoal != null
+          ? `Estimasi: ${formatDurationFromMonths(goal.estimatedMonthsToGoal)}`
+          : null,
+        goal.recommendedMonthlyContribution != null
+          ? `Setoran bulanan disarankan: ${formatMoney(goal.recommendedMonthlyContribution)}/bulan`
+          : null,
+        goal.recentContributionTotal > 0
+          ? `Masuk 30 hari ini: ${formatMoney(goal.recentContributionTotal)}`
+          : null,
+        goal.lastContributionAt ? `Update terakhir: ${DATE_LABEL_FORMATTER.format(goal.lastContributionAt)}` : null,
+        ""
+      ].filter((line): line is string => line != null);
+    });
 
     return [
-      "Status target keuangan",
+      "🎯 Status target keuangan",
       "",
       `Goal utama: ${params.goalName ?? "Target Utama"}`,
-      `Progress: ${formatMoney(params.currentProgress)} / ${formatMoney(params.targetAmount)} (${formatPercent(params.progressPercent)})`,
+      ...buildGoalProgressLines({
+        currentProgress: params.currentProgress,
+        targetAmount: params.targetAmount,
+        progressPercent: params.progressPercent
+      }),
       `Sisa: ${formatMoney(params.remainingAmount)}`,
       etaText,
       paceText,
@@ -160,10 +216,14 @@ export const buildGoalStatusText = (params: {
   }
 
   return [
-    `Status goal ${params.goalName ?? "tabungan"}`,
+    `🎯 Status goal ${params.goalName ?? "tabungan"}`,
     "",
     `Target: ${formatMoney(params.targetAmount)}`,
-    `Progress: ${formatMoney(params.currentProgress)} / ${formatMoney(params.targetAmount)} (${formatPercent(params.progressPercent)})`,
+    ...buildGoalProgressLines({
+      currentProgress: params.currentProgress,
+      targetAmount: params.targetAmount,
+      progressPercent: params.progressPercent
+    }),
     `Sisa: ${formatMoney(params.remainingAmount)}`,
     etaText,
     paceText,
@@ -175,6 +235,174 @@ export const buildGoalStatusText = (params: {
   ]
     .filter(Boolean)
     .join("\n");
+};
+
+type GoalStatusFormatterParams = Parameters<typeof buildGoalStatusText>[0];
+type GoalStatusFormatterItem = NonNullable<GoalStatusFormatterParams["goals"]>[number];
+
+const buildGoalStatusSummaryLines = (params: GoalStatusFormatterParams) => {
+  const capacityText =
+    params.monthlySavingCapacity != null && Number.isFinite(params.monthlySavingCapacity)
+      ? `Kapasitas tabungan: ${formatMoney(params.monthlySavingCapacity)}/bulan`
+      : null;
+  const recommendedText =
+    params.recommendedPlan?.[0]?.recommendedMonthlyContribution != null
+      ? `Setoran bulanan disarankan: ${formatMoney(params.recommendedPlan[0].recommendedMonthlyContribution)}/bulan`
+      : null;
+  const sourceNote =
+    params.progressSource === "NET_SAVINGS_PROXY"
+      ? "Catatan: progress masih memakai proxy tabungan bersih, belum kontribusi goal spesifik."
+      : null;
+
+  return [
+    "🎯 Status target keuangan",
+    "",
+    `Goal utama: ${params.goalName ?? "Target Utama"}`,
+    ...buildGoalProgressLines({
+      currentProgress: params.currentProgress,
+      targetAmount: params.targetAmount,
+      progressPercent: params.progressPercent
+    }),
+    `Sisa: ${formatMoney(params.remainingAmount)}`,
+    capacityText,
+    recommendedText,
+    sourceNote
+  ].filter((line): line is string => Boolean(line));
+};
+
+const buildGoalStatusItemLines = (params: {
+  goal: GoalStatusFormatterItem;
+  index?: number;
+  dateFormatter: Intl.DateTimeFormat;
+}) => {
+  const currentProgress = Math.max(0, params.goal.targetAmount - params.goal.remainingAmount);
+  const prefix = params.index != null ? `${params.index + 1}. ` : "";
+
+  return [
+    `${prefix}${getGoalTrackingEmoji(params.goal)} ${params.goal.goalName}${params.goal.isPrimary ? " (prioritas)" : ""}`,
+    "",
+    `Target: ${formatMoney(params.goal.targetAmount)}`,
+    ...buildGoalProgressLines({
+      currentProgress,
+      targetAmount: params.goal.targetAmount,
+      progressPercent: params.goal.progressPercent
+    }),
+    `Sisa: ${formatMoney(params.goal.remainingAmount)}`,
+    params.goal.estimatedMonthsToGoal != null
+      ? `Estimasi: ${formatDurationFromMonths(params.goal.estimatedMonthsToGoal)}`
+      : null,
+    params.goal.monthlyContributionPace != null
+      ? `Rata-rata setor tercatat: ${formatMoney(Math.round(params.goal.monthlyContributionPace))}/bulan`
+      : null,
+    params.goal.recommendedMonthlyContribution != null
+      ? `Setoran bulanan disarankan: ${formatMoney(params.goal.recommendedMonthlyContribution)}/bulan`
+      : null,
+    params.goal.recentContributionTotal > 0
+      ? `Masuk 30 hari ini: ${formatMoney(params.goal.recentContributionTotal)}`
+      : null,
+    params.goal.lastContributionAt
+      ? `Update terakhir: ${params.dateFormatter.format(params.goal.lastContributionAt)}`
+      : null
+  ].filter((line): line is string => line != null);
+};
+
+const buildGoalStatusRecommendationLines = (params: GoalStatusFormatterParams) => {
+  const goals = params.goals ?? [];
+  const offTrackCount = goals.filter((goal) => goal.trackingStatus === "OFF_TRACK").length;
+  const watchCount = goals.filter((goal) => goal.trackingStatus === "WATCH").length;
+  const shownCount = Math.min(goals.length, 5);
+  const hiddenCount = Math.max(0, goals.length - shownCount);
+  const statusLine =
+    offTrackCount > 0
+      ? `Ada ${offTrackCount} target yang perlu penyesuaian setoran atau deadline.`
+      : watchCount > 0
+        ? `Ada ${watchCount} target yang perlu dipantau ritmenya.`
+        : "Semua target aktif masih aman di ritme sekarang.";
+
+  return [
+    "📌 Ringkasan",
+    "",
+    `Total target aktif: ${params.totalGoals ?? goals.length}`,
+    hiddenCount > 0 ? `${hiddenCount} target lain tidak ditampilkan di ringkasan ini.` : null,
+    statusLine
+  ].filter((line): line is string => line != null);
+};
+
+export const buildGoalStatusReplyTexts = (params: GoalStatusFormatterParams) => {
+  if (params.goalNotFoundQuery || params.targetAmount <= 0) {
+    return [buildGoalStatusText(params)];
+  }
+
+  const dateFormatter = new Intl.DateTimeFormat("id-ID", {
+    day: "numeric",
+    month: "short",
+    year: "numeric"
+  });
+
+  if ((params.totalGoals ?? 0) > 1 && params.goals?.length) {
+    const goalBubbles = params.goals
+      .slice(0, 5)
+      .map((goal, index) =>
+        buildGoalStatusItemLines({
+          goal,
+          index,
+          dateFormatter
+        }).join("\n")
+      );
+
+    return [
+      buildGoalStatusSummaryLines(params).join("\n"),
+      ...goalBubbles,
+      buildGoalStatusRecommendationLines(params).join("\n")
+    ];
+  }
+
+  const singleGoal: GoalStatusFormatterItem = {
+    goalName: params.goalName ?? "tabungan",
+    targetAmount: params.targetAmount,
+    remainingAmount: params.remainingAmount,
+    progressPercent: params.progressPercent,
+    estimatedMonthsToGoal: params.estimatedMonthsToGoal ?? null,
+    monthlyContributionPace: params.monthlyContributionPace ?? null,
+    recommendedMonthlyContribution: params.recommendedPlan?.[0]?.recommendedMonthlyContribution ?? null,
+    recommendedAllocationShare: params.recommendedPlan?.[0]?.sharePercent ?? null,
+    recentContributionTotal: 0,
+    lastContributionAt: null,
+    contributionActiveMonths: params.contributionActiveMonths ?? 0,
+    contributionMonthStreak: params.contributionMonthStreak ?? 0,
+    trackingStatus: params.trackingStatus ?? "WATCH",
+    isPrimary: true,
+    progressSource: params.progressSource ?? "GOAL_CONTRIBUTIONS"
+  } satisfies GoalStatusFormatterItem;
+
+  return [
+    [
+      `🎯 Status goal ${params.goalName ?? "tabungan"}`,
+      "",
+      ...buildGoalStatusItemLines({
+        goal: singleGoal,
+        dateFormatter
+      }),
+      params.monthlySavingCapacity != null && Number.isFinite(params.monthlySavingCapacity)
+        ? `Kapasitas tabungan: ${formatMoney(params.monthlySavingCapacity)}/bulan`
+        : null,
+      params.progressSource === "NET_SAVINGS_PROXY"
+        ? "Catatan: progress masih memakai proxy tabungan bersih, belum kontribusi goal spesifik."
+        : null
+    ]
+      .filter((line): line is string => line != null)
+      .join("\n")
+  ];
+};
+
+export const buildGoalStatusReplyPayload = (params: GoalStatusFormatterParams) => {
+  const replyTexts = buildGoalStatusReplyTexts(params).map((item) => item.trim()).filter(Boolean);
+
+  return {
+    replyText: replyTexts.join("\n\n"),
+    replyTexts: replyTexts.length > 1 ? replyTexts : undefined,
+    preserveReplyTextBubbles: replyTexts.length > 1 ? true : undefined
+  };
 };
 
 export const buildGoalContributionText = (params: {

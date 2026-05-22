@@ -4,7 +4,10 @@ import {
   OnboardingStep,
   type OnboardingSession
 } from "@prisma/client";
-import { ASSET_NONE_VALUE } from "@/lib/services/onboarding/flow/shared/questions/answer-options";
+import {
+  ASSET_NONE_VALUE,
+  ASSET_OPTIONS
+} from "@/lib/services/onboarding/flow/shared/questions/answer-options";
 import type {
   AssetSelectionValue,
   GoldAssetTypeValue
@@ -24,6 +27,10 @@ export type PendingAssetDetail = {
   assetType: AssetType;
   goldType?: GoldAssetTypeValue | null;
 };
+
+const ACTIVE_ONBOARDING_ASSET_TYPES = new Set(
+  ASSET_OPTIONS.map((option) => option.value).filter((value) => value !== ASSET_NONE_VALUE)
+);
 
 const getLatestAssetSelectionSession = (sessions: OnboardingSession[]) =>
   [...getConfirmedSessions(sessions)]
@@ -47,7 +54,10 @@ const getCurrentBatchSelectedAssetTypes = (sessions: OnboardingSession[]) => {
 
   return normalizeStoredValues(
     getSessionNormalizedValue<AssetSelectionValue | AssetSelectionValue[]>(latestSelection)
-  ).filter((value): value is AssetType => Boolean(value) && value !== ASSET_NONE_VALUE);
+  ).filter(
+    (value): value is AssetType =>
+      Boolean(value) && value !== ASSET_NONE_VALUE && ACTIVE_ONBOARDING_ASSET_TYPES.has(value)
+  );
 };
 
 const getQuestionValueCount = (
@@ -92,20 +102,6 @@ const getAssetDetailStepMap = (assetType: AssetType) => {
         valueStep: OnboardingStep.ASK_ASSET_STOCK_LOTS,
         valueKeys: [OnboardingQuestionKey.ASSET_STOCK_LOTS]
       };
-    case AssetType.CRYPTO:
-      return {
-        nameStep: OnboardingStep.ASK_ASSET_CRYPTO_SYMBOL,
-        nameKeys: [OnboardingQuestionKey.ASSET_CRYPTO_SYMBOL],
-        valueStep: OnboardingStep.ASK_ASSET_CRYPTO_QUANTITY,
-        valueKeys: [OnboardingQuestionKey.ASSET_CRYPTO_QUANTITY]
-      };
-    case AssetType.MUTUAL_FUND:
-      return {
-        nameStep: OnboardingStep.ASK_ASSET_MUTUAL_FUND_SYMBOL,
-        nameKeys: [OnboardingQuestionKey.ASSET_MUTUAL_FUND_SYMBOL],
-        valueStep: OnboardingStep.ASK_ASSET_MUTUAL_FUND_UNITS,
-        valueKeys: [OnboardingQuestionKey.ASSET_MUTUAL_FUND_UNITS]
-      };
     case AssetType.PROPERTY:
       return {
         nameStep: OnboardingStep.ASK_ASSET_PROPERTY_NAME,
@@ -138,12 +134,6 @@ const getAssetTypeFromQuestionKey = (questionKey: OnboardingQuestionKey): AssetT
     case OnboardingQuestionKey.ASSET_STOCK_SYMBOL:
     case OnboardingQuestionKey.ASSET_STOCK_LOTS:
       return AssetType.STOCK;
-    case OnboardingQuestionKey.ASSET_CRYPTO_SYMBOL:
-    case OnboardingQuestionKey.ASSET_CRYPTO_QUANTITY:
-      return AssetType.CRYPTO;
-    case OnboardingQuestionKey.ASSET_MUTUAL_FUND_SYMBOL:
-    case OnboardingQuestionKey.ASSET_MUTUAL_FUND_UNITS:
-      return AssetType.MUTUAL_FUND;
     case OnboardingQuestionKey.ASSET_PROPERTY_NAME:
     case OnboardingQuestionKey.ASSET_PROPERTY_ESTIMATED_VALUE:
       return AssetType.PROPERTY;
@@ -179,15 +169,11 @@ export const getPendingAssetDetail = (sessions: OnboardingSession[]): PendingAss
   const remainingSpecificNameCounts = new Map<AssetType, number>([
     [AssetType.SAVINGS, getQuestionValueCount(currentBatchSessions, [OnboardingQuestionKey.ASSET_SAVINGS_NAME])],
     [AssetType.STOCK, getQuestionValueCount(currentBatchSessions, [OnboardingQuestionKey.ASSET_STOCK_SYMBOL])],
-    [AssetType.CRYPTO, getQuestionValueCount(currentBatchSessions, [OnboardingQuestionKey.ASSET_CRYPTO_SYMBOL])],
-    [AssetType.MUTUAL_FUND, getQuestionValueCount(currentBatchSessions, [OnboardingQuestionKey.ASSET_MUTUAL_FUND_SYMBOL])],
     [AssetType.PROPERTY, getQuestionValueCount(currentBatchSessions, [OnboardingQuestionKey.ASSET_PROPERTY_NAME])]
   ]);
   const remainingSpecificValueCounts = new Map<AssetType, number>([
     [AssetType.SAVINGS, getQuestionValueCount(currentBatchSessions, [OnboardingQuestionKey.ASSET_SAVINGS_BALANCE])],
     [AssetType.STOCK, getQuestionValueCount(currentBatchSessions, [OnboardingQuestionKey.ASSET_STOCK_LOTS])],
-    [AssetType.CRYPTO, getQuestionValueCount(currentBatchSessions, [OnboardingQuestionKey.ASSET_CRYPTO_QUANTITY])],
-    [AssetType.MUTUAL_FUND, getQuestionValueCount(currentBatchSessions, [OnboardingQuestionKey.ASSET_MUTUAL_FUND_UNITS])],
     [AssetType.PROPERTY, getQuestionValueCount(currentBatchSessions, [OnboardingQuestionKey.ASSET_PROPERTY_ESTIMATED_VALUE])]
   ]);
 
@@ -279,13 +265,6 @@ export const getPendingAssetDetail = (sessions: OnboardingSession[]): PendingAss
     if (!valueAnswerSource) {
       return { step: detailMap.valueStep, assetType };
     }
-    if (
-      assetType === AssetType.MUTUAL_FUND &&
-      valueAnswerSource === "specific" &&
-      genericAssetValueCount.value > 0
-    ) {
-      genericAssetValueCount.value -= 1;
-    }
   }
 
   return null;
@@ -314,7 +293,10 @@ export const getCurrentAssetType = (
   );
   const values = normalizeStoredValues(
     getSessionNormalizedValue<AssetSelectionValue | AssetSelectionValue[]>(latestSelection)
-  ).filter((item): item is AssetType => Boolean(item) && item !== ASSET_NONE_VALUE);
+  ).filter(
+    (item): item is AssetType =>
+      Boolean(item) && item !== ASSET_NONE_VALUE && ACTIVE_ONBOARDING_ASSET_TYPES.has(item)
+  );
   return values.at(-1) ?? null;
 };
 

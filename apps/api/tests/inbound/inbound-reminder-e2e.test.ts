@@ -601,7 +601,7 @@ describe("inbound + reminder e2e (mock DB)", () => {
 
     expect(saved.status).toBe(200);
     expect(saved.body.replyText).toContain("Transaksi berhasil dicatat");
-    expect(saved.body.replyText).toContain("Warning: budget kategori Food & Drink hampir habis");
+    expect(saved.body.replyText).toContain("Warning: budget kategori makan hampir habis");
     expect(store.transactions).toHaveLength(5);
     expect(store.transactions.at(-1)?.amount).toBe(50_000);
     expect(store.transactions.at(-1)?.category).toBe("Food & Drink");
@@ -724,11 +724,11 @@ describe("inbound + reminder e2e (mock DB)", () => {
     const category = await processInboundBody({
       waNumber: "6281110001",
       messageType: "TEXT",
-      text: "entertainment",
+      text: "hobi",
       sentAt: "2026-02-24T12:00:05.000Z"
     });
     expect(category.status).toBe(200);
-    expect(category.body.replyText).toContain("Limit bulanan untuk Entertainment");
+    expect(category.body.replyText).toContain("Limit bulanan untuk hobi");
 
     const draft = await processInboundBody({
       waNumber: "6281110001",
@@ -751,7 +751,46 @@ describe("inbound + reminder e2e (mock DB)", () => {
     expect(saved.status).toBe(200);
     expect(saved.body.replyText).toContain("Budget kategori berhasil disimpan");
     expect(store.budgets).toHaveLength(2);
-    expect(store.budgets.at(-1)?.category).toBe("Entertainment");
+    expect(store.budgets.at(-1)?.category).toBe("hobi");
+
+    const updated = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "/budget set",
+      sentAt: "2026-02-24T12:00:15.000Z"
+    });
+    expect(updated.status).toBe(200);
+    await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "Hobi",
+      sentAt: "2026-02-24T12:00:16.000Z"
+    });
+    await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "700rb",
+      sentAt: "2026-02-24T12:00:17.000Z"
+    });
+    await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "simpan",
+      sentAt: "2026-02-24T12:00:18.000Z"
+    });
+    expect(store.budgets).toHaveLength(2);
+    expect(store.budgets.at(-1)?.category).toBe("Hobi");
+    expect(store.budgets.at(-1)?.monthlyLimit).toBe(700_000);
+
+    const list = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "lihat list kategori budget",
+      sentAt: "2026-02-24T12:00:20.000Z"
+    });
+    expect(list.status).toBe(200);
+    expect(list.body.replyText).toContain("Daftar kategori budget");
+    expect(list.body.replyText).toContain("Hobi - Rp700.000/bulan");
   });
 
   it("collects goal set flow and preserves custom goal names", async () => {

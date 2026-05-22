@@ -2,7 +2,6 @@ import { logger } from "@/lib/logger";
 import { loadWithMarketMemoryCache } from "@/lib/services/market/cache/market-memory-cache";
 import {
   normalizeMarketSymbol,
-  normalizeMarketSymbolForKind,
   suggestMarketSymbols
 } from "@/lib/services/market/symbol";
 import {
@@ -19,16 +18,12 @@ import { finalizeQuote } from "@/lib/services/market/quote/quote-label";
 import { getQuoteFromProviders } from "@/lib/services/market/quote/quote-provider-chain";
 
 export { TROY_OUNCE_TO_GRAM };
-export * from "@/lib/services/market/quote/mutual-fund";
 export * from "@/lib/services/market/types/quote.types";
 
 const QUOTE_TTL_MS = 60_000;
 
 const shouldUseStaleQuote = (error: unknown) =>
   Array.isArray(error) && error.every((failure) => isRetriableFailure(failure));
-
-export const normalizeSupportedCryptoSymbol = (raw: string) =>
-  normalizeMarketSymbolForKind(raw, "crypto")?.canonicalSymbol ?? null;
 
 export const resolveMarketSymbol = (raw: string) => {
   const normalized = normalizeMarketSymbol(raw);

@@ -261,11 +261,7 @@ vi.mock("@/lib/services/ai/message-normalization", () => ({
 
 vi.mock("@/lib/services/market/quote", () => ({
   TROY_OUNCE_TO_GRAM: 31.1034768,
-  buildManualMutualFundSymbol: vi.fn((raw: string) => `MANUAL_${raw}`),
   getMarketQuoteBySymbol: vi.fn(async () => {
-    throw new Error("not used");
-  }),
-  getMutualFundQuoteBySelection: vi.fn(async () => {
     throw new Error("not used");
   })
 }));
@@ -388,7 +384,8 @@ describe("onboarding confirmation flow", () => {
         monthlyIncomeTotal: null,
         monthlyExpenseTotal: 5000000,
         potentialMonthlySaving: null,
-        emergencyFundTarget: 30000000,        activeIncomeMonthly: 12000000,
+        emergencyFundTarget: 30000000,
+        activeIncomeMonthly: 12000000,
         passiveIncomeMonthly: null,
         estimatedMonthlyIncome: null
       }
@@ -425,24 +422,17 @@ describe("onboarding confirmation flow", () => {
     const dateResult = await sendText("06/2030", "msg_target_date");
 
     expect(dateResult.handled).toBe(true);
-    expect(dateResult.replyText).toContain(
-      "Saya catat target Beli Rumah sebesar Rp700.000.000, target Juni 2030."
-    );
-    expect(dateResult.replyText).toContain("Target ini cukup agresif.");
-    expect(dateResult.replyText).toContain("Ruang tabung sekarang sekitar Rp7.000.000/bulan");
-    expect(dateResult.replyTexts?.[0]).not.toContain("Kalau Boss tetap mau kejar Juni 2030");
-    expect(dateResult.replyTexts?.[1]).toContain("🎯 Timeline Keuangan Boss:");
-    expect(dateResult.replyTexts?.[1]).toContain("🟡 Lagi dicek: Beli Rumah");
-    expect(dateResult.replyTexts?.[1]).toContain("Gap tambahan: Rp7.285.715/bulan");
-    /*
-    expect(dateResult.replyTexts?.[1]).toContain("🎯 Timeline Keuangan Boss:");
-    expect(dateResult.replyTexts?.[1]).toContain("Beli Rumah");
-    expect(dateResult.replyTexts?.[1]).toContain("Juni 2030");
-    expect(dateResult.replyTexts?.[1]).toContain("Gap: Rp7.000.000/bulan");
-    */
-    expect(dateResult.replyTexts?.[2]).toContain("Kalau Boss tetap mau pegang target Juni 2030");
-    expect(dateResult.replyTexts?.[2]).toContain("Kalau ada bulan dan tahun lain yang lebih cocok");
-    expect(dateResult.replyText).toContain("Timeline Keuangan Boss");
+    expect(dateResult.replyTexts).toHaveLength(4);
+    expect(dateResult.replyTexts?.[0]).toContain("🎯 Target Baru: Beli Rumah");
+    expect(dateResult.replyTexts?.[0]).toContain("Target: Rp700.000.000");
+    expect(dateResult.replyTexts?.[0]).toContain("Deadline awal: Juni 2030");
+    expect(dateResult.replyTexts?.[1]).toContain("🏠 Simulasi Beli Rumah");
+    expect(dateResult.replyTexts?.[1]).toContain("Kalau tetap mau selesai Juni 2030");
+    expect(dateResult.replyTexts?.[1]).toContain("Rp14.285.715/bulan");
+    expect(dateResult.replyTexts?.[2]).toContain("📌 Rekomendasi AI");
+    expect(dateResult.replyTexts?.[2]).toContain("September 2034");
+    expect(dateResult.replyTexts?.[3]).toContain("1️⃣ Tetap deadline Juni 2030");
+    expect(dateResult.replyTexts?.[3]).toContain("4️⃣ Ubah deadline target");
     expect(hoisted.store.users[0].onboardingStep).toBe(OnboardingStep.ASK_GOAL_TARGET_DATE);
     expect(createOrUpdateFinancialGoal).not.toHaveBeenCalled();
 
@@ -450,10 +440,6 @@ describe("onboarding confirmation flow", () => {
 
     expect(confirmResult.handled).toBe(true);
     expect(confirmResult.replyText).toContain("Oke, saya lanjut dari sini.");
-    /*
-    expect(confirmResult.replyTexts?.[1]).toContain("🎯 Timeline Keuangan Boss:");
-    */
-    expect(confirmResult.replyText).not.toContain("Timeline Keuangan Boss");
     expect(confirmResult.replyText).toContain("Kirim nomor WhatsApp aktif");
     expect(hoisted.store.users[0].onboardingStep).toBe(OnboardingStep.VERIFY_PHONE);
     expect(createOrUpdateFinancialGoal).toHaveBeenCalledWith(
@@ -525,7 +511,8 @@ describe("onboarding confirmation flow", () => {
         monthlyIncomeTotal: 9200000,
         monthlyExpenseTotal: 2500000,
         potentialMonthlySaving: 6700000,
-        emergencyFundTarget: 22500000,      }
+        emergencyFundTarget: 22500000,
+      }
     ];
     hoisted.store.financialGoals = [
       {
@@ -615,10 +602,6 @@ describe("onboarding confirmation flow", () => {
 
     expect(result.handled).toBe(true);
     expect(result.replyText).toContain("Oke, saya lanjut dari sini.");
-    /*
-    expect(result.replyText).toContain("Timeline Keuangan Boss");
-    */
-    expect(result.replyText).not.toContain("Timeline Keuangan Boss");
     expect(result.replyText).toContain("Kirim nomor WhatsApp aktif");
     expect(result.replyText).not.toContain("mana yang mau kamu utamakan dulu Boss");
     expect(hoisted.store.users[0].onboardingStep).toBe(OnboardingStep.VERIFY_PHONE);
@@ -644,7 +627,8 @@ describe("onboarding confirmation flow", () => {
         monthlyIncomeTotal: null,
         monthlyExpenseTotal: 2500000,
         potentialMonthlySaving: null,
-        emergencyFundTarget: 22500000,        activeIncomeMonthly: 8700000,
+        emergencyFundTarget: 22500000,
+        activeIncomeMonthly: 8700000,
         passiveIncomeMonthly: 5000000,
         estimatedMonthlyIncome: null
       }
@@ -690,27 +674,97 @@ describe("onboarding confirmation flow", () => {
     const dateResult = await sendText("06/2030", "msg_target_date_derived");
 
     expect(dateResult.handled).toBe(true);
-    expect(dateResult.replyText).toContain("Surplus bulanan kamu Rp11.200.000.");
-    expect(dateResult.replyText).toContain(
-      "surplus ini sedang diprioritaskan untuk Dana Darurat dulu"
+    expect(dateResult.replyTexts).toHaveLength(4);
+    expect(dateResult.replyTexts?.[0]).toContain("Saat ini Boss masih punya target aktif:");
+    expect(dateResult.replyTexts?.[0]).toContain("✅ Dana Darurat");
+    expect(dateResult.replyTexts?.[0]).toContain("Juni 2026 – Agustus 2026");
+    expect(dateResult.replyTexts?.[0]).toContain("Setoran: Rp11.200.000/bulan");
+    expect(dateResult.replyTexts?.[0]).toContain(
+      "surplus bulanan Boss masih diprioritaskan dulu ke Dana Darurat"
     );
-    expect(dateResult.replyTexts?.[1]).toContain("🎯 Timeline Keuangan Boss:");
-    expect(dateResult.replyTexts?.[1]).toContain("✅ Dana Darurat |");
-    expect(dateResult.replyTexts?.[1]).toContain("🟡 Lagi dicek: Beli Rumah");
-    expect(dateResult.replyTexts?.[1]).toContain("Periode paralel: Juni 2026 - Agustus 2026");
-    expect(dateResult.replyTexts?.[1]).toContain(
-      "Kalau target tetap Juni 2030: total setoran paralel Rp25.485.715/bulan"
+    expect(dateResult.replyTexts?.[1]).toContain("🏠 Simulasi Beli Rumah");
+    expect(dateResult.replyTexts?.[1]).toContain("Rp14.285.715/bulan");
+    expect(dateResult.replyTexts?.[1]).toContain("Rp25.485.715/bulan");
+    expect(dateResult.replyTexts?.[1]).toContain("sampai Agustus 2026.");
+    expect(dateResult.replyTexts?.[2]).toContain("✅ Mulai: September 2026");
+    expect(dateResult.replyTexts?.[2]).toContain("✅ Estimasi selesai: November 2031");
+    expect(dateResult.replyTexts?.[3]).toContain("2️⃣ Pakai versi realistis November 2031");
+  });
+
+  it("uses the four-bubble choice format when a sequential target is still feasible", async () => {
+    seedUser({
+      onboardingStep: OnboardingStep.ASK_GOAL_TARGET_DATE,
+      goalExecutionMode: "SEQUENTIAL"
+    });
+    hoisted.store.financialProfiles = [
+      {
+        userId: "user_1",
+        monthlyIncomeTotal: 9200000,
+        monthlyExpenseTotal: 2500000,
+        potentialMonthlySaving: 6700000,
+        emergencyFundTarget: 22500000,
+      }
+    ];
+    hoisted.store.financialGoals = [
+      {
+        id: "goal_emergency",
+        userId: "user_1",
+        goalType: FinancialGoalType.EMERGENCY_FUND,
+        goalName: "Dana Darurat",
+        targetAmount: 22500000,
+        targetMonth: null,
+        targetYear: null,
+        status: FinancialGoalStatus.ACTIVE,
+        priorityOrder: 0,
+        createdAt: new Date("2026-04-25T00:00:00.000Z")
+      },
+      {
+        id: "goal_house",
+        userId: "user_1",
+        goalType: FinancialGoalType.HOUSE,
+        goalName: "Beli Rumah",
+        targetAmount: null,
+        targetMonth: null,
+        targetYear: null,
+        status: FinancialGoalStatus.ACTIVE,
+        priorityOrder: 1,
+        createdAt: new Date("2026-04-25T00:01:00.000Z")
+      }
+    ];
+    addSession({
+      stepKey: OnboardingStep.ASK_GOAL_SELECTION,
+      questionKey: OnboardingQuestionKey.GOAL_SELECTION,
+      normalizedAnswerJson: [FinancialGoalType.EMERGENCY_FUND, FinancialGoalType.HOUSE],
+      rawAnswerJson: "dana darurat dan rumah"
+    });
+    addSession({
+      stepKey: OnboardingStep.ASK_GOAL_TARGET_AMOUNT,
+      questionKey: OnboardingQuestionKey.GOAL_TARGET_AMOUNT,
+      normalizedAnswerJson: 300000000,
+      rawAnswerJson: "300jt"
+    });
+
+    const result = await sendText("juni 2032", "msg_feasible_house_choice_bubbles");
+
+    expect(result.handled).toBe(true);
+    expect(result.replyTexts).toHaveLength(4);
+    expect(result.replyTexts?.[0]).toContain("🎯 Target Baru: Beli Rumah");
+    expect(result.replyTexts?.[0]).toContain("✅ Dana Darurat");
+    expect(result.replyTexts?.[0]).toContain(
+      "Target Rp22.500.000 = Rp2.500.000 (pengeluaran bulanan) × 9"
     );
-    expect(dateResult.replyTexts?.[1]).toContain("Gap tambahan: Rp14.285.715/bulan");
-    /*
-    expect(dateResult.replyTexts?.[1]).toContain("Dana Darurat");
-    expect(dateResult.replyTexts?.[1]).toContain("Beli Rumah");
-    expect(dateResult.replyTexts?.[1]).toContain("Gap:");
-    */
-    expect(dateResult.replyText).toContain("Karena target sebelumnya masih Dana Darurat");
-    expect(dateResult.replyText).toContain("Beli Rumah");
-    expect(dateResult.replyText).toContain("Versi realistisnya sekitar");
-    expect(dateResult.replyText).toContain("Timeline Keuangan Boss");
+    expect(result.replyTexts?.[0]).toContain("Setoran: Rp6.700.000/bulan");
+    expect(result.replyTexts?.[1]).toContain("🏠 Simulasi Beli Rumah");
+    expect(result.replyTexts?.[1]).toContain("Rp4.347.827/bulan");
+    expect(result.replyTexts?.[1]).toContain("tidak perlu ditumpuk sementara");
+    expect(result.replyTexts?.[1]).toContain("Rp22.500.000");
+    expect(result.replyTexts?.[1]).toContain("sampai September 2026.");
+    expect(result.replyTexts?.[2]).toContain("📌 Rekomendasi AI");
+    expect(result.replyTexts?.[2]).toContain("Deadline Juni 2032 masih aman");
+    expect(result.replyTexts?.[2]).toContain("Estimasi selesai lebih cepat: Juni 2030");
+    expect(result.replyTexts?.[3]).toContain("1️⃣ Tetap deadline Juni 2032");
+    expect(result.replyTexts?.[3]).toContain("2️⃣ Pakai target selesai lebih cepat Juni 2030");
+    expect(result.replyTexts?.[3]).toContain("4️⃣ Ubah deadline target");
   });
 
   it("rewinds a target section back to nominal when the section confirmation is rejected", async () => {
@@ -769,7 +823,8 @@ describe("onboarding confirmation flow", () => {
         monthlyIncomeTotal: 12000000,
         monthlyExpenseTotal: 5000000,
         potentialMonthlySaving: 7000000,
-        emergencyFundTarget: 30000000,      }
+        emergencyFundTarget: 30000000,
+      }
     ];
     addSession({
       stepKey: OnboardingStep.ASK_GOAL_SELECTION,
@@ -823,7 +878,8 @@ describe("onboarding confirmation flow", () => {
         monthlyIncomeTotal: 12000000,
         monthlyExpenseTotal: 5000000,
         potentialMonthlySaving: 7000000,
-        emergencyFundTarget: 30000000,      }
+        emergencyFundTarget: 30000000,
+      }
     ];
     addSession({
       stepKey: OnboardingStep.ASK_GOAL_SELECTION,
@@ -868,7 +924,8 @@ describe("onboarding confirmation flow", () => {
         monthlyIncomeTotal: 12000000,
         monthlyExpenseTotal: 5000000,
         potentialMonthlySaving: 7000000,
-        emergencyFundTarget: 30000000,      }
+        emergencyFundTarget: 30000000,
+      }
     ];
     addSession({
       stepKey: OnboardingStep.ASK_GOAL_SELECTION,
@@ -920,7 +977,8 @@ describe("onboarding confirmation flow", () => {
         monthlyIncomeTotal: 12000000,
         monthlyExpenseTotal: 5000000,
         potentialMonthlySaving: 7000000,
-        emergencyFundTarget: 30000000,      }
+        emergencyFundTarget: 30000000,
+      }
     ];
     addSession({
       stepKey: OnboardingStep.ASK_GOAL_SELECTION,
@@ -976,7 +1034,8 @@ describe("onboarding confirmation flow", () => {
         monthlyIncomeTotal: 12000000,
         monthlyExpenseTotal: 5000000,
         potentialMonthlySaving: 7000000,
-        emergencyFundTarget: 30000000,      }
+        emergencyFundTarget: 30000000,
+      }
     ];
     addSession({
       stepKey: OnboardingStep.ASK_GOAL_SELECTION,
@@ -1027,7 +1086,8 @@ describe("onboarding confirmation flow", () => {
         monthlyIncomeTotal: 14000000,
         monthlyExpenseTotal: 4000000,
         potentialMonthlySaving: 10000000,
-        emergencyFundTarget: 24000000,      }
+        emergencyFundTarget: 24000000,
+      }
     ];
     hoisted.store.financialGoals = [
       {
@@ -1087,25 +1147,21 @@ describe("onboarding confirmation flow", () => {
     const result = await sendText("06/2030", "msg_vehicle_target_date");
 
     expect(result.handled).toBe(true);
-    expect(result.replyText).toContain("Beli Rumah");
-    expect(result.replyText).toContain("proyeksi Beli Kendaraan ini saya hitung");
+    expect(result.replyTexts).toHaveLength(4);
+    expect(result.replyTexts?.[0]).toContain("🎯 Target Baru: Beli Kendaraan");
+    expect(result.replyTexts?.[0]).toContain("✅ Beli Rumah");
+    expect(result.replyTexts?.[0]).toContain("Juni 2026 – Juni 2028");
+    expect(result.replyTexts?.[0]).toContain("Setoran: Rp10.000.000/bulan");
     expect(result.replyText).toContain("Rp4.897.960/bulan");
     expect(result.replyText).not.toContain("Rp240.000.000/bulan");
-    expect(result.replyTexts?.[1]).toContain("Juni 2030");
-    const vehicleRequiredMonthly = result.replyText.match(/perlu sekitar (Rp[\d.]+)\/bulan/i)?.[1];
-    expect(vehicleRequiredMonthly).toBeTruthy();
-    expect(result.replyTexts?.[1]).toContain("🎯 Timeline Keuangan Boss:");
-    expect(result.replyTexts?.[1]).toContain("✅ Beli Rumah |");
-    expect(result.replyTexts?.[1]).toContain("🟡 Lagi dicek: Beli Kendaraan");
-    expect(result.replyTexts?.[1]).toContain("Periode paralel: Juni 2026 - Juni 2028");
-    expect(result.replyTexts?.[1]).toContain(
-      "Gap tambahan: Rp4.897.960/bulan (Juni 2026 - Juni 2028)"
-    );
-    /*
-    expect(result.replyTexts?.[1]).toContain(`Nabung sekitar: ${vehicleRequiredMonthly}/bulan`);
-    */
-    expect(result.replyTexts?.[2]).toContain("Kalau Boss tetap mau pegang target Juni 2030");
-    expect(result.replyTexts?.[1]).not.toContain("Target tercapai:");
+    expect(result.replyTexts?.[1]).toContain("🚗 Simulasi Beli Kendaraan");
+    expect(result.replyTexts?.[1]).toContain("Kalau tetap mau selesai Juni 2030");
+    expect(result.replyTexts?.[1]).toContain("Rp14.897.960/bulan");
+    expect(result.replyTexts?.[1]).toContain("sampai Juni 2028.");
+    expect(result.replyTexts?.[2]).toContain("✅ Mulai: Desember 2028");
+    expect(result.replyTexts?.[2]).toContain("✅ Estimasi selesai: November 2030");
+    expect(result.replyTexts?.[3]).toContain("1️⃣ Tetap deadline Juni 2030");
+    expect(result.replyTexts?.[1]).not.toContain("Rp240.000.000/bulan");
   });
 
   it("keeps the user requested deadline in the pending timeline as a parallel preview when sequential timing is impossible", async () => {
@@ -1119,7 +1175,8 @@ describe("onboarding confirmation flow", () => {
         monthlyIncomeTotal: 9200000,
         monthlyExpenseTotal: 2500000,
         potentialMonthlySaving: 6700000,
-        emergencyFundTarget: 22500000,      }
+        emergencyFundTarget: 22500000,
+      }
     ];
     hoisted.store.financialGoals = [
       {
@@ -1196,38 +1253,17 @@ describe("onboarding confirmation flow", () => {
     const result = await sendText("06/2032", "msg_vehicle_requested_deadline");
 
     expect(result.handled).toBe(true);
-    /*
-    expect(result.replyText).toContain("target Juni 2032 belum keburu");
-    expect(result.replyTexts?.[1]).toContain("Dana Darurat");
-    expect(result.replyTexts?.[1]).toContain("Beli Rumah");
-    expect(result.replyTexts?.[1]).toContain("📍 (Paralel)");
-    expect(result.replyTexts?.[1]).toContain("Beli Kendaraan");
-    expect(result.replyTexts?.[1]).toContain("Juni 2032");
-    expect(result.replyTexts?.[1]).not.toContain("Februari 2039");
-    expect(result.replyTexts?.[1]).toContain("Total kebutuhan paralel:");
-    expect(result.replyTexts?.[1]).not.toContain("Gap:");
-    */
-    expect(result.replyText).toContain("perlu sekitar Rp4.347.827/bulan");
-    expect(result.replyText).toContain("Surplus bulanan kamu Rp6.700.000.");
-    expect(result.replyText).toContain(
-      "surplus ini sedang diprioritaskan untuk Dana Darurat dan Beli Rumah dulu"
-    );
-    expect(result.replyText).toContain("Versi realistisnya sekitar Maret 2039.");
+    expect(result.replyTexts).toHaveLength(4);
+    expect(result.replyText).toContain("Rp4.347.827/bulan");
     expect(result.replyText).not.toContain("Rp300.000.000/bulan");
-    expect(result.replyTexts?.[1]).toContain("🎯 Timeline Keuangan Boss:");
-    expect(result.replyTexts?.[1]).toContain("✅ Dana Darurat |");
-    expect(result.replyTexts?.[1]).toContain("✅ Beli Rumah |");
-    expect(result.replyTexts?.[1]).toContain("🟡 Lagi dicek: Beli Kendaraan");
-    expect(result.replyTexts?.[1]).toContain("Timeline realistis: Juli 2035 - Maret 2039");
-    expect(result.replyTexts?.[1]).toContain("Periode paralel: Oktober 2026 - Juni 2032");
-    expect(result.replyTexts?.[1]).toContain("Kalau target tetap Juni 2032: total setoran paralel");
-    expect(result.replyTexts?.[1]).toContain("Gap tambahan: Rp4.347.827/bulan (Oktober 2026 - Juni 2032)");
-    expect(result.replyTexts?.[1]).toContain(
-      "Kalau deadline Juni 2032 tetap dipakai, perlu tambah sekitar Rp4.347.827/bulan dari Oktober 2026 sampai Juni 2032."
-    );
-    expect(result.replyTexts?.[2]).toContain("Kalau Boss tetap mau pegang target Juni 2032");
-    expect(result.replyTexts?.[2]).toContain("Kalau mau saya pakai versi yang lebih realistis, saya bisa geser ke Maret 2039.");
-    expect(result.replyText).toContain("Timeline Keuangan Boss");
+    expect(result.replyTexts?.[0]).toContain("✅ Dana Darurat");
+    expect(result.replyTexts?.[0]).toContain("✅ Beli Rumah");
+    expect(result.replyTexts?.[1]).toContain("🚗 Simulasi Beli Kendaraan");
+    expect(result.replyTexts?.[1]).toContain("Rp11.047.827/bulan");
+    expect(result.replyTexts?.[1]).toContain("sampai Juni 2032.");
+    expect(result.replyTexts?.[2]).toContain("✅ Mulai: Juli 2035");
+    expect(result.replyTexts?.[2]).toContain("✅ Estimasi selesai: Maret 2039");
+    expect(result.replyTexts?.[3]).toContain("2️⃣ Pakai versi realistis Maret 2039");
   });
 
   it("uses a parallel preview instead of a one-month sequential setoran when the requested date is right after the previous target ends", async () => {
@@ -1241,7 +1277,8 @@ describe("onboarding confirmation flow", () => {
         monthlyIncomeTotal: 9200000,
         monthlyExpenseTotal: 2500000,
         potentialMonthlySaving: 6700000,
-        emergencyFundTarget: 22500000,      }
+        emergencyFundTarget: 22500000,
+      }
     ];
     hoisted.store.financialGoals = [
       {
@@ -1319,12 +1356,12 @@ describe("onboarding confirmation flow", () => {
 
     expect(result.handled).toBe(true);
     expect(result.replyText).not.toContain("Rp300.000.000/bulan");
-    expect(result.replyText).toContain("perlu sekitar Rp2.857.143/bulan");
-    expect(result.replyText).toContain("gap Rp2.857.143/bulan");
-    expect(result.replyTexts?.[1]).toContain("Periode paralel: Oktober 2026 - Mei 2035");
-    expect(result.replyTexts?.[1]).toContain(
-      "Kalau target tetap Juni 2035: total setoran paralel Rp9.557.143/bulan"
-    );
+    expect(result.replyText).toContain("Rp2.857.143/bulan");
+    expect(result.replyTexts?.[1]).toContain("🚗 Simulasi Beli Kendaraan");
+    expect(result.replyTexts?.[1]).toContain("Rp9.557.143/bulan");
+    expect(result.replyTexts?.[1]).toContain("sampai Mei 2035.");
+    expect(result.replyTexts?.[2]).toContain("✅ Mulai: Juli 2035");
+    expect(result.replyTexts?.[2]).toContain("✅ Estimasi selesai: Maret 2039");
     expect(result.replyTexts?.[1]).not.toContain("Timeline: Juni 2035 - Juni 2035");
   });
 
@@ -1339,7 +1376,8 @@ describe("onboarding confirmation flow", () => {
         monthlyIncomeTotal: 9200000,
         monthlyExpenseTotal: 2500000,
         potentialMonthlySaving: 6700000,
-        emergencyFundTarget: 22500000,      }
+        emergencyFundTarget: 22500000,
+      }
     ];
     hoisted.store.financialGoals = [
       {
@@ -1515,18 +1553,14 @@ describe("onboarding confirmation flow", () => {
 
     expect(result.handled).toBe(true);
     expect(result.replyText).not.toContain("Rp20.000.000/bulan");
-    expect(result.replyText).toContain("perlu sekitar Rp10.000.000/bulan");
-    expect(result.replyText).toContain("gap Rp12.796.856/bulan");
-    expect(result.replyTexts?.[1]).toContain(
-      "✅ Beli Kendaraan | Oktober 2026 - Juni 2035 | Rp2.830.189/bulan | gap Rp2.796.856/bulan"
-    );
-    expect(result.replyTexts?.[1]).toContain("Periode paralel: Oktober 2026 - November 2026");
-    expect(result.replyTexts?.[1]).toContain(
-      "Kalau target tetap November 2026: total setoran paralel Rp19.496.856/bulan"
-    );
-    expect(result.replyTexts?.[1]).toContain(
-      "Gap tambahan: Rp12.796.856/bulan (Oktober 2026 - November 2026)"
-    );
+    expect(result.replyText).toContain("Rp10.000.000/bulan");
+    expect(result.replyTexts?.[0]).toContain("✅ Beli Kendaraan");
+    expect(result.replyTexts?.[0]).toContain("Oktober 2026 – Juni 2035");
+    expect(result.replyTexts?.[0]).toContain("Setoran: Rp2.830.189/bulan");
+    expect(result.replyTexts?.[1]).toContain("🏖️ Simulasi Liburan");
+    expect(result.replyTexts?.[1]).toContain("Rp19.496.856/bulan");
+    expect(result.replyTexts?.[1]).toContain("sampai November 2026.");
+    expect(result.replyTexts?.[2]).toContain("✅ Estimasi selesai: Juni 2039");
     expect(result.replyTexts?.[1]).not.toContain("Juni 2035 - Februari 2039");
   });
 
@@ -1541,7 +1575,8 @@ describe("onboarding confirmation flow", () => {
         monthlyIncomeTotal: 9200000,
         monthlyExpenseTotal: 2500000,
         potentialMonthlySaving: 6700000,
-        emergencyFundTarget: 22500000,      }
+        emergencyFundTarget: 22500000,
+      }
     ];
     hoisted.store.financialGoals = [
       {
@@ -1716,8 +1751,11 @@ describe("onboarding confirmation flow", () => {
     const result = await sendText("11/2026", "msg_vacation_before_realistic_vehicle_start");
 
     expect(result.handled).toBe(true);
-    expect(result.replyTexts?.[1]).toContain("Timeline realistis: April 2039 - Agustus 2039");
-    expect(result.replyTexts?.[1]).toContain("Periode paralel: Oktober 2026 - November 2026");
+    expect(result.replyTexts?.[1]).toContain("🏖️ Simulasi Liburan");
+    expect(result.replyTexts?.[1]).toContain("Rp21.666.667/bulan");
+    expect(result.replyTexts?.[1]).toContain("sampai November 2026.");
+    expect(result.replyTexts?.[2]).toContain("✅ Mulai: April 2039");
+    expect(result.replyTexts?.[2]).toContain("✅ Estimasi selesai: Agustus 2039");
     expect(result.replyTexts?.[1]).not.toContain("Periode paralel: Juli 2035 - November 2026");
     expect(result.replyTexts?.[1]).not.toContain("dari Juli 2035 sampai November 2026");
   });
@@ -1730,10 +1768,11 @@ describe("onboarding confirmation flow", () => {
     hoisted.store.financialProfiles = [
       {
         userId: "user_1",
-        monthlyIncomeTotal: 9000000,
-        monthlyExpenseTotal: 2500000,
-        potentialMonthlySaving: 6500000,
-        emergencyFundTarget: 26000000,      }
+        monthlyIncomeTotal: 6290005,
+        monthlyExpenseTotal: 2590002,
+        potentialMonthlySaving: 3700003,
+        emergencyFundTarget: 25900020,
+      }
     ];
     hoisted.store.financialGoals = [
       {
@@ -1741,7 +1780,7 @@ describe("onboarding confirmation flow", () => {
         userId: "user_1",
         goalType: FinancialGoalType.EMERGENCY_FUND,
         goalName: "Dana Darurat",
-        targetAmount: 26000000,
+        targetAmount: 25900020,
         targetMonth: null,
         targetYear: null,
         status: FinancialGoalStatus.ACTIVE,
@@ -1777,10 +1816,51 @@ describe("onboarding confirmation flow", () => {
     const result = await sendText("06/2030", "msg_house_deadline_overlaps_emergency_only");
 
     expect(result.handled).toBe(true);
-    expect(result.replyTexts?.[1]).toContain("Periode paralel: Juni 2026 - September 2026");
-    expect(result.replyTexts?.[1]).toContain(
-      "Gap tambahan: Rp6.122.449/bulan (Juni 2026 - September 2026)"
-    );
+    expect(result.replyTexts).toEqual([
+      [
+        "🎯 Target Baru: Beli Rumah",
+        "Target: Rp300.000.000",
+        "Deadline awal: Juni 2030",
+        "",
+        "Saat ini Boss masih punya target aktif:",
+        "",
+        "✅ Dana Darurat",
+        "Target Rp23.310.018 = Rp2.590.002 (pengeluaran bulanan) × 9",
+        "Juni 2026 – Desember 2026",
+        "Setoran: Rp3.700.003/bulan",
+        "",
+        "Karena target berjalan berurutan, surplus bulanan Boss masih diprioritaskan dulu ke Dana Darurat."
+      ].join("\n"),
+      [
+        "🏠 Simulasi Beli Rumah",
+        "",
+        "Kalau tetap mau selesai Juni 2030, Boss perlu setoran:",
+        "",
+        "Rp6.122.449/bulan",
+        "",
+        "Tapi karena Dana Darurat masih berjalan, total kebutuhan sementara jadi:",
+        "",
+        "Rp9.822.452/bulan",
+        "sampai Desember 2026."
+      ].join("\n"),
+      [
+        "📌 Rekomendasi AI",
+        "",
+        "Agar cashflow lebih realistis, target Beli Rumah lebih aman dimulai setelah Dana Darurat selesai.",
+        "",
+        "✅ Mulai: Januari 2027",
+        "✅ Estimasi selesai: Oktober 2033",
+        "✅ Setoran tetap sesuai kemampuan saat ini"
+      ].join("\n"),
+      [
+        "Boss mau pilih yang mana?",
+        "",
+        "1️⃣ Tetap deadline Juni 2030",
+        "2️⃣ Pakai versi realistis Oktober 2033",
+        "3️⃣ Ubah nominal target",
+        "4️⃣ Ubah deadline target"
+      ].join("\n")
+    ]);
     expect(result.replyTexts?.[1]).not.toContain("Periode paralel: Juni 2026 - Juni 2030");
     expect(result.replyTexts?.[1]).not.toContain("dari Juni 2026 sampai Juni 2030");
   });
@@ -1796,7 +1876,8 @@ describe("onboarding confirmation flow", () => {
         monthlyIncomeTotal: 9200000,
         monthlyExpenseTotal: 2500000,
         potentialMonthlySaving: 6700000,
-        emergencyFundTarget: 22500000,      }
+        emergencyFundTarget: 22500000,
+      }
     ];
     hoisted.store.financialGoals = [
       {
@@ -1971,13 +2052,10 @@ describe("onboarding confirmation flow", () => {
     const result = await sendText("06/2026", "msg_early_vacation_parallel_with_emergency");
 
     expect(result.handled).toBe(true);
-    expect(result.replyTexts?.[1]).toContain("Periode paralel: Juni 2026 - Juni 2026");
-    expect(result.replyTexts?.[1]).toContain(
-      "Kalau target tetap Juni 2026: total setoran paralel Rp10.700.000/bulan"
-    );
-    expect(result.replyTexts?.[1]).toContain(
-      "Gap tambahan: Rp4.000.000/bulan (Juni 2026 - Juni 2026)"
-    );
+    expect(result.replyTexts?.[1]).toContain("🏖️ Simulasi Liburan");
+    expect(result.replyTexts?.[1]).toContain("Rp4.000.000/bulan");
+    expect(result.replyTexts?.[1]).toContain("Rp10.700.000/bulan");
+    expect(result.replyTexts?.[1]).toContain("sampai Juni 2026.");
   });
 
 });

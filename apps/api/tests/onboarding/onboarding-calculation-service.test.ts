@@ -11,7 +11,8 @@ import {
   buildOnboardingPlanningAnalysis,
   calculateTargetFeasibility,
   evaluateTargetAgainstCurrentPlan,
-  generateFinalTimelineCopy
+  generateFinalTimelineCopy,
+  generateFinalTimelineReplyTexts
 } from "@/lib/services/onboarding/flow/shared/calculation/onboarding-calculation-service";
 
 describe("onboarding calculation service", () => {
@@ -258,6 +259,7 @@ describe("onboarding calculation service", () => {
           status: "feasible",
           userDecision: "original",
           targetAmount: 22_500_000,
+          currentSavedAmount: 7_500_000,
           targetDateLabel: "September 2026",
           basis: "FULL_SURPLUS",
           note: "Target ini masih aman di ritme sekarang."
@@ -330,11 +332,13 @@ describe("onboarding calculation service", () => {
       ]
     });
 
-    expect(timeline).toContain("Deadline versi Boss: November 2026");
-    expect(timeline).toContain("Versi realistis berurutan: Mei 2033");
-    expect(timeline).toContain("perlu jalan paralel");
-    expect(timeline?.indexOf("Fokus: Beli Rumah")).toBeLessThan(
-      timeline?.indexOf("Fokus: Liburan") ?? Number.MAX_SAFE_INTEGER
+    expect(timeline).toContain("Deadline awal: November 2026");
+    expect(timeline).toContain("Progress: 33.3%");
+    expect(timeline).toContain("███░░░░░░░");
+    expect(timeline).toContain("Estimasi realistis: Mei 2033");
+    expect(timeline).toContain("Ada target yang perlu penyesuaian");
+    expect(timeline?.indexOf("Beli Rumah")).toBeLessThan(
+      timeline?.indexOf("Liburan") ?? Number.MAX_SAFE_INTEGER
     );
   });
 

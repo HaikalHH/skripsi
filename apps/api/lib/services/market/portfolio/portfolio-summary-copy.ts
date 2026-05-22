@@ -11,7 +11,7 @@ export const PORTFOLIO_ASSET_TYPE_LABELS: Record<PrismaPortfolioAssetType, strin
   GOLD: "Emas (GOLD)",
   STOCK: "Saham (STOCK)",
   MUTUAL_FUND: "Lainnya",
-  CRYPTO: "Kripto (CRYPTO)",
+  CRYPTO: "Lainnya",
   DEPOSIT: "Deposito / Kas",
   PROPERTY: "Properti",
   BUSINESS: "Bisnis",

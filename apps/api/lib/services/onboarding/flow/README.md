@@ -10,7 +10,7 @@ Semua file onboarding sekarang berada di dalam `flow/`. Root `onboarding/` hanya
 - `02-income`: status kerja, income aktif, tanggal gajian, dan income pasif.
 - `03-expenses`: pilihan cara isi budget dan rincian pengeluaran.
 - `04-goal-planning`: detail target, deadline, dan prioritas.
-- `05-assets`: pendataan tabungan, emas, saham, crypto, reksa dana, dan properti.
+- `05-assets`: pendataan tabungan, emas, saham, dan properti.
 - `06-completion`: pilihan personalisasi lanjutan dan penutup onboarding.
 - `get-prompt-for-step.ts`: memilih prompt yang cocok untuk step saat ini.
 - `next-step.ts`: menentukan step berikutnya setelah user menjawab.

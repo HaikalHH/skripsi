@@ -13,7 +13,6 @@ import type { NormalizedMarketSymbol } from "@/lib/services/market/types/symbol.
 
 export const buildQuoteLabel = (normalized: NormalizedMarketSymbol) => {
   if (normalized.kind === "gold") return "Emas (IDR/gram)";
-  if (normalized.kind === "crypto") return `Crypto ${normalized.displaySymbol}`;
   return `Saham ${normalized.displaySymbol}`;
 };
 

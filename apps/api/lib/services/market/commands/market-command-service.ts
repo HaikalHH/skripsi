@@ -40,7 +40,7 @@ export const buildMarketCommandFailureReply = (error: unknown, symbol?: string) 
       const suggestions = error.suggestions.filter((candidate) => candidate !== symbol).slice(0, 3);
       return suggestions.length
         ? `Simbol '${error.symbol}' tidak ditemukan. Maksud kamu salah satu dari: ${suggestions.join(", ")}?`
-        : `Simbol '${error.symbol}' tidak ditemukan. Coba format seperti BBCA, BTC, atau XAU.`;
+        : `Simbol '${error.symbol}' tidak ditemukan. Coba format seperti BBCA atau XAU.`;
     }
 
     if (error.staleTimestamp) {

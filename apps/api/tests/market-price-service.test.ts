@@ -6,8 +6,8 @@ describe("market symbol resolver", () => {
     expect(resolveMarketSymbol("emas")).toEqual({ kind: "gold", symbol: "XAU" });
   });
 
-  it("resolves crypto symbols", () => {
-    expect(resolveMarketSymbol("btc")).toEqual({ kind: "crypto", symbol: "BTC" });
+  it("does not resolve removed crypto symbols", () => {
+    expect(resolveMarketSymbol("btc")).toBeNull();
   });
 
   it("resolves stock symbol", () => {

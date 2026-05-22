@@ -19,6 +19,7 @@ import { tryHandlePortfolioCommand } from "@/lib/services/market/commands";
 import { tryHandlePrivacyCommand } from "@/lib/services/assistant/privacy/privacy-command";
 import { buildGoalPlannerReply } from "@/lib/services/planning/goal-planner";
 import { tryHandleTransactionMutationCommand } from "@/lib/services/transactions/mutation-command";
+import { buildBudgetCategoryListText } from "@/lib/services/transactions/budget";
 import {
   addGoalContributionAndRecordSaving,
   getSavingsGoalStatus
@@ -34,7 +35,7 @@ import {
 } from "@/lib/services/reminders/preference";
 import {
   buildGoalContributionText,
-  buildGoalStatusText
+  buildGoalStatusReplyPayload
 } from "../formatting/formatters";
 import {
   stageBudgetAndBuildReply,
@@ -266,6 +267,10 @@ export const tryHandleStructuredText = async (
     });
   }
 
+  if (routedContext.command.kind === "BUDGET_CATEGORY_LIST") {
+    return ok({ replyText: await buildBudgetCategoryListText(params.userId) });
+  }
+
   if (routedContext.command.kind === "BUDGET_SET_FLOW_START") {
     return startCommandFlow({
       userId: params.userId,
@@ -322,7 +327,7 @@ export const tryHandleStructuredText = async (
       goalQuery: routedContext.command.goalQuery,
       goalType: routedContext.command.goalType
     });
-    return ok({ replyText: buildGoalStatusText(goalStatus) });
+    return ok(buildGoalStatusReplyPayload(goalStatus));
   }
 
   if (routedContext.command.kind === "GOAL_CONTRIBUTE") {

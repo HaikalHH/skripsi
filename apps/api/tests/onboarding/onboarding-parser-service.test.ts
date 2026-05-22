@@ -2,6 +2,10 @@ import { AssetType, BudgetMode, EmploymentType, FinancialGoalType } from "@prism
 import { describe, expect, it } from "vitest";
 import {
   isReadyCommand,
+  parseActiveIncomeAddMoreAnswer,
+  parseActiveIncomeCycleSelection,
+  parseActiveIncomeFrequency,
+  parseAssetQuantityInput,
   parseAssetSelection,
   parseAssetSelections,
   parseAddMoreAnswer,
@@ -19,7 +23,6 @@ import {
   parseGoalSelectionConflict,
   parseGoalSelection,
   parseGoalSelections,
-  parseCryptoSymbolInput,
   getMoneyAnswerLowerBound,
   parseMultiChoiceInput,
   parseGuidedOtherExpenseInput,
@@ -28,8 +31,8 @@ import {
   parseMonthYearInput,
   parseMoneyInput,
   parseMoneyInputPreservingRange,
-  parseStockSymbolInput,
-  parseMutualFundSymbolInput
+  looksLikeGoalTargetDateInput,
+  parseStockSymbolInput
 } from "@/lib/services/onboarding/flow/shared/parser/onboarding-parser-service";
 
 const getCurrentJakartaMonthYear = () => {
@@ -120,18 +123,16 @@ describe("onboarding parser service", () => {
       FinancialGoalType.VACATION,
       FinancialGoalType.CUSTOM
     ]);
-    expect(parseAssetSelections("1-6")).toEqual([
+    expect(parseAssetSelections("1-4")).toEqual([
       AssetType.SAVINGS,
       AssetType.GOLD,
       AssetType.STOCK,
-      AssetType.CRYPTO,
-      AssetType.MUTUAL_FUND,
       AssetType.PROPERTY
     ]);
   });
 
   it("rejects contradictory asset selections that mix belum punya with real assets", () => {
-    expect(parseAssetSelections("1,7")).toBeNull();
+    expect(parseAssetSelections("1,5")).toBeNull();
     expect(parseAssetSelections("tabungan dan belum punya")).toBeNull();
     expect(parseAssetSelections(["tabungan", "belum punya"])).toBeNull();
   });
@@ -144,9 +145,6 @@ describe("onboarding parser service", () => {
     expect(parseGoldAssetKarat("22")).toBe("22K");
     expect(parseGoldAssetPlatform("pegadaian")).toBe("PEGADAIAN");
     expect(parseStockSymbolInput("saham bbri")).toBe("BBRI");
-    expect(parseCryptoSymbolInput("bitcoin")).toBe("BTC");
-    expect(parseCryptoSymbolInput("ETH")).toBe("ETH");
-    expect(parseMutualFundSymbolInput("Schroder Dana Istimewa")).toBe("Schroder Dana Istimewa");
   });
 
   it("parses flexible numeric answers", () => {
@@ -179,7 +177,24 @@ describe("onboarding parser service", () => {
       month: 3,
       year: 2027
     });
+    expect(parseMonthYearInput("16 juni 2036")).toMatchObject({
+      month: 6,
+      year: 2036
+    });
+    expect(parseMonthYearInput("16/06/2036")).toMatchObject({
+      month: 6,
+      year: 2036
+    });
+    expect(looksLikeGoalTargetDateInput("tanggal 16 juni 2036")).toBe(true);
     expect(parseMonthYearInput("Juni 3035")).toBeNull();
+  });
+
+  it("rejects asset quantity units that do not match the current asset question", () => {
+    expect(parseAssetQuantityInput("10 gram", "gold_grams")).toBe(10);
+    expect(parseAssetQuantityInput("10 lot", "gold_grams")).toBeNull();
+    expect(parseAssetQuantityInput("Isi gram/lot abc", "gold_grams")).toBeNull();
+    expect(parseAssetQuantityInput("2 lot", "stock_lots")).toBe(2);
+    expect(parseAssetQuantityInput("2 gram", "stock_lots")).toBeNull();
   });
 
   it("allows next month but rejects current and past month-year targets", () => {
@@ -297,11 +312,27 @@ describe("onboarding parser service", () => {
 
   it("prioritizes negative boolean phrases over partial positive matches", () => {
     expect(parseBooleanAnswer("Ga ada")).toBe(false);
+    expect(parseBooleanAnswer("bukan yang ini")).toBe(false);
+    expect(parseBooleanAnswer("engga")).toBe(false);
     expect(parseBooleanAnswer("gk ada")).toBe(false);
     expect(parseBooleanAnswer("gak ada lagi")).toBe(false);
     expect(parseBooleanAnswer("ya udah semua")).toBe(false);
     expect(parseBooleanAnswer("adaa")).toBe(true);
     expect(parseBooleanAnswer("ada lagi")).toBe(true);
+  });
+
+  it("parses active income onboarding answers from natural wording", () => {
+    expect(parseActiveIncomeFrequency("cuma satu kali gajian utama")).toBe("SINGLE");
+    expect(parseActiveIncomeFrequency("gaji utama sama freelance")).toBe("MULTIPLE");
+    expect(parseActiveIncomeFrequency("2")).toBe("MULTIPLE");
+    expect(parseActiveIncomeAddMoreAnswer("masih")).toBe(true);
+    expect(parseActiveIncomeAddMoreAnswer("ada")).toBe(true);
+    expect(parseActiveIncomeAddMoreAnswer("belum, masih ada satu lagi")).toBe(true);
+    expect(parseActiveIncomeAddMoreAnswer("udah itu aja")).toBe(false);
+    expect(parseActiveIncomeAddMoreAnswer("gak")).toBe(false);
+    expect(parseActiveIncomeCycleSelection("income kedua aja", [25, 10, 15])).toBe(10);
+    expect(parseActiveIncomeCycleSelection("yang ke dua", [28, 25])).toBe(25);
+    expect(parseActiveIncomeCycleSelection("yang tanggal 25", [25, 10, 15])).toBe(25);
   });
 
   it("treats add-more continuation phrases as continue instead of yes", () => {

@@ -33,15 +33,6 @@ export const getCurrentBatchAnswerValue = <T>(
     latestSessionForQuestion(getCurrentAssetBatchSessions(sessions), questionKey)
   );
 
-export const shouldAskManualMutualFundEstimatedValue = (context: {
-  user: { onboardingStep: OnboardingStep };
-  currentAssetType: AssetType | null;
-  hasCurrentMutualFundUnits?: boolean;
-}) =>
-  context.user.onboardingStep === OnboardingStep.ASK_ASSET_ESTIMATED_VALUE &&
-  context.currentAssetType === AssetType.MUTUAL_FUND &&
-  context.hasCurrentMutualFundUnits === true;
-
 export const isFinalAssetStep = (context: {
   user: { onboardingStep: OnboardingStep };
   currentAssetType: AssetType | null;
@@ -49,15 +40,11 @@ export const isFinalAssetStep = (context: {
 }) => {
   if (context.user.onboardingStep === OnboardingStep.ASK_ASSET_SAVINGS_BALANCE) return true;
   if (context.user.onboardingStep === OnboardingStep.ASK_ASSET_STOCK_LOTS) return true;
-  if (context.user.onboardingStep === OnboardingStep.ASK_ASSET_CRYPTO_QUANTITY) return true;
-  if (context.user.onboardingStep === OnboardingStep.ASK_ASSET_MUTUAL_FUND_UNITS) return true;
   if (context.user.onboardingStep === OnboardingStep.ASK_ASSET_PROPERTY_ESTIMATED_VALUE) return true;
   if (
     context.user.onboardingStep === OnboardingStep.ASK_ASSET_ESTIMATED_VALUE &&
     (context.currentAssetType === AssetType.SAVINGS ||
       context.currentAssetType === AssetType.STOCK ||
-      context.currentAssetType === AssetType.CRYPTO ||
-      context.currentAssetType === AssetType.MUTUAL_FUND ||
       context.currentAssetType === AssetType.PROPERTY)
   ) {
     return true;

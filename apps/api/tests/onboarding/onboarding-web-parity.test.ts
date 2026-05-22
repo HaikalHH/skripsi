@@ -26,7 +26,6 @@ const baseContext: OnboardingPromptContext = {
   pendingAssetStep: null,
   currentAssetType: null,
   currentGoldType: null,
-  hasCurrentMutualFundUnits: false,
   expenseAvailable: false,
   hasExpenseDependentGoal: false,
   goalExpenseStrategy: null,

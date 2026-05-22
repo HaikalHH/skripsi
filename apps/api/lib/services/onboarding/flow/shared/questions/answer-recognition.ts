@@ -178,13 +178,9 @@ export const ASSET_INTENT_OPTIONS: FlexibleChoiceOption[] = ASSET_OPTIONS.map((o
         ? ["emas", "gold", "antam", "logam mulia"]
         : option.value === AssetType.STOCK
           ? ["saham", "stock", "bbca", "bmri", "tlkm"]
-          : option.value === AssetType.CRYPTO
-            ? ["crypto", "kripto", "btc", "bitcoin", "eth", "ethereum"]
-            : option.value === AssetType.MUTUAL_FUND
-              ? ["reksa dana", "mutual fund", "rd"]
-              : option.value === AssetType.PROPERTY
-                ? ["properti", "property", "rumah", "tanah", "apartemen", "ruko"]
-                : ["belum punya", "belum ada aset", "ga ada aset", "gak ada aset", "tidak punya aset", "none"]
+          : option.value === AssetType.PROPERTY
+            ? ["properti", "property", "rumah", "tanah", "apartemen", "ruko"]
+            : ["belum punya", "belum ada aset", "ga ada aset", "gak ada aset", "tidak punya aset", "none"]
 }));
 
 export const GOLD_TYPE_INTENT_OPTIONS: FlexibleChoiceOption[] = GOLD_TYPE_OPTIONS.map((option) => ({

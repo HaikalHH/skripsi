@@ -110,5 +110,3 @@ export const formatQuantityValue = (value: number) => {
   const formatted = value.toFixed(8).replace(/(\.\d*?[1-9])0+$/, "$1").replace(/\.0+$/, "");
   return formatted === "-0" ? "0" : formatted;
 };
-
-export const formatCryptoQuantity = (value: number) => formatQuantityValue(value);

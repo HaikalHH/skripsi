@@ -1,4 +1,3 @@
-import { CRYPTO_METADATA } from "@/lib/services/market/symbol/crypto-registry";
 import { GOLD_ALIASES } from "@/lib/services/market/symbol/gold-registry";
 import {
   STOCK_ALIAS_TO_CANONICAL,
@@ -9,8 +8,6 @@ import { normalizeRawSymbol } from "@/lib/services/market/symbol/symbol-builders
 const MARKET_SYMBOL_CANDIDATES = Array.from(
   new Set([
     ...GOLD_ALIASES,
-    ...Object.keys(CRYPTO_METADATA),
-    ...Object.values(CRYPTO_METADATA).flatMap((entry) => entry.aliases),
     ...Object.keys(STOCK_METADATA),
     ...Object.keys(STOCK_ALIAS_TO_CANONICAL),
     ...Object.values(STOCK_METADATA).flatMap((entry) => entry.aliases)
@@ -59,7 +56,6 @@ export const listKnownMarketSymbols = () =>
   Array.from(
     new Set([
       "XAU",
-      ...Object.keys(CRYPTO_METADATA),
       ...Object.keys(STOCK_METADATA),
       ...Object.keys(STOCK_ALIAS_TO_CANONICAL)
     ])
