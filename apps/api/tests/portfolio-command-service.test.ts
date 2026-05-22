@@ -140,6 +140,9 @@ vi.mock("@/lib/services/market/quote", () => {
           symbol: "BBCA",
           label: "Saham BBCA",
           price: 9500,
+          previousClose: 9400,
+          change: 100,
+          changePercent: 100 / 9400 * 100,
           currency: "IDR",
           source: "Yahoo Finance"
         };
@@ -149,6 +152,9 @@ vi.mock("@/lib/services/market/quote", () => {
           symbol: "TLKM",
           label: "Saham TLKM",
           price: 2800,
+          previousClose: 2850,
+          change: -50,
+          changePercent: -50 / 2850 * 100,
           currency: "IDR",
           source: "Yahoo Finance"
         };
@@ -158,6 +164,9 @@ vi.mock("@/lib/services/market/quote", () => {
           symbol: "BBRI",
           label: "Saham BBRI",
           price: 5200,
+          previousClose: 5100,
+          change: 100,
+          changePercent: 100 / 5100 * 100,
           currency: "IDR",
           source: "Yahoo Finance"
         };
@@ -167,6 +176,9 @@ vi.mock("@/lib/services/market/quote", () => {
           symbol: "XAU",
           label: "Emas (IDR/gram)",
           price: 2500000,
+          previousClose: 2450000,
+          change: 50000,
+          changePercent: 50000 / 2450000 * 100,
           currency: "IDR",
           source: "Yahoo Finance + ER-API"
         };
@@ -281,7 +293,7 @@ describe("portfolio command service", () => {
       {
         id: "out_stock_price",
         userId: "user_1",
-        messageText: "Berapa harga beli per lembar? (dalam Rupiah)",
+        messageText: "Berapa harga per lembar saat dicatat? (dalam Rupiah)",
         sentAt: minutesAgo(3.5),
         createdAt: minutesAgo(3.5)
       }
@@ -297,7 +309,7 @@ describe("portfolio command service", () => {
       expect(summaryResult.replyText).toContain("Berikut catatan saham kamu:");
       expect(summaryResult.replyText).toContain("- Kode saham : BBCA");
       expect(summaryResult.replyText).toContain("- Jumlah     : 2 lot (200 lembar)");
-      expect(summaryResult.replyText).toContain("- Harga beli : Rp9.000/lembar");
+      expect(summaryResult.replyText).toContain("- Harga saat dicatat : Rp9.000/lembar");
       expect(summaryResult.replyText).toContain("- Total nilai: Rp1.800.000");
       expect(summaryResult.replyText).toContain("Apakah data ini sudah benar?");
     }
@@ -327,7 +339,7 @@ describe("portfolio command service", () => {
     if (confirmResult.handled) {
       expect(confirmResult.replyText).toContain("Saham berhasil dicatat: BBCA");
       expect(confirmResult.replyText).toContain("- Jumlah: 2 lot (200 lembar)");
-      expect(confirmResult.replyText).toContain("- Harga beli: Rp9.000/lembar");
+      expect(confirmResult.replyText).toContain("- Harga saat dicatat: Rp9.000/lembar");
     }
     expect(hoisted.assets).toHaveLength(1);
     expect(hoisted.assets[0]).toMatchObject({
@@ -375,7 +387,7 @@ describe("portfolio command service", () => {
       {
         id: "out_stock_price",
         userId: "user_1",
-        messageText: "Berapa harga beli per lembar? (dalam Rupiah)",
+        messageText: "Berapa harga per lembar saat dicatat? (dalam Rupiah)",
         sentAt: minutesAgo(6.5),
         createdAt: minutesAgo(6.5)
       },
@@ -386,7 +398,7 @@ describe("portfolio command service", () => {
           "Berikut catatan saham kamu:",
           "- Kode saham : TLKM",
           "- Jumlah     : 150 lembar",
-          "- Harga beli : Rp2.800/lembar",
+          "- Harga saat dicatat : Rp2.800/lembar",
           "- Total nilai: Rp420.000",
           "",
           "Apakah data ini sudah benar?"
@@ -404,7 +416,7 @@ describe("portfolio command service", () => {
     expect(result.handled).toBe(true);
     if (result.handled) {
       expect(result.replyText).toBe(
-        "Bagian mana yang ingin dikoreksi? Kode saham, jumlah, atau harga beli?"
+        "Bagian mana yang ingin dikoreksi? Kode saham, jumlah, atau harga saat dicatat?"
       );
     }
     expect(hoisted.assets).toHaveLength(0);
@@ -443,18 +455,26 @@ describe("portfolio command service", () => {
 
     expect(result.handled).toBe(true);
     if (result.handled) {
-      expect(result.replyText).toContain("📊 **Ringkasan Portofolio Kamu**");
-      expect(result.replyText).toContain("💰 **Nilai portofoliomu saat ini:** Rp 5.950.000");
-      expect(result.replyText).toContain("📉 **Untung / Rugi sementara:** +Rp 50.000");
-      expect(result.replyText).toContain("🏆 **Aset terbesar yang kamu pegang:** Tabungan (84%)");
-      expect(result.replyText).toContain("🔁 **Perlu diatur ulang?:** IYA - Disarankan untuk mulai diversifikasi");
-      expect(result.replyText).toContain("📊 **Skor diversifikasi:** 68/100");
-      expect(result.replyText).toContain("🗂️ **Rincian jenis investasi:**");
-      expect(result.replyText).toContain("   - Deposito / Kas: 84%");
-      expect(result.replyText).toContain("   - Saham (STOCK): 16%");
-      expect(result.replyText).toContain("🏅 **Komposisi Aset Kamu**");
-      expect(result.replyText).toContain("1. 🥇 **Tabungan** - Rp 5.000.000 (84%)");
-      expect(result.replyText).toContain("2. 🥈 **BBCA** - Rp 950.000 (16%)");
+      expect(result.replyText).toContain("📊 Ringkasan Portofolio Kamu");
+      expect(result.replyText).toContain("Total aset saat ini:\nRp5.950.000");
+      expect(result.replyText).toContain("Hari ini naik sekitar:\nRp10.000 (+1,1%)");
+      expect(result.replyText).not.toContain("Untung / Rugi");
+      expect(result.replyText).toContain("Mayoritas aset kamu masih berada di:");
+      expect(result.replyText).toContain("💰 Kas — 84%");
+      expect(result.replyText).toContain("📈 Saham — 16%");
+      expect(result.replyText).toContain("Skor diversifikasi: 68/100");
+      expect(result.replyText).toContain("📦 Detail Aset");
+      expect(result.replyText).toContain("1️⃣ Kas / Tabungan");
+      expect(result.replyText).toContain("Rp5.000.000");
+      expect(result.replyText).toContain("2️⃣ BBCA");
+      expect(result.replyText).toContain("Rp950.000");
+      expect(result.replyText).toContain("Hari ini: +Rp10.000 (+1,1%)");
+      expect(result.replyTexts).toHaveLength(2);
+      expect(result.replyTexts?.[0]).toContain("📊 Ringkasan Portofolio Kamu");
+      expect(result.replyTexts?.[0]).toContain("💡 Saran");
+      expect(result.replyTexts?.[0]).not.toContain("📦 Detail Aset");
+      expect(result.replyTexts?.[1]).toContain("📦 Detail Aset");
+      expect(result.replyTexts?.[1]).toContain("2️⃣ BBCA");
     }
   });
 
@@ -502,12 +522,72 @@ describe("portfolio command service", () => {
 
     expect(result.handled).toBe(true);
     if (result.handled) {
-      expect(result.replyText).toContain("**Nilai portofoliomu saat ini:** Rp 7.150.000");
-      expect(result.replyText).toContain("Uang tunai / kas: Rp 3.700.000");
-      expect(result.replyText).toContain("   - Deposito / Kas:");
-      expect(result.replyText).toContain("Harga pasar sekarang: Rp 2.500.000 per gram");
+      expect(result.replyText).toContain("Total aset saat ini:\nRp7.150.000");
+      expect(result.replyText).toContain("💰 Kas — 52%");
+      expect(result.replyText).toContain("🪙 Emas — 35%");
+      expect(result.replyText).toContain("1️⃣ Kas / Tabungan BCA");
+      expect(result.replyText).toContain("2️⃣ Emas Antam");
+      expect(result.replyText).toContain("Hari ini: +Rp50.000 (+2%)");
       expect(result.replyText).not.toContain("Rp 84.838.310");
       expect(result.replyText).not.toContain("-Rp 0");
+    }
+  });
+
+  it("does not present cash and property as missing market price investments", async () => {
+    hoisted.assets = [
+      {
+        id: "asset_1",
+        userId: "user_1",
+        assetType: "PROPERTY",
+        symbol: "TANAH",
+        displayName: "tanah",
+        quantity: 1,
+        unit: "unit",
+        averageBuyPrice: 100000000,
+        currency: "IDR"
+      },
+      {
+        id: "asset_2",
+        userId: "user_1",
+        assetType: "GOLD",
+        symbol: "XAU",
+        displayName: "Emas batangan UBS",
+        quantity: 15,
+        unit: "gram",
+        averageBuyPrice: 2600000,
+        currency: "IDR"
+      },
+      {
+        id: "asset_3",
+        userId: "user_1",
+        assetType: "OTHER",
+        symbol: "BCA",
+        displayName: "BCA",
+        quantity: 1,
+        unit: "account",
+        averageBuyPrice: 1000000,
+        currency: "IDR"
+      }
+    ];
+
+    const result = await tryHandlePortfolioCommand({
+      userId: "user_1",
+      text: "aset saya berapa sekarang"
+    });
+
+    expect(result.handled).toBe(true);
+    if (result.handled) {
+      expect(result.replyText).toContain("Hari ini naik sekitar:\nRp750.000 (+2%)");
+      expect(result.replyText).not.toContain("Aset yang lagi untung / rugi");
+      expect(result.replyText).not.toContain("Aset paling banyak ruginya");
+      expect(result.replyText).toContain("🏠 Tanah — 72%");
+      expect(result.replyText).toContain("1️⃣ Tanah");
+      expect(result.replyText).toContain("2️⃣ Emas UBS");
+      expect(result.replyText).toContain("3️⃣ Kas / Tabungan BCA");
+      expect(result.replyText).toContain("Hari ini: +Rp750.000 (+2%)");
+      expect(result.replyText).not.toContain("BCA** - Rp 1.000.000 (1%)\n   - Harga yang dipakai");
+      expect(result.replyText).not.toContain("harga pasarnya belum tersedia");
+      expect(result.replyText).not.toContain("aset masih menggunakan harga beli karena harga pasar belum tersedia");
     }
   });
 
@@ -571,7 +651,7 @@ describe("portfolio command service", () => {
     if (result.handled) {
       expect(result.replyText).toContain("\u2705 Aset berhasil dicatat: Antam");
       expect(result.replyText).toContain("- Qty: 8 gram");
-      expect(result.replyText).toContain("- Harga beli: Rp1.800.000");
+      expect(result.replyText).toContain("- Harga saat dicatat: Rp1.800.000");
       expect(result.replyText).toContain("- Total: Rp14.400.000");
       expect(result.replyText).toContain("Ketik *portfolio aku*");
     }
@@ -624,7 +704,7 @@ describe("portfolio command service", () => {
     if (result.handled) {
       expect(result.replyText).toContain("\u2705 Aset berhasil dicatat: Perhiasan 22K");
       expect(result.replyText).toContain("- Qty: 2 gram");
-      expect(result.replyText).toContain("- Harga beli: Rp250.000");
+      expect(result.replyText).toContain("- Harga saat dicatat: Rp250.000");
       expect(result.replyText).toContain("- Total: Rp500.000");
     }
     expect(hoisted.assets).toHaveLength(1);
@@ -648,7 +728,7 @@ describe("portfolio command service", () => {
     expect(hoisted.assets).toHaveLength(0);
   });
 
-  it("answers rebalance and concentration analysis queries", async () => {
+  it("does not expose rebalance as a portfolio command and answers concentration analysis queries", async () => {
     hoisted.assets = [
       {
         id: "asset_1",
@@ -674,15 +754,23 @@ describe("portfolio command service", () => {
       }
     ];
 
-    const riskResult = await tryHandlePortfolioCommand({
+    const retiredRebalanceResult = await tryHandlePortfolioCommand({
       userId: "user_1",
       text: "perlu rebalance gak"
+    });
+
+    expect(retiredRebalanceResult.handled).toBe(false);
+
+    const riskResult = await tryHandlePortfolioCommand({
+      userId: "user_1",
+      text: "risiko portfolio aku"
     });
 
     expect(riskResult.handled).toBe(true);
     if (riskResult.handled) {
       expect(riskResult.replyText).toContain("Analisa risiko portfolio:");
-      expect(riskResult.replyText).toContain("Status rebalance:");
+      expect(riskResult.replyText).toContain("Risiko konsentrasi:");
+      expect(riskResult.replyText).not.toContain("rebalance");
       expect(riskResult.replyText).toContain("BBCA");
     }
 
@@ -695,7 +783,8 @@ describe("portfolio command service", () => {
     if (dominantResult.handled) {
       expect(dominantResult.replyText).toContain("Aset dominan portfolio kamu:");
       expect(dominantResult.replyText).toContain("Holding terbesar: BBCA");
-      expect(dominantResult.replyText).toContain("Status rebalance:");
+      expect(dominantResult.replyText).toContain("Risiko konsentrasi:");
+      expect(dominantResult.replyText).not.toContain("rebalance");
     }
   });
 
@@ -743,9 +832,12 @@ describe("portfolio command service", () => {
 
     expect(performanceResult.handled).toBe(true);
     if (performanceResult.handled) {
-      expect(performanceResult.replyText).toContain("Analisa performa portfolio:");
-      expect(performanceResult.replyText).toContain("Aset paling cuan:");
-      expect(performanceResult.replyText).toContain("Aset paling rugi:");
+      expect(performanceResult.replyText).toContain("Analisa pergerakan harian portfolio:");
+      expect(performanceResult.replyText).toContain("Total perubahan harian:");
+      expect(performanceResult.replyText).toContain("Aset paling naik hari ini:");
+      expect(performanceResult.replyText).toContain("Aset paling turun hari ini:");
+      expect(performanceResult.replyText).not.toContain("cuan");
+      expect(performanceResult.replyText).not.toContain("rugi");
     }
 
     const diversificationResult = await tryHandlePortfolioCommand({

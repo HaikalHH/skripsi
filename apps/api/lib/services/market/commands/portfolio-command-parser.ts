@@ -4,12 +4,12 @@ export const isPortfolioSummaryCommand = (text: string) =>
   );
 
 export const isPortfolioRiskCommand = (text: string) =>
-  /\b(risiko portfolio|risiko portofolio|portfolio .* aman|portofolio .* aman|perlu rebalance|rebalance gak|rebalance portfolio|portfolio terlalu numpuk|portofolio terlalu numpuk|komposisi portfolio .* aman|komposisi portofolio .* aman)\b/i.test(
+  /\b(risiko portfolio|risiko portofolio|portfolio .* aman|portofolio .* aman|portfolio terlalu numpuk|portofolio terlalu numpuk|komposisi portfolio .* aman|komposisi portofolio .* aman)\b/i.test(
     text
   );
 
 export const isPortfolioPerformanceCommand = (text: string) =>
-  /\b(aset paling cuan|aset paling rugi|profit portfolio|rugi portfolio|performa portfolio|portfolio cuan|portfolio rugi)\b/i.test(
+  /\b(pergerakan harian portfolio|pergerakan harian portofolio|perubahan harian portfolio|perubahan harian portofolio|portfolio naik turun|portofolio naik turun|aset paling naik|aset paling turun|aset paling cuan|aset paling rugi|profit portfolio|rugi portfolio|performa portfolio|portfolio cuan|portfolio rugi)\b/i.test(
     text
   );
 

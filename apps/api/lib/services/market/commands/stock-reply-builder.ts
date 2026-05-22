@@ -43,7 +43,7 @@ export const buildStockSummaryReply = (draft: StockDraft) => {
     "Berikut catatan saham kamu:",
     `- Kode saham : ${draft.symbol ?? "-"}`,
     `- Jumlah     : ${formatStockQuantityLabel(draft)}`,
-    `- Harga beli : ${formatMoney(draft.pricePerUnit ?? 0)}/lembar`,
+    `- Harga saat dicatat : ${formatMoney(draft.pricePerUnit ?? 0)}/lembar`,
     `- Total nilai: ${formatMoney(totalValue)}`,
     "",
     STOCK_CONFIRM_QUESTION
@@ -68,7 +68,7 @@ export const buildStockSuccessReply = (draft: StockDraft) => {
   return [
     `\u2705 Saham berhasil dicatat: ${draft.symbol ?? "Saham"}`,
     `- Jumlah: ${formatStockQuantityLabel(draft)}`,
-    `- Harga beli: ${formatMoney(draft.pricePerUnit ?? 0)}/lembar`,
+    `- Harga saat dicatat: ${formatMoney(draft.pricePerUnit ?? 0)}/lembar`,
     `- Total nilai: ${formatMoney(totalValue)}`,
     "",
     "Ketik *portfolio aku* untuk lihat nilai aset dan komposisinya."

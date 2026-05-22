@@ -7,6 +7,7 @@ import {
   buildUserFinancialContextSummary,
   loadUserFinancialContext
 } from "@/lib/services/user/financial-context";
+import { listCategoryBudgets } from "@/lib/services/transactions/budget";
 
 type GeneralChatResult =
   | { handled: true; replyText: string; source: "rule" | "ai" }
@@ -47,16 +48,16 @@ const buildCapabilityReply = () =>
   ].join("\n");
 
 const buildUserContextSummary = async (userId: string) => {
-  const [baseContext, txCount, budgetCount] = await Promise.all([
+  const [baseContext, txCount, categoryItems] = await Promise.all([
     loadUserFinancialContext({ userId, recentMessagesLimit: 5 }),
     prisma.transaction.count({ where: { userId } }),
-    prisma.budget.count({ where: { userId } })
+    listCategoryBudgets(userId)
   ]);
 
   const summaryText = [
     buildUserFinancialContextSummary(baseContext),
     `transactionCount=${txCount}`,
-    `budgetCount=${budgetCount}`,
+    `expenseCategoryCount=${categoryItems.length}`,
     `assetCount=${baseContext.assets.length}`
   ].join("\n");
 

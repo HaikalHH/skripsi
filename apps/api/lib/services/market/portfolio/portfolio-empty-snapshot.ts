@@ -6,7 +6,8 @@ export const buildEmptyPortfolioSnapshot = (): PortfolioValuationSnapshot => ({
   items: [],
   totalBookValue: 0,
   totalCurrentValue: 0,
-  totalUnrealizedGain: 0,
+  totalDailyValueChange: null,
+  totalDailyValueChangePercent: null,
   totalLiquidValue: 0,
   liquidSharePercent: 0,
   marketValuedCount: 0,
@@ -19,8 +20,6 @@ export const buildEmptyPortfolioSnapshot = (): PortfolioValuationSnapshot => ({
   dominantTypeShare: 0,
   rebalanceStatus: "HEALTHY",
   rebalanceReasons: [],
-  profitableAssetCount: 0,
-  losingAssetCount: 0,
   typeBreakdown: [],
   diversificationScore: 0
 });

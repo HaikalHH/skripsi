@@ -9,9 +9,11 @@ export type ValuedPortfolioItem = {
   averageBuyPrice: number;
   bookValue: number;
   currentPrice: number;
+  previousPrice: number | null;
   currentValue: number;
-  unrealizedGain: number;
-  unrealizedGainPercent: number | null;
+  dailyPriceChange: number | null;
+  dailyPriceChangePercent: number | null;
+  dailyValueChange: number | null;
   pricingMode: "market" | "book";
   priceSource: string | null;
   isLiquid: boolean;
@@ -21,7 +23,8 @@ export type PortfolioValuationSnapshot = {
   items: ValuedPortfolioItem[];
   totalBookValue: number;
   totalCurrentValue: number;
-  totalUnrealizedGain: number;
+  totalDailyValueChange: number | null;
+  totalDailyValueChangePercent: number | null;
   totalLiquidValue: number;
   liquidSharePercent: number;
   marketValuedCount: number;
@@ -34,8 +37,6 @@ export type PortfolioValuationSnapshot = {
   dominantTypeShare: number;
   rebalanceStatus: "HEALTHY" | "WATCH" | "ACTION";
   rebalanceReasons: string[];
-  profitableAssetCount: number;
-  losingAssetCount: number;
   typeBreakdown: Array<{
     assetType: PortfolioAssetType;
     currentValue: number;

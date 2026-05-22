@@ -143,7 +143,7 @@ const resolveStockDraftStep = async (
 const resolveStockCorrection = (text: string) => {
   const correctionField = parseStockCorrectionField(text);
   if (!correctionField) {
-    return { replyText: `${STOCK_CORRECTION_QUESTION}\n\nBalas salah satu: kode saham, jumlah, atau harga beli.` };
+    return { replyText: `${STOCK_CORRECTION_QUESTION}\n\nBalas salah satu: kode saham, jumlah, atau harga saat dicatat.` };
   }
   return { replyText: getStockQuestionText(correctionField) };
 };

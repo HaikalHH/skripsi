@@ -330,7 +330,7 @@ const buildMissingBudgetReply = (category: string) =>
     "Setelah budget tersimpan, kirim ulang transaksinya ya Boss."
   ].join("\n");
 
-export const stageExpenseTransactionAndBuildReply = async (params: {
+export const stageTransactionAndBuildReply = async (params: {
   userId: string;
   messageId: string;
   extraction: GeminiExtraction;
@@ -338,11 +338,14 @@ export const stageExpenseTransactionAndBuildReply = async (params: {
   analysisPayload?: unknown;
   forcedCategory?: string | null;
 }): Promise<InboundHandlerResult> => {
-  if (params.extraction.type !== "EXPENSE") {
+  const shouldStageTransaction =
+    params.extraction.type === "EXPENSE" || params.extraction.type === "INCOME";
+
+  if (!shouldStageTransaction) {
     return saveTransactionAndBuildReply(params);
   }
 
-  if (params.forcedCategory) {
+  if (params.extraction.type === "EXPENSE" && params.forcedCategory) {
     const matchedBudget = await getMatchingCategoryBudget({
       userId: params.userId,
       category: params.forcedCategory
@@ -370,6 +373,8 @@ export const stageExpenseTransactionAndBuildReply = async (params: {
 
   return buildBubbleResult(buildTransactionDraftText(payload));
 };
+
+export const stageExpenseTransactionAndBuildReply = stageTransactionAndBuildReply;
 
 export const stageBudgetAndBuildReply = async (params: {
   userId: string;

@@ -2,6 +2,9 @@ export type MarketQuote = {
   symbol: string;
   label: string;
   price: number;
+  previousClose: number | null;
+  change: number | null;
+  changePercent: number | null;
   currency: "IDR";
   source: string;
   providerId: string;

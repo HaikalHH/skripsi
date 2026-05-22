@@ -1,3 +1,4 @@
+import { PortfolioAssetType } from "@prisma/client";
 import { formatMoney } from "@/lib/services/shared/money";
 import { getPortfolioNewsContext } from "@/lib/services/market/portfolio/portfolio-news-context";
 import { normalizeSpaces, toNumber } from "@/lib/services/market/commands/portfolio-formatters";
@@ -21,6 +22,7 @@ import {
   buildPortfolioSummary
 } from "@/lib/services/market/commands/portfolio-reply-builder";
 import { parseAddAssetCommand } from "@/lib/services/market/commands/simple-asset-parser";
+import type { PortfolioReplyPayload } from "@/lib/services/market/commands/portfolio-summary-reply";
 
 export { getPortfolioNewsContext };
 export type { PortfolioNewsContextItem } from "@/lib/services/market/portfolio/portfolio-news-context";
@@ -30,24 +32,46 @@ const PORTFOLIO_NOT_READY_REPLY =
 
 const ensurePortfolioReady = () => Boolean(getPortfolioCommandModel());
 
+type PortfolioCommandResult =
+  | { handled: false }
+  | ({
+      handled: true;
+    } & PortfolioReplyPayload);
+
+type PortfolioReplyBuilder = (userId: string) => Promise<string | PortfolioReplyPayload>;
+
+const normalizePortfolioReply = (reply: string | PortfolioReplyPayload): PortfolioReplyPayload =>
+  typeof reply === "string" ? { replyText: reply } : reply;
+
 const buildSavedAssetReply = (saved: {
+  assetType: PortfolioAssetType;
   displayName: string;
   quantity: unknown;
   unit: string;
   averageBuyPrice: unknown;
-}) =>
-  [
+}) => {
+  const amountLabel =
+    saved.assetType === PortfolioAssetType.DEPOSIT
+      ? "Saldo"
+      : saved.assetType === PortfolioAssetType.PROPERTY ||
+          saved.assetType === PortfolioAssetType.BUSINESS ||
+          saved.assetType === PortfolioAssetType.OTHER
+        ? "Nilai"
+        : "Harga rata-rata";
+
+  return [
     `Aset berhasil dicatat: ${saved.displayName}`,
     `- Qty: ${toNumber(saved.quantity).toFixed(4)} ${saved.unit}`,
-    `- Harga rata-rata: ${formatMoney(toNumber(saved.averageBuyPrice))}`,
+    `- ${amountLabel}: ${formatMoney(toNumber(saved.averageBuyPrice))}`,
     "Ketik `portfolio aku` untuk lihat nilai aset dan komposisinya."
   ].join("\n");
+};
 
 export const tryHandlePortfolioCommand = async (params: {
   userId: string;
   text: string;
   currentMessageId?: string;
-}) => {
+}): Promise<PortfolioCommandResult> => {
   const text = normalizeSpaces(params.text);
   const portfolioModelReady = ensurePortfolioReady();
 
@@ -95,9 +119,9 @@ const tryBuildPortfolioAnalysisReply = async (
   text: string,
   portfolioModelReady: boolean
 ) => {
-  const buildReply = async (builder: (userId: string) => Promise<string>) => {
+  const buildReply = async (builder: PortfolioReplyBuilder): Promise<PortfolioCommandResult> => {
     if (!portfolioModelReady) return { handled: true as const, replyText: PORTFOLIO_NOT_READY_REPLY };
-    return { handled: true as const, replyText: await builder(userId) };
+    return { handled: true as const, ...normalizePortfolioReply(await builder(userId)) };
   };
 
   if (isPortfolioSummaryCommand(text)) return buildReply(buildPortfolioSummary);

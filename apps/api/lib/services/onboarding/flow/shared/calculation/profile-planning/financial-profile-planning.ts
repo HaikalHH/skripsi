@@ -16,7 +16,6 @@ import { TROY_OUNCE_TO_GRAM } from "@/lib/services/market/quote";
 import { formatMoney } from "@/lib/services/shared/money";
 import {
   EMPTY_EXPENSE_BREAKDOWN,
-  EXPENSE_CATEGORY_TO_BUDGET,
   buildExpenseBreakdownSummaryLines,
   hasKnownExpenseBreakdown,
   parseManualBreakdownTotal,
@@ -525,45 +524,6 @@ export const replaceExpensePlan = async (params: {
       where: { id: params.userId },
       data: { monthlyBudget: total }
     });
-
-    if (customExpenseItems.length && unresolvedOthersAmount <= 0 && "deleteMany" in tx.budget) {
-      await tx.budget.deleteMany({
-        where: {
-          userId: params.userId,
-          category: EXPENSE_CATEGORY_TO_BUDGET.others
-        }
-      });
-    }
-
-    const budgetItems = [
-      { category: EXPENSE_CATEGORY_TO_BUDGET.food, amount: params.breakdown.food },
-      { category: EXPENSE_CATEGORY_TO_BUDGET.transport, amount: params.breakdown.transport },
-      { category: EXPENSE_CATEGORY_TO_BUDGET.bills, amount: params.breakdown.bills },
-      { category: EXPENSE_CATEGORY_TO_BUDGET.entertainment, amount: params.breakdown.entertainment },
-      ...customExpenseItems.map((item) => ({ category: item.label, amount: item.amount })),
-      ...(unresolvedOthersAmount > 0
-        ? [{ category: EXPENSE_CATEGORY_TO_BUDGET.others, amount: unresolvedOthersAmount }]
-        : customExpenseItems.length
-          ? []
-          : [{ category: EXPENSE_CATEGORY_TO_BUDGET.others, amount: params.breakdown.others }])
-    ];
-
-    for (const item of budgetItems) {
-      await tx.budget.upsert({
-        where: {
-          userId_category: {
-            userId: params.userId,
-            category: item.category
-          }
-        },
-        update: { monthlyLimit: item.amount },
-        create: {
-          userId: params.userId,
-          category: item.category,
-          monthlyLimit: item.amount
-        }
-      });
-    }
 
     await tx.financialProfile.upsert({
       where: { userId: params.userId },

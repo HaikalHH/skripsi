@@ -6,6 +6,7 @@ import { DATE_LABEL_FORMATTER, getEffectiveRange } from "./date-range";
 import { getHealthVerdict, getScoreGrade } from "./scoring";
 import type { FinancialHealthMode } from "./types";
 import { getTopExpenseCategory, toNumber } from "./utils";
+import { listCategoryBudgets } from "@/lib/services/transactions/budget";
 
 export const buildFinancialHealthReply = async (params: {
   userId: string;
@@ -24,10 +25,7 @@ export const buildFinancialHealthReply = async (params: {
       },
       orderBy: { occurredAt: "asc" }
     }),
-    prisma.budget.findMany({
-      where: { userId: params.userId },
-      orderBy: { updatedAt: "desc" }
-    }),
+    listCategoryBudgets(params.userId),
     getSavingsGoalStatus(params.userId),
     (prisma as unknown as { financialProfile?: any }).financialProfile?.findUnique({
       where: { userId: params.userId }

@@ -38,8 +38,18 @@ export const goldApiQuoteProvider: QuoteProvider = {
     }
 
     const usdToIdr = await getExchangeRate("USD", "IDR");
+    const previousUsdPerOunce = toNumber(payload?.prev_close_price);
+    const currentPrice = (usdPerOunce * usdToIdr.rate) / TROY_OUNCE_TO_GRAM;
+    const previousClose =
+      Number.isFinite(previousUsdPerOunce) && previousUsdPerOunce > 0
+        ? (previousUsdPerOunce * usdToIdr.rate) / TROY_OUNCE_TO_GRAM
+        : null;
+    const change = previousClose != null ? currentPrice - previousClose : null;
     return {
-      price: (usdPerOunce * usdToIdr.rate) / TROY_OUNCE_TO_GRAM,
+      price: currentPrice,
+      previousClose,
+      change,
+      changePercent: change != null && previousClose != null ? (change / previousClose) * 100 : null,
       providerId: "goldapi",
       source: "GoldAPI + exchangerate.host",
       asOf: toIsoTimestamp(

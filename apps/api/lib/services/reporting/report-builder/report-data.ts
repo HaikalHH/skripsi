@@ -33,7 +33,7 @@ export const getUserReportData = async (
     label: PERIOD_LABELS[period]
   };
   const expensePlanModel = (prisma as unknown as { expensePlan?: any }).expensePlan;
-  const [transactions, categoryBudgets, activeExpensePlan] = await Promise.all([
+  const [transactions, activeExpensePlan] = await Promise.all([
     prisma.transaction.findMany({
       where: {
         userId,
@@ -43,10 +43,6 @@ export const getUserReportData = async (
         }
       },
       orderBy: { occurredAt: "asc" }
-    }),
-    prisma.budget.findMany({
-      where: { userId },
-      orderBy: { category: "asc" }
     }),
     expensePlanModel?.findFirst
       ? expensePlanModel.findFirst({
@@ -67,16 +63,9 @@ export const getUserReportData = async (
       };
     }
   );
-  const storedBudgetRows = categoryBudgets.map((budget) => ({
-    category: budget.category,
-    monthlyLimit: toNumber(budget.monthlyLimit)
-  }));
-  const budgets = storedBudgetRows.length ? storedBudgetRows : expensePlanBudgets;
+  const budgets = expensePlanBudgets;
 
   const budgetByCategory = new Map<string, { category: string; monthlyLimit: number }>();
-  for (const budget of expensePlanBudgets) {
-    budgetByCategory.set(getBudgetCategoryLookupKey(budget.category), budget);
-  }
   for (const budget of budgets) {
     budgetByCategory.set(getBudgetCategoryLookupKey(budget.category), budget);
   }

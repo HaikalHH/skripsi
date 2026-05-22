@@ -5,6 +5,9 @@ import type { NormalizedMarketSymbol } from "@/lib/services/market/types/symbol.
 
 export type ProviderQuotePayload = {
   price: number;
+  previousClose?: number | null;
+  change?: number | null;
+  changePercent?: number | null;
   providerId: string;
   source: string;
   asOf: string;

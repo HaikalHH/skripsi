@@ -87,7 +87,11 @@ const tryHandleContextModules = async (
         currentMessageId: params.messageId
       });
       if (portfolioCommand.handled) {
-        return ok({ replyText: portfolioCommand.replyText });
+        return ok({
+          replyText: portfolioCommand.replyText,
+          replyTexts: portfolioCommand.replyTexts,
+          preserveReplyTextBubbles: portfolioCommand.preserveReplyTextBubbles
+        });
       }
       continue;
     }
@@ -344,7 +348,11 @@ export const tryHandleStructuredText = async (
     currentMessageId: params.messageId
   });
   if (directPortfolioCommand.handled) {
-    return ok({ replyText: directPortfolioCommand.replyText });
+    return ok({
+      replyText: directPortfolioCommand.replyText,
+      replyTexts: directPortfolioCommand.replyTexts,
+      preserveReplyTextBubbles: directPortfolioCommand.preserveReplyTextBubbles
+    });
   }
 
   return tryHandleContextModules(params, routedContext.moduleOrder);

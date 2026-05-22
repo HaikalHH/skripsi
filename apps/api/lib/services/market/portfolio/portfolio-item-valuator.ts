@@ -28,6 +28,7 @@ export const valuePortfolioAsset = async (
   const effectiveAssetType = resolveEffectivePortfolioAssetType(asset);
 
   let currentPrice = averageBuyPrice;
+  let previousPrice: number | null = null;
   let pricingMode: "market" | "book" = "book";
   let priceSource: string | null = null;
 
@@ -35,6 +36,7 @@ export const valuePortfolioAsset = async (
     try {
       const quote = await getMarketQuoteBySymbol(marketSymbol);
       currentPrice = quote.price;
+      previousPrice = quote.previousClose;
       pricingMode = "market";
       priceSource = quote.status === "stale" ? `${quote.source} [cache ${quote.cachedAt}]` : quote.source;
     } catch {
@@ -43,8 +45,13 @@ export const valuePortfolioAsset = async (
   }
 
   const currentValue = quantity * currentPrice;
-  const unrealizedGain = normalizeMoney(currentValue - bookValue);
-  const unrealizedGainPercent = bookValue > 0 ? (unrealizedGain / bookValue) * 100 : null;
+  const dailyPriceChange =
+    previousPrice != null && previousPrice > 0 ? normalizeMoney(currentPrice - previousPrice) : null;
+  const dailyPriceChangePercent =
+    dailyPriceChange != null && previousPrice != null && previousPrice > 0
+      ? (dailyPriceChange / previousPrice) * 100
+      : null;
+  const dailyValueChange = dailyPriceChange != null ? normalizeMoney(quantity * dailyPriceChange) : null;
 
   return {
     assetType: effectiveAssetType,
@@ -55,9 +62,11 @@ export const valuePortfolioAsset = async (
     averageBuyPrice,
     bookValue,
     currentPrice,
+    previousPrice,
     currentValue,
-    unrealizedGain,
-    unrealizedGainPercent,
+    dailyPriceChange,
+    dailyPriceChangePercent,
+    dailyValueChange,
     pricingMode,
     priceSource,
     isLiquid: isLikelyLiquidAsset(asset)

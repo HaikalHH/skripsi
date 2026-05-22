@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const hoisted = vi.hoisted(() => {
   const store = {
     transactions: [] as any[],
-    budgets: [] as any[],
+    expensePlans: [] as any[],
     financialProfile: null as any,
     assets: [] as any[]
   };
@@ -19,9 +19,9 @@ const hoisted = vi.hoisted(() => {
         })
       )
     },
-    budget: {
-      findMany: vi.fn(async ({ where }: any) =>
-        store.budgets.filter((item) => item.userId === where.userId)
+    expensePlan: {
+      findFirst: vi.fn(async ({ where }: any) =>
+        store.expensePlans.find((item) => item.userId === where.userId && item.isActive === where.isActive) ?? null
       )
     },
     financialProfile: {
@@ -92,12 +92,18 @@ describe("financial health service", () => {
         occurredAt: new Date("2026-03-10T12:00:00.000Z")
       }
     ];
-    hoisted.store.budgets = [
+    hoisted.store.expensePlans = [
       {
+        id: "plan_1",
         userId: "user_1",
-        category: "Entertainment",
-        monthlyLimit: 1000000,
-        updatedAt: new Date("2026-03-01T00:00:00.000Z")
+        isActive: true,
+        items: [
+          {
+            categoryKey: "Entertainment",
+            amount: 1000000,
+            updatedAt: new Date("2026-03-01T00:00:00.000Z")
+          }
+        ]
       }
     ];
     hoisted.store.financialProfile = {

@@ -4,10 +4,16 @@ import { env } from "@/lib/env";
 import { buildFinancialHealthReply } from "@/lib/services/planning/financial-health";
 import { getSavingsGoalStatus } from "@/lib/services/planning/goal";
 import { getUserPortfolioValuation } from "@/lib/services/market/portfolio";
+import {
+  hasDailyChangeData,
+  isCashLikePortfolioItem,
+  isManualValuedPortfolioItem
+} from "@/lib/services/market/portfolio/portfolio-item-classification";
 import { formatMoney, formatMoneyWhole, formatPercent } from "@/lib/services/shared/money";
 import { formatDurationFromMonths } from "@/lib/services/shared/projection";
 import { analyzeRecurringExpenses } from "@/lib/services/transactions/recurring-expense";
 import { normalizeExpenseBucketCategory } from "@/lib/services/transactions/category";
+import { listCategoryBudgets } from "@/lib/services/transactions/budget";
 import type {
   ReportDateRange,
   ReportTransactionItem
@@ -78,10 +84,7 @@ const buildBudgetSection = async (params: {
   userId: string;
   expenseTransactions: Array<{ category: string; amount: unknown }>;
 }) => {
-  const budgets = await prisma.budget.findMany({
-    where: { userId: params.userId },
-    orderBy: { updatedAt: "desc" }
-  });
+  const budgets = await listCategoryBudgets(params.userId);
   if (!budgets.length) return null;
 
   const spentByCategory = new Map<string, number>();
@@ -142,8 +145,8 @@ const buildGoalSection = async (userId: string) => {
 const ASSET_TYPE_LABELS = {
   GOLD: "Emas",
   STOCK: "Saham",
-  MUTUAL_FUND: "Reksa dana",
-  CRYPTO: "Crypto",
+  MUTUAL_FUND: "Aset lain",
+  CRYPTO: "Aset lain",
   DEPOSIT: "Tabungan/deposito",
   PROPERTY: "Properti",
   BUSINESS: "Bisnis",
@@ -165,20 +168,27 @@ const buildPortfolioSection = async (userId: string) => {
 
   const assetRows = snapshot.items.slice(0, 12).map((item, index) => {
     const share = snapshot.totalCurrentValue > 0 ? (item.currentValue / snapshot.totalCurrentValue) * 100 : 0;
-    const gainText =
-      item.unrealizedGain > 0
-        ? `naik ${formatMoneyWhole(item.unrealizedGain)}`
-        : item.unrealizedGain < 0
-          ? `turun ${formatMoneyWhole(Math.abs(item.unrealizedGain))}`
-          : "belum berubah";
-    const priceNote =
-      item.pricingMode === "market"
-        ? `harga pasar ${formatMoneyWhole(item.currentPrice)}`
-        : `pakai harga input ${formatMoneyWhole(item.currentPrice)}`;
+    const valuationNotes: string[] = [];
+    if (hasDailyChangeData(item) && item.dailyValueChange != null) {
+      valuationNotes.push(
+        `perubahan harian ${item.dailyValueChange >= 0 ? "+" : "-"}${formatMoneyWhole(
+          Math.abs(item.dailyValueChange)
+        )}${item.dailyPriceChangePercent != null ? ` (${item.dailyPriceChangePercent.toFixed(1)}%)` : ""}`
+      );
+      valuationNotes.push(`harga pasar ${formatMoneyWhole(item.currentPrice)}`);
+    } else if (isCashLikePortfolioItem(item)) {
+      valuationNotes.push("saldo kas/tabungan");
+    } else if (isManualValuedPortfolioItem(item)) {
+      valuationNotes.push("nilai manual terakhir");
+    } else if (item.pricingMode === "book") {
+      valuationNotes.push("harga market terbaru belum tersedia");
+    }
 
     return `Aset ${index + 1}: ${item.displayName} | Tipe: ${getAssetTypeLabel(item.assetType)} | Nilai: ${formatMoneyWhole(
       item.currentValue
-    )} | Porsi: ${share.toFixed(1)}% | Jumlah: ${item.quantity} ${item.unit} | ${gainText} dari modal | ${priceNote}`;
+    )} | Porsi: ${share.toFixed(1)}% | Jumlah: ${item.quantity} ${item.unit}${
+      valuationNotes.length ? ` | ${valuationNotes.join(" | ")}` : ""
+    }`;
   });
   const typeBreakdownText = snapshot.typeBreakdown
     .slice(0, 5)
@@ -192,9 +202,15 @@ const buildPortfolioSection = async (userId: string) => {
     title: "Portfolio & Aset",
     lines: [
       `Total nilai aset sekarang: ${formatMoneyWhole(snapshot.totalCurrentValue)}.`,
-      snapshot.totalUnrealizedGain >= 0
-        ? `Dibanding modal awal, asetmu sedang naik sekitar ${formatMoneyWhole(snapshot.totalUnrealizedGain)}.`
-        : `Dibanding modal awal, asetmu sedang turun sekitar ${formatMoneyWhole(Math.abs(snapshot.totalUnrealizedGain))}.`,
+      snapshot.totalDailyValueChange == null
+        ? "Perubahan harian belum tersedia dari provider harga."
+        : `Perubahan harian portfolio: ${snapshot.totalDailyValueChange >= 0 ? "+" : "-"}${formatMoneyWhole(
+            Math.abs(snapshot.totalDailyValueChange)
+          )}${
+            snapshot.totalDailyValueChangePercent != null
+              ? ` (${snapshot.totalDailyValueChangePercent.toFixed(1)}%)`
+              : ""
+          }.`,
       `Aset terbesar adalah ${snapshot.topHoldingName ?? "-"}, porsinya ${snapshot.largestAssetShare.toFixed(
         1
       )}% dari semua aset. Artinya, kalau aset ini berubah besar, total asetmu ikut cukup terasa.`,

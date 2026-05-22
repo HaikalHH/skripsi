@@ -73,7 +73,14 @@ describe("reminder preference service", () => {
     expect(preference.budgetEnabled).toBe(false);
     expect(preference.minIntervalHours).toBe(48);
     expect(preference.maxPerDay).toBe(2);
-    expect(text).toContain("budget dimatikan");
+    expect(text).toContain("Pengaturan reminder kamu sekarang:");
+    expect(text).toContain("1️⃣ Budget: 🔴 OFF");
+    expect(text).toContain("2️⃣ Spending mingguan: 🟢 ON");
+    expect(text).toContain("8️⃣ Jeda minimum reminder sejenis: 48 jam");
+    expect(text).toContain("9️⃣ Maksimal reminder per hari: 2");
+    expect(text).toContain("1️⃣0️⃣ Quiet hours: 🔴 OFF");
+    expect(text).toContain("1️⃣1️⃣ Snooze sampai: 🔴 OFF");
+    expect(text).toContain("budget 🔴 OFF");
     expect(text).toContain("48 jam");
     expect(text).toContain("2 reminder per hari");
   });

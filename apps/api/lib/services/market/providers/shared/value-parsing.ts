@@ -47,6 +47,33 @@ export const readYahooRegularPrice = (payload: unknown): number | null => {
   return null;
 };
 
+export const readYahooClosePrices = (payload: unknown): number[] => {
+  const results = toRecord(toRecord(payload)?.chart)?.result;
+  const result = Array.isArray(results) ? results[0] : null;
+  const resultRecord = toRecord(result);
+  const indicators = toRecord(resultRecord?.indicators);
+  const quote = Array.isArray(indicators?.quote) ? indicators.quote[0] : null;
+  const closes = toRecord(quote)?.close;
+  if (!Array.isArray(closes)) return [];
+
+  return closes
+    .map(toNumber)
+    .filter((value) => Number.isFinite(value) && value > 0);
+};
+
+export const readYahooPreviousClose = (
+  payload: unknown,
+  currentPrice: number
+): number | null => {
+  const closePrices = readYahooClosePrices(payload);
+  for (let index = closePrices.length - 1; index >= 0; index -= 1) {
+    const candidate = closePrices[index];
+    if (Math.abs(candidate - currentPrice) > 0.0001) return candidate;
+  }
+
+  return closePrices.length >= 2 ? closePrices[closePrices.length - 2] ?? null : null;
+};
+
 export const readYahooTimestamp = (payload: unknown) => {
   const results = toRecord(toRecord(payload)?.chart)?.result;
   const result = Array.isArray(results) ? results[0] : null;

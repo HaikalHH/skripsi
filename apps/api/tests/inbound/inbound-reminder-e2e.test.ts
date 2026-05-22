@@ -6,6 +6,7 @@ const hoisted = vi.hoisted(() => {
     idCounter: 1,
     users: [] as any[],
     budgets: [] as any[],
+    expensePlans: [] as any[],
     savingsGoals: [] as any[],
     transactions: [] as any[],
     messageLogs: [] as any[],
@@ -200,6 +201,34 @@ const hoisted = vi.hoisted(() => {
           updatedAt: new Date(store.now)
         };
         store.budgets.push(row);
+        return row;
+      }
+    },
+    expensePlan: {
+      findFirst: async ({ where }: any) =>
+        [...store.expensePlans]
+          .reverse()
+          .find((plan) => plan.userId === where.userId && plan.isActive === where.isActive) ?? null,
+      updateMany: async ({ where, data }: any) => {
+        for (const plan of store.expensePlans) {
+          if (plan.userId === where.userId && plan.isActive === where.isActive) {
+            Object.assign(plan, data, { updatedAt: new Date(store.now) });
+          }
+        }
+      },
+      create: async ({ data }: any) => {
+        const row = {
+          id: `plan_${store.idCounter++}`,
+          ...data,
+          items: data.items.create.map((item: any, index: number) => ({
+            id: `plan_item_${store.idCounter++}_${index + 1}`,
+            ...item,
+            updatedAt: new Date(store.now)
+          })),
+          createdAt: new Date(store.now),
+          updatedAt: new Date(store.now)
+        };
+        store.expensePlans.push(row);
         return row;
       }
     },
@@ -483,6 +512,25 @@ const seedData = () => {
       updatedAt: new Date("2026-02-01T00:00:00.000Z")
     }
   ];
+  store.expensePlans = [
+    {
+      id: "plan_1",
+      userId: "user_1",
+      source: "GUIDED_ONBOARDING_PLAN",
+      totalMonthlyExpense: 1_000_000n,
+      isActive: true,
+      items: [
+        {
+          id: "plan_item_1",
+          categoryKey: "makan",
+          amount: 1_000_000n,
+          updatedAt: new Date("2026-02-01T00:00:00.000Z")
+        }
+      ],
+      createdAt: new Date("2026-02-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-02-01T00:00:00.000Z")
+    }
+  ];
   store.savingsGoals = [
     {
       id: "goal_1",
@@ -627,13 +675,41 @@ describe("inbound + reminder e2e (mock DB)", () => {
     });
 
     expect(result.status).toBe(200);
-    expect(result.body.replyText).toContain("Transaksi berhasil dicatat");
+    expect(result.body.replyText).toContain("Draf transaksi belum disimpan");
     expect(result.body.replyText).toContain("- Tipe: INCOME");
     expect(result.body.replyText).toContain("- Amount: Rp5.000.000");
-    expect(result.body.replyText).not.toContain("Progress");
-    expect(result.body.replyText).not.toContain("Total sudah ditabung");
+    expect(result.body.replyText).toContain("simpan");
+    expect(result.body.replyText).toContain("edit");
+    expect(result.body.replyText).toContain("buang");
+    expect(store.transactions).toHaveLength(4);
+
+    const edited = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "edit 6 juta",
+      sentAt: "2026-02-24T12:00:10.000Z"
+    });
+
+    expect(edited.status).toBe(200);
+    expect(edited.body.replyText).toContain("Draf transaksi belum disimpan");
+    expect(edited.body.replyText).toContain("- Tipe: INCOME");
+    expect(edited.body.replyText).toContain("- Amount: Rp6.000.000");
+
+    const saved = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "simpan",
+      sentAt: "2026-02-24T12:00:20.000Z"
+    });
+
+    expect(saved.status).toBe(200);
+    expect(saved.body.replyText).toContain("Transaksi berhasil dicatat");
+    expect(saved.body.replyText).toContain("- Tipe: INCOME");
+    expect(saved.body.replyText).toContain("- Amount: Rp6.000.000");
+    expect(saved.body.replyText).not.toContain("Progress");
+    expect(saved.body.replyText).not.toContain("Total sudah ditabung");
     expect(store.transactions.at(-1)?.type).toBe("INCOME");
-    expect(store.transactions.at(-1)?.amount).toBe(5_000_000);
+    expect(store.transactions.at(-1)?.amount).toBe(6_000_000);
     expect(store.transactions.at(-1)?.category).toBe("Salary");
   });
 
@@ -739,7 +815,9 @@ describe("inbound + reminder e2e (mock DB)", () => {
 
     expect(draft.status).toBe(200);
     expect(draft.body.replyText).toContain("Draf budget belum disimpan");
-    expect(store.budgets).toHaveLength(1);
+    expect(store.expensePlans.filter((plan) => plan.isActive).at(-1)?.items).toMatchObject([
+      { categoryKey: "makan", amount: 1_000_000n }
+    ]);
 
     const saved = await processInboundBody({
       waNumber: "6281110001",
@@ -750,8 +828,10 @@ describe("inbound + reminder e2e (mock DB)", () => {
 
     expect(saved.status).toBe(200);
     expect(saved.body.replyText).toContain("Budget kategori berhasil disimpan");
-    expect(store.budgets).toHaveLength(2);
-    expect(store.budgets.at(-1)?.category).toBe("hobi");
+    expect(store.expensePlans.filter((plan) => plan.isActive).at(-1)?.items).toMatchObject([
+      { categoryKey: "makan", amount: 1_000_000n },
+      { categoryKey: "hobi", amount: 500_000n }
+    ]);
 
     const updated = await processInboundBody({
       waNumber: "6281110001",
@@ -778,9 +858,12 @@ describe("inbound + reminder e2e (mock DB)", () => {
       text: "simpan",
       sentAt: "2026-02-24T12:00:18.000Z"
     });
-    expect(store.budgets).toHaveLength(2);
-    expect(store.budgets.at(-1)?.category).toBe("Hobi");
-    expect(store.budgets.at(-1)?.monthlyLimit).toBe(700_000);
+    expect(store.expensePlans.filter((plan) => plan.isActive).at(-1)?.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ categoryKey: "makan", amount: 1_000_000n }),
+        expect.objectContaining({ categoryKey: "Hobi", amount: 700_000n })
+      ])
+    );
 
     const list = await processInboundBody({
       waNumber: "6281110001",
@@ -789,7 +872,7 @@ describe("inbound + reminder e2e (mock DB)", () => {
       sentAt: "2026-02-24T12:00:20.000Z"
     });
     expect(list.status).toBe(200);
-    expect(list.body.replyText).toContain("Daftar kategori budget");
+    expect(list.body.replyText).toContain("Daftar kategori pengeluaran");
     expect(list.body.replyText).toContain("Hobi - Rp700.000/bulan");
   });
 
@@ -2652,6 +2735,7 @@ describe("inbound + reminder e2e (mock DB)", () => {
       occurredAt: "2026-02-24T12:00:00.000Z",
       reportPeriod: null
     } as any;
+    const transactionCountBefore = store.transactions.length;
 
     const result = await processInboundBody({
       waNumber: "6281110001",
@@ -2661,7 +2745,20 @@ describe("inbound + reminder e2e (mock DB)", () => {
     });
 
     expect(result.status).toBe(200);
-    expect(result.body.replyText).toContain("Transaksi berhasil dicatat");
+    expect(result.body.replyText).toContain("Draf transaksi belum disimpan");
+    expect(result.body.replyText).toContain("- Tipe: INCOME");
+    expect(result.body.replyText).toContain("simpan");
+    expect(store.transactions).toHaveLength(transactionCountBefore);
+
+    const saved = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "simpan",
+      sentAt: "2026-02-24T12:00:10.000Z"
+    });
+
+    expect(saved.status).toBe(200);
+    expect(saved.body.replyText).toContain("Transaksi berhasil dicatat");
     expect(store.transactions.at(-1)?.type).toBe("INCOME");
     expect(store.transactions.at(-1)?.amount).toBe(5_000_000);
   });

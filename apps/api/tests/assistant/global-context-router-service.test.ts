@@ -457,7 +457,7 @@ describe("global context router service", () => {
     expect(routeGlobalTextContext("beli emas 2 gram harga 1800000").moduleOrder[0]).toBe("PORTFOLIO");
     expect(routeGlobalTextContext("tambah tabungan 5 juta").moduleOrder[0]).toBe("PORTFOLIO");
     expect(routeGlobalTextContext("aset saya brp sekarang").moduleOrder[0]).toBe("PORTFOLIO");
-    expect(routeGlobalTextContext("perlu rebalance gak").moduleOrder[0]).toBe("PORTFOLIO");
+    expect(routeGlobalTextContext("perlu rebalance gak").moduleOrder).not.toContain("PORTFOLIO");
   });
 
   it("does not parse retired projection prompts as supported commands", () => {

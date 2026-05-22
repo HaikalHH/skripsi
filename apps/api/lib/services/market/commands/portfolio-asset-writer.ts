@@ -5,6 +5,7 @@ import { toNumber } from "@/lib/services/market/commands/portfolio-formatters";
 
 type PortfolioCommandAssetRow = {
   id: string;
+  assetType: PrismaPortfolioAssetType;
   quantity: unknown;
   averageBuyPrice: unknown;
   displayName: string;

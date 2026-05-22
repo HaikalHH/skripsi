@@ -1,6 +1,7 @@
 import type { QuoteProvider } from "@/lib/services/market/types/provider.types";
 import { requestProviderResource } from "@/lib/services/market/providers/shared/request";
 import {
+  readYahooPreviousClose,
   readYahooRegularPrice,
   readYahooTimestamp,
   toIsoTimestamp
@@ -33,9 +34,24 @@ export const yahooStockQuoteProvider: QuoteProvider = {
     }
 
     const timestamp = readYahooTimestamp(payload);
+    const previousClose = readYahooPreviousClose(payload, price);
+    const buildChange = (currentPrice: number, previous: number | null) => {
+      if (previous == null || !Number.isFinite(previous) || previous <= 0) {
+        return { previousClose: null, change: null, changePercent: null };
+      }
+      const change = currentPrice - previous;
+      return {
+        previousClose: previous,
+        change,
+        changePercent: (change / previous) * 100
+      };
+    };
+
     if (providerSymbol.endsWith(".JK")) {
+      const change = buildChange(price, previousClose);
       return {
         price,
+        ...change,
         providerId: "yahoo_finance",
         source: "https://finance.yahoo.com/",
         asOf: toIsoTimestamp(timestamp)
@@ -43,8 +59,12 @@ export const yahooStockQuoteProvider: QuoteProvider = {
     }
 
     const converted = await convertUsdToIdr(price, "yahoo_finance", timestamp);
+    const conversionRate = converted.price / price;
+    const convertedPreviousClose = previousClose != null ? previousClose * conversionRate : null;
+    const change = buildChange(converted.price, convertedPreviousClose);
     return {
       price: converted.price,
+      ...change,
       providerId: "yahoo_finance",
       source: "Yahoo Finance + ER-API",
       asOf: converted.asOf

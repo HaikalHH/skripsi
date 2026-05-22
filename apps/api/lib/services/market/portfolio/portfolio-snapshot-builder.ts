@@ -7,10 +7,11 @@ import {
   calculateDiversificationScore,
   resolveRebalanceSignal
 } from "@/lib/services/market/portfolio/portfolio-rebalance";
+import { normalizeMoney } from "@/lib/services/market/portfolio/portfolio-value-utils";
 import {
-  MONEY_EPSILON,
-  normalizeMoney
-} from "@/lib/services/market/portfolio/portfolio-value-utils";
+  hasDailyChangeData,
+  needsMarketPrice
+} from "@/lib/services/market/portfolio/portfolio-item-classification";
 
 const buildTypeBreakdown = (items: ValuedPortfolioItem[], totalCurrentValue: number) => {
   const typeBreakdownMap = new Map<PortfolioAssetType, number>();
@@ -40,10 +41,11 @@ export const buildPortfolioSnapshot = (
   );
   const liquidSharePercent =
     totalCurrentValue > 0 ? Number(((totalLiquidValue / totalCurrentValue) * 100).toFixed(1)) : 0;
-  const marketValuedCount = sortedItems.filter((item) => item.pricingMode === "market").length;
-  const bookFallbackCount = sortedItems.length - marketValuedCount;
+  const marketPriceItems = sortedItems.filter(needsMarketPrice);
+  const marketValuedCount = marketPriceItems.filter((item) => item.pricingMode === "market").length;
+  const bookFallbackCount = marketPriceItems.length - marketValuedCount;
   const marketCoveragePercent =
-    sortedItems.length > 0 ? Number(((marketValuedCount / sortedItems.length) * 100).toFixed(1)) : 0;
+    marketPriceItems.length > 0 ? Number(((marketValuedCount / marketPriceItems.length) * 100).toFixed(1)) : 100;
   const largestAssetShare =
     totalCurrentValue > 0 && sortedItems[0]
       ? Number(((sortedItems[0].currentValue / totalCurrentValue) * 100).toFixed(1))
@@ -63,12 +65,29 @@ export const buildPortfolioSnapshot = (
     liquidSharePercent,
     diversificationScore
   });
+  const dailyChangeItems = sortedItems.filter(
+    (item) => hasDailyChangeData(item) && item.dailyValueChange != null
+  );
+  const totalDailyValueChange =
+    dailyChangeItems.length > 0
+      ? normalizeMoney(dailyChangeItems.reduce((sum, item) => sum + (item.dailyValueChange ?? 0), 0))
+      : null;
+  const previousTotalDailyValue =
+    dailyChangeItems.reduce((sum, item) => {
+      if (item.previousPrice == null) return sum;
+      return sum + item.previousPrice * item.quantity;
+    }, 0);
+  const totalDailyValueChangePercent =
+    totalDailyValueChange != null && previousTotalDailyValue > 0
+      ? (totalDailyValueChange / previousTotalDailyValue) * 100
+      : null;
 
   return {
     items: sortedItems,
     totalBookValue,
     totalCurrentValue,
-    totalUnrealizedGain: normalizeMoney(totalCurrentValue - totalBookValue),
+    totalDailyValueChange,
+    totalDailyValueChangePercent,
     totalLiquidValue,
     liquidSharePercent,
     marketValuedCount,
@@ -81,8 +100,6 @@ export const buildPortfolioSnapshot = (
     dominantTypeShare,
     rebalanceStatus: rebalanceSignal.rebalanceStatus,
     rebalanceReasons: rebalanceSignal.reasons,
-    profitableAssetCount: sortedItems.filter((item) => item.unrealizedGain > MONEY_EPSILON).length,
-    losingAssetCount: sortedItems.filter((item) => item.unrealizedGain < -MONEY_EPSILON).length,
     typeBreakdown,
     diversificationScore
   };

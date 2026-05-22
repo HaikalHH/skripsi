@@ -2,6 +2,7 @@ import type { QuoteProvider } from "@/lib/services/market/types/provider.types";
 import { TROY_OUNCE_TO_GRAM } from "@/lib/services/market/types/market.constants";
 import { requestProviderResource } from "@/lib/services/market/providers/shared/request";
 import {
+  readYahooPreviousClose,
   readYahooRegularPrice,
   readYahooTimestamp
 } from "@/lib/services/market/providers/shared/value-parsing";
@@ -32,9 +33,21 @@ export const yahooGoldQuoteProvider: QuoteProvider = {
       });
     }
 
+    const previousClose = readYahooPreviousClose(payload, price);
     const converted = await convertUsdToIdr(price, "yahoo_finance", readYahooTimestamp(payload));
+    const currentPricePerGram = converted.price / TROY_OUNCE_TO_GRAM;
+    const conversionRate = converted.price / price;
+    const previousClosePerGram =
+      previousClose != null ? (previousClose * conversionRate) / TROY_OUNCE_TO_GRAM : null;
+    const change =
+      previousClosePerGram != null && previousClosePerGram > 0
+        ? currentPricePerGram - previousClosePerGram
+        : null;
     return {
-      price: converted.price / TROY_OUNCE_TO_GRAM,
+      price: currentPricePerGram,
+      previousClose: previousClosePerGram,
+      change,
+      changePercent: change != null && previousClosePerGram != null ? (change / previousClosePerGram) * 100 : null,
       providerId: "yahoo_finance",
       source: "Yahoo Finance + ER-API",
       asOf: converted.asOf

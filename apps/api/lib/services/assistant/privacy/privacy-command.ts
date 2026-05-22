@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { listCategoryBudgets } from "@/lib/services/transactions/budget";
 
 const PRIVACY_PATTERN = /data aku aman|aman & privat|privasi/i;
 const EXPORT_PATTERN = /export data|download data|minta export/i;
@@ -16,9 +17,9 @@ export const tryHandlePrivacyCommand = async (userId: string, text: string) => {
 
   const portfolioModel = (prisma as { portfolioAsset?: any }).portfolioAsset;
 
-  const [txCount, budgetCount, assetCountRaw] = await Promise.all([
+  const [txCount, categoryItems, assetCountRaw] = await Promise.all([
     prisma.transaction.count({ where: { userId } }),
-    prisma.budget.count({ where: { userId } }),
+    listCategoryBudgets(userId),
     portfolioModel?.count({ where: { userId } }) ?? Promise.resolve(0)
   ]);
   const assetCount = Number(assetCountRaw) || 0;
@@ -28,7 +29,7 @@ export const tryHandlePrivacyCommand = async (userId: string, text: string) => {
     replyText: [
       "Ringkasan data untuk export:",
       `- Total transaksi: ${txCount}`,
-      `- Total budget kategori: ${budgetCount}`,
+      `- Total kategori pengeluaran: ${categoryItems.length}`,
       `- Total aset portfolio: ${assetCount}`,
       "Jika perlu full export JSON/CSV, admin bisa generate dari API admin."
     ].join("\n")

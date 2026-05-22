@@ -31,12 +31,20 @@ const formatJakartaDateTime = (date: Date) =>
 
 const buildQuietHoursText = (preference: ReminderPreferenceState) => {
   if (preference.quietHoursStart == null || preference.quietHoursEnd == null) {
-    return "tidak diatur";
+    return formatToggle(false);
   }
   return `${String(preference.quietHoursStart).padStart(2, "0")}:00-${String(
     preference.quietHoursEnd
   ).padStart(2, "0")}:00 WIB`;
 };
+
+const formatToggle = (enabled: boolean) => (enabled ? "🟢 ON" : "🔴 OFF");
+
+const numberEmoji = (value: number) =>
+  String(value)
+    .split("")
+    .map((digit) => `${digit}\uFE0F\u20E3`)
+    .join("");
 
 export const buildReminderPreferenceText = (
   preference: ReminderPreferenceState,
@@ -44,17 +52,17 @@ export const buildReminderPreferenceText = (
 ) => {
   const lines = [
     "Pengaturan reminder kamu sekarang:",
-    `- Budget: ${preference.budgetEnabled ? "aktif" : "mati"}`,
-    `- Spending mingguan: ${preference.weeklyEnabled ? "aktif" : "mati"}`,
-    `- Recap harian jam 07.00: ${preference.weeklyReviewEnabled ? "aktif" : "mati"}`,
-    `- Langganan/recurring: ${preference.recurringEnabled ? "aktif" : "mati"}`,
-    `- Cashflow: ${preference.cashflowEnabled ? "aktif" : "mati"}`,
-    `- Goal: ${preference.goalEnabled ? "aktif" : "mati"}`,
-    `- Closing bulanan: ${preference.monthlyClosingEnabled ? "aktif" : "mati"}`,
-    `- Jeda minimum reminder sejenis: ${preference.minIntervalHours} jam`,
-    `- Maksimal reminder per hari: ${preference.maxPerDay}`,
-    `- Quiet hours: ${buildQuietHoursText(preference)}`,
-    `- Snooze sampai: ${preference.snoozedUntil ? formatJakartaDateTime(preference.snoozedUntil) : "tidak aktif"}`
+    `${numberEmoji(1)} Budget: ${formatToggle(preference.budgetEnabled)}`,
+    `${numberEmoji(2)} Spending mingguan: ${formatToggle(preference.weeklyEnabled)}`,
+    `${numberEmoji(3)} Recap harian jam 07.00: ${formatToggle(preference.weeklyReviewEnabled)}`,
+    `${numberEmoji(4)} Langganan/recurring: ${formatToggle(preference.recurringEnabled)}`,
+    `${numberEmoji(5)} Cashflow: ${formatToggle(preference.cashflowEnabled)}`,
+    `${numberEmoji(6)} Goal: ${formatToggle(preference.goalEnabled)}`,
+    `${numberEmoji(7)} Closing bulanan: ${formatToggle(preference.monthlyClosingEnabled)}`,
+    `${numberEmoji(8)} Jeda minimum reminder sejenis: ${preference.minIntervalHours} jam`,
+    `${numberEmoji(9)} Maksimal reminder per hari: ${preference.maxPerDay}`,
+    `${numberEmoji(10)} Quiet hours: ${buildQuietHoursText(preference)}`,
+    `${numberEmoji(11)} Snooze sampai: ${preference.snoozedUntil ? formatJakartaDateTime(preference.snoozedUntil) : formatToggle(false)}`
   ];
 
   if (updateCommand?.action === "UPDATE") {
@@ -75,7 +83,7 @@ export const buildReminderPreferenceText = (
             : "snooze reminder dihapus";
         }
         if (typeof value !== "boolean") return null;
-        return `${toggleLabelMap[key as keyof typeof toggleLabelMap]} ${value ? "diaktifkan" : "dimatikan"}`;
+        return `${toggleLabelMap[key as keyof typeof toggleLabelMap]} ${formatToggle(value)}`;
       })
       .filter(Boolean);
 

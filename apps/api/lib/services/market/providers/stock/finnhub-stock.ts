@@ -25,6 +25,7 @@ export const finnhubStockQuoteProvider: QuoteProvider = {
       })
     );
     const currentPrice = toNumber(payload?.c);
+    const previousClose = toNumber(payload?.pc);
     if (!Number.isFinite(currentPrice) || currentPrice <= 0) {
       throw createProviderFailure({
         providerId: "finnhub",
@@ -35,9 +36,26 @@ export const finnhubStockQuoteProvider: QuoteProvider = {
     }
 
     const timestamp = typeof payload?.t === "number" || typeof payload?.t === "string" ? payload.t : null;
+    const buildChange = (price: number, previous: number | null) => {
+      if (previous == null || !Number.isFinite(previous) || previous <= 0) {
+        return { previousClose: null, change: null, changePercent: null };
+      }
+      const change = price - previous;
+      return {
+        previousClose: previous,
+        change,
+        changePercent: (change / previous) * 100
+      };
+    };
+
     if (symbol.providerSymbols.finnhub?.endsWith(".JK")) {
+      const change = buildChange(
+        currentPrice,
+        Number.isFinite(previousClose) && previousClose > 0 ? previousClose : null
+      );
       return {
         price: currentPrice,
+        ...change,
         providerId: "finnhub",
         source: "Finnhub",
         asOf: toIsoTimestamp(timestamp)
@@ -45,8 +63,13 @@ export const finnhubStockQuoteProvider: QuoteProvider = {
     }
 
     const converted = await convertUsdToIdr(currentPrice, "finnhub", timestamp);
+    const conversionRate = converted.price / currentPrice;
+    const convertedPreviousClose =
+      Number.isFinite(previousClose) && previousClose > 0 ? previousClose * conversionRate : null;
+    const change = buildChange(converted.price, convertedPreviousClose);
     return {
       price: converted.price,
+      ...change,
       providerId: "finnhub",
       source: "Finnhub + exchangerate.host",
       asOf: converted.asOf

@@ -95,7 +95,7 @@ export const buildGoldSuccessReply = (draft: GoldDraft) => {
   return [
     `\u2705 Aset berhasil dicatat: ${input.displayName}`,
     `- Qty: ${GRAM_FORMATTER.format(input.quantity)} gram`,
-    `- Harga beli: ${formatMoney(input.pricePerUnit)}`,
+    `- Harga saat dicatat: ${formatMoney(input.pricePerUnit)}`,
     `- Total: ${formatMoney(total)}`,
     "",
     "Ketik *portfolio aku* untuk lihat nilai aset dan komposisinya."

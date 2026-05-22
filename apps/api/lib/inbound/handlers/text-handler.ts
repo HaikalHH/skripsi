@@ -19,7 +19,7 @@ import { recordIntentObservation } from "@/lib/services/observability/observabil
 import { parseReportPeriod } from "@/lib/services/reporting/report-builder";
 import { isTransactionExtractable } from "@/lib/services/transactions/transaction";
 import {
-  stageExpenseTransactionAndBuildReply,
+  stageTransactionAndBuildReply,
   tryHandlePendingAction
 } from "@/lib/services/assistant/flows/pending-action";
 import { tryHandleCommandFlowAnswer } from "@/lib/services/assistant/flows/command-flow";
@@ -234,7 +234,7 @@ export const handleTextMessage = async (
       const extractionWithCategory = forcedCategory
         ? { ...fallbackExtraction, category: forcedCategory }
         : fallbackExtraction;
-      return stageExpenseTransactionAndBuildReply({
+      return stageTransactionAndBuildReply({
         userId: params.userId,
         messageId: params.messageId,
         extraction: extractionWithCategory,
@@ -316,7 +316,7 @@ export const handleTextMessage = async (
         ? { ...fallbackExtraction, category: forcedCategory }
         : fallbackExtraction;
 
-      return stageExpenseTransactionAndBuildReply({
+      return stageTransactionAndBuildReply({
         userId: params.userId,
         messageId: params.messageId,
         extraction: fallbackWithCategory,
@@ -392,7 +392,7 @@ export const handleTextMessage = async (
       ? { ...fallbackExtraction, category: forcedCategory }
       : fallbackExtraction;
 
-    return stageExpenseTransactionAndBuildReply({
+    return stageTransactionAndBuildReply({
       userId: params.userId,
       messageId: params.messageId,
       extraction: fallbackWithCategory,
@@ -411,7 +411,7 @@ export const handleTextMessage = async (
     );
   }
 
-  return stageExpenseTransactionAndBuildReply({
+  return stageTransactionAndBuildReply({
     userId: params.userId,
     messageId: params.messageId,
     extraction: extractionWithCategory,

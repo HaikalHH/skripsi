@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const hoisted = vi.hoisted(() => {
   const store = {
-    budgets: [] as any[],
     users: [] as any[],
     financialProfiles: [] as any[],
     expensePlans: [] as any[],
@@ -10,31 +9,6 @@ const hoisted = vi.hoisted(() => {
   };
 
   const prismaMock: any = {
-    budget: {
-      findMany: vi.fn(async ({ where }: any) =>
-        store.budgets.filter((budget) => !where?.userId || budget.userId === where.userId)
-      ),
-      upsert: vi.fn(async ({ where, update, create }: any) => {
-        const existing = store.budgets.find(
-          (budget) =>
-            budget.userId === where.userId_category.userId &&
-            budget.category === where.userId_category.category
-        );
-        if (existing) {
-          Object.assign(existing, update, { updatedAt: new Date("2026-05-22T10:00:00.000Z") });
-          return existing;
-        }
-
-        const row = {
-          id: `budget_${store.budgets.length + 1}`,
-          ...create,
-          createdAt: new Date("2026-05-22T09:00:00.000Z"),
-          updatedAt: new Date("2026-05-22T09:00:00.000Z")
-        };
-        store.budgets.push(row);
-        return row;
-      })
-    },
     user: {
       update: vi.fn(async ({ where, data }: any) => {
         const user = store.users.find((item) => item.id === where.id);
@@ -59,6 +33,11 @@ const hoisted = vi.hoisted(() => {
       })
     },
     expensePlan: {
+      findFirst: vi.fn(async ({ where }: any) =>
+        [...store.expensePlans]
+          .reverse()
+          .find((plan) => plan.userId === where.userId && plan.isActive === where.isActive) ?? null
+      ),
       updateMany: vi.fn(async ({ where, data }: any) => {
         for (const plan of store.expensePlans) {
           if (plan.userId === where.userId && plan.isActive === where.isActive) {
@@ -70,7 +49,13 @@ const hoisted = vi.hoisted(() => {
         const row = {
           id: `plan_${store.expensePlans.length + 1}`,
           ...data,
-          items: data.items.create
+          items: data.items.create.map((item: any, index: number) => ({
+            id: `item_${store.expensePlans.length + 1}_${index + 1}`,
+            ...item,
+            updatedAt: new Date("2026-05-22T10:00:00.000Z")
+          })),
+          createdAt: new Date("2026-05-22T10:00:00.000Z"),
+          updatedAt: new Date("2026-05-22T10:00:00.000Z")
         };
         store.expensePlans.push(row);
         return row;
@@ -96,12 +81,21 @@ import { getMonthlySavingCapacity } from "@/lib/services/planning/goal";
 
 describe("budget service", () => {
   beforeEach(() => {
-    hoisted.store.budgets = [
+    hoisted.store.expensePlans = [
       {
-        id: "budget_1",
+        id: "plan_1",
         userId: "user_1",
-        category: "Food & Drink",
-        monthlyLimit: 1_000_000,
+        source: "GUIDED_ONBOARDING_PLAN",
+        totalMonthlyExpense: 1_000_000n,
+        isActive: true,
+        items: [
+          {
+            id: "item_1",
+            categoryKey: "Food & Drink",
+            amount: 1_000_000n,
+            updatedAt: new Date("2026-05-01T00:00:00.000Z")
+          }
+        ],
         createdAt: new Date("2026-05-01T00:00:00.000Z"),
         updatedAt: new Date("2026-05-01T00:00:00.000Z")
       }
@@ -115,7 +109,6 @@ describe("budget service", () => {
         potentialMonthlySaving: 9_000_000
       }
     ];
-    hoisted.store.expensePlans = [];
     hoisted.store.transactions = [];
   });
 
@@ -127,12 +120,11 @@ describe("budget service", () => {
     });
 
     expect(created.category).toBe("hobi");
-    expect(hoisted.store.budgets).toHaveLength(2);
     expect(hoisted.store.users[0].monthlyBudget).toBe(1_500_000);
     expect(hoisted.store.financialProfiles[0].monthlyExpenseTotal).toBe(1_500_000n);
     expect(hoisted.store.financialProfiles[0].potentialMonthlySaving).toBe(8_500_000n);
     await expect(getMonthlySavingCapacity("user_1")).resolves.toBe(8_500_000);
-    expect(hoisted.store.expensePlans.at(-1)?.items).toEqual([
+    expect(hoisted.store.expensePlans.at(-1)?.items).toMatchObject([
       { categoryKey: "Food & Drink", amount: 1_000_000n },
       { categoryKey: "hobi", amount: 500_000n }
     ]);
@@ -143,8 +135,10 @@ describe("budget service", () => {
       monthlyLimit: 700_000
     });
 
-    expect(hoisted.store.budgets).toHaveLength(2);
-    expect(hoisted.store.budgets.at(-1)?.category).toBe("Hobi");
+    expect(hoisted.store.expensePlans.at(-1)?.items).toMatchObject([
+      { categoryKey: "Food & Drink", amount: 1_000_000n },
+      { categoryKey: "Hobi", amount: 700_000n }
+    ]);
     expect(hoisted.store.users[0].monthlyBudget).toBe(1_700_000);
     expect(hoisted.store.financialProfiles[0].potentialMonthlySaving).toBe(8_300_000n);
     await expect(getMonthlySavingCapacity("user_1")).resolves.toBe(8_300_000);

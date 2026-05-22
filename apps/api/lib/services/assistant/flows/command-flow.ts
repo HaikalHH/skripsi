@@ -330,7 +330,13 @@ const runPortfolioSyntheticCommand = async (params: {
     text: params.text,
     currentMessageId: params.messageId
   });
-  if (portfolio.handled) return ok({ replyText: portfolio.replyText });
+  if (portfolio.handled) {
+    return ok({
+      replyText: portfolio.replyText,
+      replyTexts: portfolio.replyTexts,
+      preserveReplyTextBubbles: portfolio.preserveReplyTextBubbles
+    });
+  }
 
   return ok({
     replyText:
