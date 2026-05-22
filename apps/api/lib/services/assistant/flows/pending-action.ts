@@ -2,6 +2,7 @@ import type { GeminiExtraction } from "@finance/shared";
 import { AnalysisType, FinancialGoalType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { createAIAnalysisLog } from "@/lib/services/ai/analysis-logs";
+import { refreshSavingsGoalProgress } from "@/lib/services/planning/goal";
 import {
   getMatchingCategoryBudget,
   normalizeBudgetCategoryName,
@@ -48,6 +49,14 @@ type PendingGoalDraftPayload = {
   sourceMessageId: string;
 };
 
+type PendingDeleteDraftPayload = {
+  kind: "PENDING_DELETE_DRAFT";
+  transactionId: string;
+  transactionLabel: string;
+  transactionAmount: number;
+  sourceMessageId: string;
+};
+
 type PendingResolutionPayload = {
   kind: "PENDING_ACTION_RESOLUTION";
   draftId: string;
@@ -58,7 +67,8 @@ type PendingResolutionPayload = {
 type PendingDraftPayload =
   | PendingTransactionDraftPayload
   | PendingBudgetDraftPayload
-  | PendingGoalDraftPayload;
+  | PendingGoalDraftPayload
+  | PendingDeleteDraftPayload;
 
 type PendingDraft = {
   id: string;
@@ -89,6 +99,12 @@ const isGoalDraftPayload = (value: unknown): value is PendingGoalDraftPayload =>
   isRecord(value) &&
   value.kind === "PENDING_GOAL_DRAFT" &&
   typeof value.targetAmount === "number" &&
+  typeof value.sourceMessageId === "string";
+
+const isDeleteDraftPayload = (value: unknown): value is PendingDeleteDraftPayload =>
+  isRecord(value) &&
+  value.kind === "PENDING_DELETE_DRAFT" &&
+  typeof value.transactionId === "string" &&
   typeof value.sourceMessageId === "string";
 
 const isResolutionPayload = (value: unknown): value is PendingResolutionPayload =>
@@ -198,7 +214,8 @@ const findLatestPendingDraft = async (userId: string): Promise<PendingDraft | nu
     if (
       (isTransactionDraftPayload(payload) ||
         isBudgetDraftPayload(payload) ||
-        isGoalDraftPayload(payload)) &&
+        isGoalDraftPayload(payload) ||
+        isDeleteDraftPayload(payload)) &&
       !resolvedDraftIds.has(row.id)
     ) {
       return {
@@ -211,7 +228,7 @@ const findLatestPendingDraft = async (userId: string): Promise<PendingDraft | nu
   return null;
 };
 
-const detectPendingAction = (text: string): "SAVE" | "DISCARD" | "EDIT" | null => {
+const detectPendingAction = (text: string): "SAVE" | "DISCARD" | "EDIT" | "DELETE_CONFIRM" | null => {
   const normalized = text.trim().toLowerCase();
   if (!normalized) return null;
 
@@ -219,8 +236,12 @@ const detectPendingAction = (text: string): "SAVE" | "DISCARD" | "EDIT" | null =
     return "SAVE";
   }
 
-  if (/^(buang|batal|cancel|discard|hapus draft|batalkan)$/.test(normalized)) {
+  if (/^(buang|batal|cancel|discard|hapus draft|batalkan|jangan)$/.test(normalized)) {
     return "DISCARD";
+  }
+
+  if (/^(hapus|delete)$/i.test(normalized)) {
+    return "DELETE_CONFIRM";
   }
 
   if (/^(edit|ubah|ganti|koreksi)\b/i.test(text)) {
@@ -464,6 +485,18 @@ const savePendingDraft = async (params: {
     return ok({ replyText: buildBudgetSetText(budget) });
   }
 
+  if (payload.kind === "PENDING_DELETE_DRAFT") {
+    const existing = await prisma.transaction.findUnique({ where: { id: payload.transactionId } });
+    if (!existing) {
+      return ok({ replyText: "Transaksi sudah tidak ada atau sudah dihapus sebelumnya." });
+    }
+    await prisma.transaction.delete({ where: { id: payload.transactionId } });
+    await refreshSavingsGoalProgress(params.userId);
+    return ok({
+      replyText: `Transaksi ${payload.transactionLabel} sebesar ${formatMoney(payload.transactionAmount)} berhasil dihapus.`
+    });
+  }
+
   const goalStatus = await setSavingsGoalTarget(params.userId, payload.targetAmount, {
     goalName: payload.goalName,
     goalType: payload.goalType,
@@ -516,6 +549,33 @@ const editPendingDraft = async (params: {
   return buildBubbleResult(buildGoalDraftText(patched));
 };
 
+export const stageDeleteAndBuildReply = async (params: {
+  userId: string;
+  messageId: string;
+  transactionId: string;
+  transactionLabel: string;
+  transactionAmount: number;
+  confirmationText: string;
+}): Promise<InboundHandlerResult> => {
+  const payload: PendingDeleteDraftPayload = {
+    kind: "PENDING_DELETE_DRAFT",
+    transactionId: params.transactionId,
+    transactionLabel: params.transactionLabel,
+    transactionAmount: params.transactionAmount,
+    sourceMessageId: params.messageId
+  };
+
+  await createPendingDraft({
+    userId: params.userId,
+    messageId: params.messageId,
+    payload
+  });
+
+  const deleteActionText =
+    "Balas dengan salah satu:\n✅ hapus: kalau mau dihapus\n🗑️ batal: kalau batal";
+  return buildBubbleResult(params.confirmationText, deleteActionText);
+};
+
 export const tryHandlePendingAction = async (params: {
   userId: string;
   messageId: string;
@@ -534,16 +594,34 @@ export const tryHandlePendingAction = async (params: {
       draftId: draft.id,
       action: "DISCARDED"
     });
-    return ok({ replyText: "Draf saya buang. Tidak ada data yang disimpan." });
+    const discardText =
+      draft.payload.kind === "PENDING_DELETE_DRAFT"
+        ? "Penghapusan dibatalkan. Transaksi tetap tersimpan."
+        : "Draf saya buang. Tidak ada data yang disimpan.";
+    return ok({ replyText: discardText });
   }
 
   if (action === "EDIT") {
+    if (draft.payload.kind === "PENDING_DELETE_DRAFT") {
+      return ok({ replyText: "Penghapusan transaksi tidak bisa diedit. Balas \"hapus\" untuk menghapus atau \"batal\" untuk membatalkan." });
+    }
     return editPendingDraft({
       userId: params.userId,
       messageId: params.messageId,
       draft,
       text: params.text
     });
+  }
+
+  if (action === "DELETE_CONFIRM") {
+    if (draft.payload.kind === "PENDING_DELETE_DRAFT") {
+      return savePendingDraft({
+        userId: params.userId,
+        messageId: params.messageId,
+        draft
+      });
+    }
+    return null;
   }
 
   return savePendingDraft({

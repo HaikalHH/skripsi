@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { formatMoney } from "@/lib/services/shared/money";
 import { refreshSavingsGoalProgress } from "@/lib/services/planning/goal";
 import { resolveTransactionCandidates } from "./candidate-resolver";
-import { buildCandidateOptionLabel, buildTransactionLabel } from "./labels";
+import { buildCandidateOptionLabel, buildTransactionLabel, formatShortTransactionDate } from "./labels";
 import { parseMutationCommand } from "./parser";
 import type { MutationResult } from "./types";
 
@@ -38,6 +38,19 @@ export const tryHandleTransactionMutationCommand = async (params: {
   }
 
   if (command.kind === "DELETE") {
+    if (!command.hint) {
+      return {
+        handled: true,
+        needsConfirmation: true,
+        replyText: [
+          "🗑️ Transaksi terakhir yang ditemukan:",
+          `- Category: ${buildTransactionLabel(target)}`,
+          `- Amount: ${formatMoney(target.amount)}`,
+          `- Tanggal: ${formatShortTransactionDate(target.occurredAt)}`,
+        ].join("\n"),
+        candidateTransaction: target
+      };
+    }
     await prisma.transaction.delete({ where: { id: target.id } });
     await refreshSavingsGoalProgress(params.userId);
     return {

@@ -12,6 +12,12 @@ export type MutationResult =
     }
   | {
       handled: false;
+    }
+  | {
+      handled: true;
+      needsConfirmation: true;
+      replyText: string;
+      candidateTransaction: TransactionRow;
     };
 
 export type TransactionRow = Awaited<ReturnType<typeof prisma.transaction.findMany>>[number];

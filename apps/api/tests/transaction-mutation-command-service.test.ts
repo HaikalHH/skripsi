@@ -113,5 +113,40 @@ describe("transaction mutation command service", () => {
       expect(hoisted.transactions[0]?.id).toBe("tx_1");
     }
   });
+
+  it("parses 'hapus transaksi terakhir' as a delete-latest command", () => {
+    expect(parseMutationCommand("hapus transaksi terakhir")).toEqual({
+      kind: "DELETE",
+      hint: null
+    });
+    expect(parseMutationCommand("hapus terakhir")).toEqual({
+      kind: "DELETE",
+      hint: null
+    });
+    expect(parseMutationCommand("hapus transaksi yang terakhir")).toEqual({
+      kind: "DELETE",
+      hint: null
+    });
+    expect(parseMutationCommand("hapus tadi")).toEqual({
+      kind: "DELETE",
+      hint: null
+    });
+  });
+
+  it("returns needsConfirmation for delete-latest instead of deleting immediately", async () => {
+    const result = await tryHandleTransactionMutationCommand({
+      userId: "user_1",
+      text: "hapus transaksi terakhir"
+    });
+
+    expect(result.handled).toBe(true);
+    if (result.handled) {
+      expect("needsConfirmation" in result && result.needsConfirmation).toBe(true);
+      expect(result.replyText).toContain("Transaksi terakhir yang ditemukan");
+      expect(result.replyText).toContain("Entertainment (Spotify)");
+      expect(result.replyText).toContain("Rp50.000");
+      expect(hoisted.transactions).toHaveLength(2);
+    }
+  });
 });
 

@@ -39,6 +39,7 @@ import {
 } from "../formatting/formatters";
 import {
   stageBudgetAndBuildReply,
+  stageDeleteAndBuildReply,
   stageGoalAndBuildReply
 } from "@/lib/services/assistant/flows/pending-action";
 import { startCommandFlow } from "@/lib/services/assistant/flows/command-flow";
@@ -75,6 +76,17 @@ const tryHandleContextModules = async (
         text: params.text
       });
       if (transactionMutation.handled) {
+        if ("needsConfirmation" in transactionMutation && transactionMutation.needsConfirmation) {
+          const candidate = transactionMutation.candidateTransaction;
+          return stageDeleteAndBuildReply({
+            userId: params.userId,
+            messageId: params.messageId,
+            transactionId: candidate.id,
+            transactionLabel: `${candidate.category}${candidate.merchant ? ` (${candidate.merchant})` : ""}`,
+            transactionAmount: candidate.amount,
+            confirmationText: transactionMutation.replyText
+          });
+        }
         return ok({ replyText: transactionMutation.replyText });
       }
       continue;

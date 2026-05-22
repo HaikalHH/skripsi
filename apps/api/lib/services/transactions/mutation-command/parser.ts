@@ -20,7 +20,7 @@ export const parseMutationCommand = (rawText: string): MutationCommand => {
     return { kind: "EDIT", amount, hint: hint || null };
   }
 
-  const deleteLatest = text.match(/^(hapus|delete)\s+(?:yang\s+)?(?:barusan|terakhir|baru saja)$/i);
+  const deleteLatest = text.match(/^(hapus|delete)\s+(?:transaksi\s+)?(?:yang\s+)?(?:barusan|terakhir|baru saja|tadi)$/i);
   if (deleteLatest) {
     return { kind: "DELETE", hint: null };
   }
