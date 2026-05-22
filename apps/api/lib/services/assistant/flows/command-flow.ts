@@ -8,7 +8,8 @@ import {
   getSavingsGoalStatus
 } from "@/lib/services/planning/goal";
 import { tryHandlePortfolioCommand } from "@/lib/services/market/commands";
-import { parsePositiveAmount } from "@/lib/services/transactions/amount";
+import { isNegativeAmountInput, parsePositiveAmount } from "@/lib/services/transactions/amount";
+
 import { normalizeBudgetCategoryName } from "@/lib/services/transactions/budget";
 import { formatMoney } from "@/lib/services/shared/money";
 import {
@@ -152,6 +153,9 @@ const titleCase = (value: string) =>
 const formatMonthYearLabel = (month: number, year: number) =>
   MONTH_YEAR_FORMATTER.format(new Date(Date.UTC(year, month - 1, 1)));
 
+const getDaysInMonth = (month: number, year: number): number =>
+  new Date(Date.UTC(year, month, 0)).getUTCDate();
+
 const parseMonthYear = (rawText: string) => {
   const text = normalizeText(rawText).toLowerCase();
   const numeric = text.match(/\b(0?[1-9]|1[0-2])\s*[\/-]\s*(\d{2}|\d{4})\b/);
@@ -160,7 +164,8 @@ const parseMonthYear = (rawText: string) => {
     const yearRaw = Number(numeric[2]);
     return {
       month,
-      year: yearRaw < 100 ? 2000 + yearRaw : yearRaw
+      year: yearRaw < 100 ? 2000 + yearRaw : yearRaw,
+      invalidDay: false
     };
   }
 
@@ -168,15 +173,34 @@ const parseMonthYear = (rawText: string) => {
     .sort((left, right) => right.length - left.length)
     .map((alias) => alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
     .join("|");
+
+  const withDay = text.match(
+    new RegExp(`\\b(\\d{1,2})\\s+(${monthNamePattern})\\b\\s+(\\d{2}|\\d{4})\\b`, "i")
+  );
+  if (withDay) {
+    const day = Number(withDay[1]);
+    const month = MONTH_LOOKUP.get(withDay[2].toLowerCase()) ?? null;
+    const yearRaw = Number(withDay[3]);
+    const year = yearRaw < 100 ? 2000 + yearRaw : yearRaw;
+    if (!month) return null;
+    const maxDay = getDaysInMonth(month, year);
+    if (day > maxDay) {
+      return { month, year, invalidDay: true, day, maxDay };
+    }
+    return { month, year, invalidDay: false };
+  }
+
   const named = text.match(new RegExp(`\\b(${monthNamePattern})\\b\\s+(\\d{2}|\\d{4})\\b`, "i"));
   if (!named) return null;
 
   const yearRaw = Number(named[2]);
   return {
     month: MONTH_LOOKUP.get(named[1].toLowerCase()) ?? null,
-    year: yearRaw < 100 ? 2000 + yearRaw : yearRaw
+    year: yearRaw < 100 ? 2000 + yearRaw : yearRaw,
+    invalidDay: false
   };
 };
+
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -432,6 +456,9 @@ export const tryHandleCommandFlowAnswer = async (params: {
     }
 
     if (payload.step === "ASK_AMOUNT") {
+      if (isNegativeAmountInput(text)) {
+        return ok({ replyText: "Nominal tidak boleh minus atau negatif ya Boss. Tulis nominalnya tanpa tanda `-`, misalnya `20jt` atau `Rp20.000.000`." });
+      }
       const amount = parsePositiveAmount(text);
       if (!amount) {
         return ok({ replyText: "Nominalnya belum kebaca. Tulis misalnya `20jt` atau `Rp20.000.000`." });
@@ -455,6 +482,12 @@ export const tryHandleCommandFlowAnswer = async (params: {
     const due = parseMonthYear(text);
     if (!due?.month || !due.year) {
       return ok({ replyText: "Target waktunya belum kebaca. Tulis bulan dan tahun, contoh `Juni 2030`." });
+    }
+    if (due.invalidDay) {
+      const monthName = formatMonthYearLabel(due.month, due.year).split(" ")[0];
+      return ok({
+        replyText: `Tanggal ${(due as { day: number }).day} tidak ada di bulan ${monthName} (maksimal ${(due as { maxDay: number }).maxDay} hari). Tulis bulan dan tahun saja, contoh \`${monthName} ${due.year}\`.`
+      });
     }
 
     await markFlowResolved({
@@ -494,6 +527,9 @@ export const tryHandleCommandFlowAnswer = async (params: {
 
     const amount = parsePositiveAmount(text);
     if (!amount) {
+      if (isNegativeAmountInput(text)) {
+        return ok({ replyText: "Nominal tidak boleh minus atau negatif ya Boss. Tulis nominalnya tanpa tanda `-`, misalnya `500rb` atau `Rp500.000`." });
+      }
       return ok({ replyText: "Nominal setorannya belum kebaca. Tulis misalnya `500rb` atau `Rp500.000`." });
     }
     await markFlowResolved({
@@ -540,6 +576,9 @@ export const tryHandleCommandFlowAnswer = async (params: {
 
     const amount = parsePositiveAmount(text);
     if (!amount) {
+      if (isNegativeAmountInput(text)) {
+        return ok({ replyText: "Nominal tidak boleh minus atau negatif ya Boss. Tulis nominalnya tanpa tanda `-`, misalnya `2jt` atau `Rp2.000.000`." });
+      }
       return ok({ replyText: "Nominal budget belum terbaca. Coba tulis ulang lagi boss 😅, misalnya `2jt` atau `Rp2.000.000`." });
     }
     await markFlowResolved({
@@ -618,6 +657,9 @@ export const tryHandleCommandFlowAnswer = async (params: {
     }
 
     if (payload.step === "ASK_VALUE") {
+      if (isNegativeAmountInput(text)) {
+        return ok({ replyText: "Nilai aset tidak boleh minus atau negatif ya Boss. Tulis nilainya tanpa tanda `-`, misalnya `5jt` atau `Rp5.000.000`." });
+      }
       const amount = parsePositiveAmount(text);
       if (!amount) {
         return ok({ replyText: "Nilainya belum kebaca. Tulis misalnya `5jt` atau `Rp5.000.000`." });

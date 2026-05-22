@@ -4,6 +4,9 @@ import { parseMixedUnitAmount } from "./mixed-unit";
 import { normalizeAmountInput } from "./normalizer";
 import { parseWordAmount } from "./word-amount";
 
+
+export const isNegativeAmountInput = (raw: string): boolean => raw.trim().startsWith("-");
+
 export const parsePositiveAmount = (raw: string): number | null => {
   const normalized = normalizeAmountInput(raw);
   if (!normalized) return null;
@@ -32,3 +35,4 @@ export const parsePositiveAmount = (raw: string): number | null => {
   if (!Number.isFinite(amount) || amount <= 0) return null;
   return amount;
 };
+

@@ -1,6 +1,7 @@
-export const normalizeAmountInput = (raw: string) =>
-  raw
-    .trim()
+export const normalizeAmountInput = (raw: string) => {
+  const trimmed = raw.trim();
+  if (trimmed.startsWith("-")) return "";
+  return trimmed
     .toLowerCase()
     .replace(/^rp\.?\s*/i, "")
     .replace(/\bidr\b/g, " ")
@@ -15,3 +16,5 @@ export const normalizeAmountInput = (raw: string) =>
     .replace(/\bsebelas\b/g, "satu belas")
     .replace(/\s+/g, " ")
     .trim();
+};
+
