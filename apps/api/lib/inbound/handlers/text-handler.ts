@@ -9,6 +9,7 @@ import {
 } from "@/lib/services/ai/transaction-understanding";
 import { extractForcedCategory } from "@/lib/services/transactions/category";
 import { parseFallbackTransactionExtraction } from "@/lib/services/transactions/fallback-parser";
+import { isNegativeAmountInput } from "@/lib/services/transactions/amount";
 import { tryHandleGeneralChat } from "@/lib/services/assistant/chat/general-chat";
 import {
   loadRecentConversationTurns,
@@ -37,6 +38,28 @@ export const handleTextMessage = async (
 ): Promise<InboundHandlerResult> => {
   const textInput = params.text ?? "";
   const rawRoute = routeGlobalTextContext(textInput);
+  
+  // Check for negative amount input early
+  if (isNegativeAmountInput(textInput)) {
+    await recordIntentObservation({
+      userId: params.userId,
+      messageId: params.messageId,
+      rawText: textInput,
+      effectiveText: textInput,
+      commandKind: rawRoute.command.kind,
+      topModule: rawRoute.moduleOrder[0] ?? null,
+      moduleOrder: rawRoute.moduleOrder,
+      resolutionKind: "none",
+      resolutionSource: null,
+      handledBy: "negative_amount_rejected",
+      fallbackStage: "validation_error",
+      ambiguityFlag: false
+    });
+    return ok({
+      replyText: "Maaf, nominal tidak boleh negatif atau minus. Silakan masukkan nominal yang valid, contoh: `makan 45000` atau `gaji masuk 5 juta`."
+    });
+  }
+  
   const pendingActionResult = await tryHandlePendingAction({
     userId: params.userId,
     messageId: params.messageId,

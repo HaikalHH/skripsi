@@ -345,8 +345,14 @@ export const matchMultiSelectIntent = (raw: string, options: FlexibleChoiceOptio
 };
 
 const extractCandidateMoneyTokens = (raw: string) => {
-  const matches = raw.match(/(?:rp\.?\s*)?\d[\d.,]*(?:\s*[a-z]{1,8})?/gi) ?? [];
-  return unique(matches.map((item) => item.trim()).filter(Boolean));
+ 
+  const mixedUnitPattern = /(?:rp\.?\s*)?(?:\d[\d.,]*\s*(?:jt|jta|jtan|juta|jutaan|rb|rbu|ribu|ribuan|k|miliar|milyar|triliun)\s*)+/gi;
+  const mixedMatches = raw.match(mixedUnitPattern) ?? [];
+  
+  const singlePattern = /(?:rp\.?\s*)?\d[\d.,]*(?:\s*[a-z]{1,8})?/gi;
+  const singleMatches = raw.match(singlePattern) ?? [];
+  
+  return unique([...mixedMatches, ...singleMatches].map((item) => item.trim()).filter(Boolean));
 };
 
 export const extractMoneyFromFreeText = (raw: string) => {

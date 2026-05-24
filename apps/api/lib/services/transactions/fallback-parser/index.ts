@@ -1,5 +1,5 @@
 import type { GeminiExtraction } from "@finance/shared";
-import { parsePositiveAmount } from "../amount";
+import { isNegativeAmountInput, parsePositiveAmount } from "../amount";
 import { normalizeDetectedMerchant } from "../merchant";
 import { isLikelySavingTransactionText } from "../saving-intent";
 import { detectExpenseCategory, detectIncomeCategory, extractAmountPhrase } from "./detectors";
@@ -11,6 +11,8 @@ export const parseFallbackTransactionExtraction = (rawText: string): GeminiExtra
 
   const amountPhrase = extractAmountPhrase(text);
   if (!amountPhrase) return null;
+
+  if (isNegativeAmountInput(amountPhrase)) return null;
 
   const amount = parsePositiveAmount(amountPhrase);
   if (!amount) return null;

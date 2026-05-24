@@ -5,7 +5,12 @@ import { normalizeAmountInput } from "./normalizer";
 import { parseWordAmount } from "./word-amount";
 
 
-export const isNegativeAmountInput = (raw: string): boolean => raw.trim().startsWith("-");
+export const isNegativeAmountInput = (raw: string): boolean => {
+
+  if (raw.trim().startsWith("-")) return true;
+  
+  return /-\s*\d/.test(raw);
+};
 
 export const parsePositiveAmount = (raw: string): number | null => {
   const normalized = normalizeAmountInput(raw);

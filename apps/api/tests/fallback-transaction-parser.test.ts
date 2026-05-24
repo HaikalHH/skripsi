@@ -81,5 +81,40 @@ describe("fallback transaction parser", () => {
       reportPeriod: null
     });
   });
+
+  it("parses mixed unit amounts with context keywords", () => {
+    expect(parseFallbackTransactionExtraction("makan 1 juta 500 ribu")).toEqual({
+      intent: "RECORD_TRANSACTION",
+      type: "EXPENSE",
+      amount: 1500000,
+      category: "Food & Drink",
+      merchant: null,
+      note: null,
+      occurredAt: null,
+      reportPeriod: null
+    });
+
+    expect(parseFallbackTransactionExtraction("gaji 1 jt 500 rb")).toEqual({
+      intent: "RECORD_TRANSACTION",
+      type: "INCOME",
+      amount: 1500000,
+      category: "Salary",
+      merchant: null,
+      note: null,
+      occurredAt: null,
+      reportPeriod: null
+    });
+
+    expect(parseFallbackTransactionExtraction("beli 2 juta 300 ribu")).toEqual({
+      intent: "RECORD_TRANSACTION",
+      type: "EXPENSE",
+      amount: 2300000,
+      category: "General Expense",
+      merchant: null,
+      note: null,
+      occurredAt: null,
+      reportPeriod: null
+    });
+  });
 });
 

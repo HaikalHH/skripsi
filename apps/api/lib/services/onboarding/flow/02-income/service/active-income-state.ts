@@ -95,7 +95,7 @@ export const syncActiveIncomeProfileFromSessions = async (userId: string) => {
   })) as OnboardingSession[];
   const total = sessions
     .map((session) => getSessionNormalizedValue<number>(session))
-    .filter((value): value is number => typeof value === "number" && Number.isFinite(value))
+    .filter((value): value is number => typeof value === "number" && Number.isFinite(value) && value > 0)
     .reduce((sum, value) => sum + value, 0);
   await upsertIncomeProfile({ userId, activeIncomeMonthly: total });
 };

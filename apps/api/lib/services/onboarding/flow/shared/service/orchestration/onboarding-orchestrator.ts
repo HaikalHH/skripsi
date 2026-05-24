@@ -2726,7 +2726,26 @@ const validateAnswerForStep = (context: RuntimeContext, rawAnswer: unknown) => {
           )
         : { value: parsed };
     }
-    case OnboardingStep.ASK_ACTIVE_INCOME:
+    case OnboardingStep.ASK_ACTIVE_INCOME: {
+
+      if (typeof rawAnswer === "string" && rawAnswer.trim().startsWith("-")) {
+        return buildValidationReply(
+          prompt,
+          "Nominal tidak boleh negatif atau minus ya Boss. Kirim nominal yang valid."
+        );
+      }
+      const parsed = parseMoneyInput(rawAnswer);
+      if (parsed === null) {
+        return buildValidationReply(prompt, "Nominalnya belum valid. Coba kirim angka rupiah ya Boss.");
+      }
+      if (parsed === 0) {
+        return buildValidationReply(
+          prompt,
+          "Income aktif tidak boleh 0 ya Boss. Kalau memang tidak ada income aktif, balas dengan nominal yang sesuai atau hubungi admin."
+        );
+      }
+      return { value: parsed };
+    }
     case OnboardingStep.ASK_ESTIMATED_MONTHLY_INCOME:
     case OnboardingStep.ASK_GUIDED_EXPENSE_FOOD:
     case OnboardingStep.ASK_GUIDED_EXPENSE_TRANSPORT:
@@ -2735,6 +2754,13 @@ const validateAnswerForStep = (context: RuntimeContext, rawAnswer: unknown) => {
     case OnboardingStep.ASK_GOAL_EXPENSE_TOTAL:
     case OnboardingStep.ASK_ASSET_SAVINGS_BALANCE:
     case OnboardingStep.ASK_ASSET_PROPERTY_ESTIMATED_VALUE: {
+
+      if (typeof rawAnswer === "string" && rawAnswer.trim().startsWith("-")) {
+        return buildValidationReply(
+          prompt,
+          "Nominal tidak boleh negatif atau minus ya Boss. Kirim nominal yang valid."
+        );
+      }
       const parsed = parseMoneyInput(rawAnswer);
       return parsed === null
         ? buildValidationReply(prompt, "Nominalnya belum valid. Coba kirim angka rupiah ya Boss.")
@@ -2748,12 +2774,25 @@ const validateAnswerForStep = (context: RuntimeContext, rawAnswer: unknown) => {
         );
       }
 
+      if (typeof rawAnswer === "string" && rawAnswer.trim().startsWith("-")) {
+        return buildValidationReply(
+          prompt,
+          "Nominal tidak boleh negatif atau minus ya Boss. Kirim nominal yang valid, contoh: `50jt` atau `Rp50.000.000`."
+        );
+      }
+
       const parsed = parseMoneyInput(rawAnswer);
       return parsed === null
         ? buildValidationReply(prompt, "Nominalnya belum valid. Coba kirim angka rupiah ya Boss.")
         : { value: parsed };
     }
     case OnboardingStep.ASK_PASSIVE_INCOME: {
+      if (typeof rawAnswer === "string" && rawAnswer.trim().startsWith("-")) {
+        return buildValidationReply(
+          prompt,
+          "Nominal tidak boleh negatif atau minus ya Boss. Kirim nominal yang valid."
+        );
+      }
       const parsed = parseMoneyInputPreservingRange(rawAnswer);
       return parsed === null
         ? buildValidationReply(
@@ -2781,6 +2820,12 @@ const validateAnswerForStep = (context: RuntimeContext, rawAnswer: unknown) => {
       }
 
       if (stage === "category_amount") {
+        if (typeof rawAnswer === "string" && rawAnswer.trim().startsWith("-")) {
+          return buildValidationReply(
+            prompt,
+            "Nominal tidak boleh negatif atau minus ya Boss. Kirim nominal yang valid."
+          );
+        }
         const parsed = parseMoneyInput(rawAnswer);
         const label = context.guidedOtherExpensePendingLabel ?? "kategori ini";
         return parsed === null || parsed <= 0
@@ -2958,6 +3003,12 @@ const validateAnswerForStep = (context: RuntimeContext, rawAnswer: unknown) => {
       if (context.currentAssetType === AssetType.STOCK) {
         const parsed = parseAssetQuantityInput(rawAnswer, "stock_lots");
         return parsed ? { value: parsed } : buildValidationReply(prompt, "Jumlah unitnya belum valid ya Boss.");
+      }
+      if (typeof rawAnswer === "string" && rawAnswer.trim().startsWith("-")) {
+        return buildValidationReply(
+          prompt,
+          "Nominal tidak boleh negatif atau minus ya Boss. Kirim nominal yang valid."
+        );
       }
       const parsed = parseMoneyInput(rawAnswer);
       return parsed === null

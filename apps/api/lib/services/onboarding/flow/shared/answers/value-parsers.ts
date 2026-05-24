@@ -40,6 +40,7 @@ export const parseStockSymbolInput = (raw: unknown) => {
 export const parseMoneyInput = (raw: unknown) => {
   if (typeof raw === "number" && Number.isFinite(raw) && raw >= 0) return Math.round(raw);
   if (typeof raw !== "string") return null;
+  if (raw.trim().startsWith("-")) return null;
   if (/^0+$/.test(raw.trim())) return 0;
   const parsedRange = extractMoneyRangeFromFreeText(raw);
   if (parsedRange) return parsedRange.midpoint;
@@ -83,6 +84,7 @@ export const parseGuidedOtherExpenseCategoryName = (raw: unknown) => {
 export const parseMoneyInputPreservingRange = (raw: unknown): number | MoneyRangeAnswer | null => {
   if (typeof raw === "number" && Number.isFinite(raw) && raw >= 0) return Math.round(raw);
   if (typeof raw !== "string") return null;
+  if (raw.trim().startsWith("-")) return null;
   if (/^0+$/.test(raw.trim())) return 0;
   const parsedRange = extractMoneyRangeFromFreeText(raw);
   if (parsedRange) {

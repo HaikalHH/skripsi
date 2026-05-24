@@ -21,6 +21,12 @@ type SaveTransactionAndBuildReplyParams = {
 export const saveTransactionAndBuildReply = async (
   params: SaveTransactionAndBuildReplyParams
 ): Promise<InboundHandlerResult> => {
+  if (params.extraction.amount != null && params.extraction.amount < 0) {
+    return ok({
+      replyText: "Maaf, nominal tidak boleh negatif atau minus. Silakan masukkan nominal yang valid, contoh: `makan 45000` atau `gaji masuk 5 juta`."
+    });
+  }
+
   const transaction = await createTransactionFromExtraction({
     userId: params.userId,
     extraction: params.extraction,

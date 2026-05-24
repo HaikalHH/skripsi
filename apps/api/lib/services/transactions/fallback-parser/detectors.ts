@@ -1,5 +1,14 @@
 export const extractAmountPhrase = (text: string): string | null => {
-  const withUnit = text.match(/\brp\.?\s*\d[\d.,]*\s*(?:jt|juta|rb|ribu|k)\b|\b\d[\d.,]*\s*(?:jt|juta|rb|ribu|k)\b/i);
+
+  if (/-\s*\d/.test(text)) return null;
+  
+
+  const mixedUnit = text.match(
+    /\b(?:rp\.?\s*)?(?:\d[\d.,]*\s*(?:jt|jta|jtan|juta|jutaan|rb|rbu|ribu|ribuan|k|miliar|milyar|triliun)\s*)+\b/i
+  );
+  if (mixedUnit) return mixedUnit[0];
+
+  const withUnit = text.match(/\brp\.?\s*\d[\d.,]*\s*(?:jt|jta|jtan|juta|jutaan|rb|rbu|ribu|ribuan|k|miliar|milyar|triliun)\b|\b\d[\d.,]*\s*(?:jt|jta|jtan|juta|jutaan|rb|rbu|ribu|ribuan|k|miliar|milyar|triliun)\b/i);
   if (withUnit) return withUnit[0];
 
   const withRp = text.match(/\brp\.?\s*\d[\d.,]+\b/i);

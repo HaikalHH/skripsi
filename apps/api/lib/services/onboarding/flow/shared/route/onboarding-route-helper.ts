@@ -27,7 +27,7 @@ export const goalCreateBodySchema = baseUserIdentitySchema
   .extend({
     goalType: z.nativeEnum(FinancialGoalType),
     goalName: z.string().min(1).max(120),
-    targetAmount: z.number().int().nonnegative().nullable().optional(),
+    targetAmount: z.number().int().positive().nullable().optional(),
     targetAge: z.number().int().min(18).max(100).nullable().optional()
   })
   .refine((value) => Boolean(value.userId || value.waNumber), {
@@ -40,7 +40,7 @@ export const assetCreateBodySchema = baseUserIdentitySchema
     assetName: z.string().min(1).max(120),
     quantity: z.number().positive().nullable().optional(),
     unit: z.string().min(1).max(40).nullable().optional(),
-    estimatedValue: z.number().int().nonnegative().nullable().optional(),
+    estimatedValue: z.number().int().positive().nullable().optional(),
     notes: z.string().max(255).nullable().optional()
   })
   .refine((value) => Boolean(value.userId || value.waNumber), {
