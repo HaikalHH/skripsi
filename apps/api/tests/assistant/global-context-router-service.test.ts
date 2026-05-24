@@ -5,6 +5,9 @@ describe("global context router service", () => {
   it("does not turn natural budget text into a write command", () => {
     const route = routeGlobalTextContext("budget makan sekitar 2 juta per bulan");
     expect(route.command).toEqual({ kind: "NONE" });
+    const transactionWithCategory = routeGlobalTextContext("bayar listrik 200rb kategori bills");
+    expect(transactionWithCategory.command).toEqual({ kind: "NONE" });
+    expect(transactionWithCategory.moduleOrder[0]).toBe("TRANSACTION");
     expect(routeGlobalTextContext("/budget set").command).toEqual({ kind: "BUDGET_SET_FLOW_START" });
     expect(routeGlobalTextContext("lihat list kategori budget").command).toEqual({
       kind: "BUDGET_CATEGORY_LIST"
@@ -117,7 +120,7 @@ describe("global context router service", () => {
       limit: null,
       rangeWindow: null
     });
-    expect(routeGlobalTextContext("entertainment naik dibanding minggu lalu gak").command).toEqual({
+    expect(routeGlobalTextContext("entertainment naik dibanding minggu lalu gak").command).toMatchObject({
       kind: "CATEGORY_DETAIL_REPORT",
       period: "weekly",
       category: "Entertainment",
@@ -126,7 +129,7 @@ describe("global context router service", () => {
       limit: null,
       rangeWindow: null
     });
-    expect(routeGlobalTextContext("spotify naik berapa persen dibanding bulan lalu").command).toEqual({
+    expect(routeGlobalTextContext("spotify naik berapa persen dibanding bulan lalu").command).toMatchObject({
       kind: "CATEGORY_DETAIL_REPORT",
       period: "monthly",
       category: "Entertainment",

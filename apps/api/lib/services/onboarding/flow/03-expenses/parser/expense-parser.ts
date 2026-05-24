@@ -1,6 +1,7 @@
 import { OnboardingQuestionKey, type OnboardingSession } from "@prisma/client";
-import { extractMoneyFromFreeText, normalizeLooseText } from "@/lib/services/onboarding/flow/shared/intent/onboarding-intent-service";
+import { normalizeLooseText } from "@/lib/services/onboarding/flow/shared/intent/onboarding-intent-service";
 import type { ExpenseBreakdown } from "@/lib/services/onboarding/flow/shared/calculation/onboarding-calculation-service";
+import { parsePositiveAmount } from "@/lib/services/transactions/amount";
 import {
   getSessionNormalizedValue,
   normalizeText,
@@ -81,9 +82,14 @@ const ONBOARDING_EXPENSE_CATEGORY_MAP: Array<{ key: keyof ExpenseBreakdown; alia
       "bill",
       "bills",
       "listrik",
+      "pln",
       "air",
       "internet",
+      "indihome",
+      "first media",
+      "biznet",
       "wifi",
+      "wifi rumah",
       "telp",
       "telepon",
       "pulsa",
@@ -147,6 +153,10 @@ const ONBOARDING_EXPENSE_CATEGORY_MAP: Array<{ key: keyof ExpenseBreakdown; alia
       "nonton",
       "konser",
       "rekreasi",
+      "jalan",
+      "jalan2",
+      "jalan jalan",
+      "jalan-jalan",
       "liburan",
       "traveling",
       "travel",
@@ -175,6 +185,8 @@ const ONBOARDING_EXPENSE_CATEGORY_MAP: Array<{ key: keyof ExpenseBreakdown; alia
       "charity",
       "hadiah",
       "gift",
+      "belanja",
+      "shopping",
       "fashion",
       "baju",
       "pakaian",
@@ -203,6 +215,42 @@ export type GuidedExpenseState = {
   pendingLabel: string | null;
 };
 
+const MANUAL_EXPENSE_MONEY_PATTERN =
+  /(?:rp\.?\s*)?\d[\d.,]*(?:\s*(?:jt|jta|jtan|juta|jutaan|rb|rbu|ribu|ribuan|k|miliar|milyar|triliun))?/gi;
+
+const CONNECTOR_WORDS_PATTERN =
+  /\b(?:dan|sama|serta|plus|lalu|terus|kemudian|sekitar|kira-kira|kira kira|kurang lebih|per bulan|bulanan)\b/gi;
+
+const cleanManualExpenseLabel = (value: string) =>
+  normalizeText(
+    value
+      .replace(/[\r\n,;]+/g, " ")
+      .replace(/[:=]/g, " ")
+      .replace(/[()]/g, " ")
+      .replace(CONNECTOR_WORDS_PATTERN, " ")
+  ).trim();
+
+const getManualExpenseMoneyMatches = (raw: string) => {
+  const matches: Array<{ index: number; end: number; amount: number }> = [];
+  let match: RegExpExecArray | null;
+
+  MANUAL_EXPENSE_MONEY_PATTERN.lastIndex = 0;
+  while ((match = MANUAL_EXPENSE_MONEY_PATTERN.exec(raw)) !== null) {
+    const previousChar = match.index > 0 ? raw[match.index - 1] : "";
+    if (previousChar && /[\p{L}_]/u.test(previousChar)) continue;
+
+    const amount = parsePositiveAmount(match[0]);
+    if (amount === null) continue;
+    matches.push({
+      index: match.index,
+      end: match.index + match[0].length,
+      amount
+    });
+  }
+
+  return matches;
+};
+
 const resolveOnboardingExpenseBucket = (rawLabel: string): keyof ExpenseBreakdown => {
   const normalizedLabel = normalizeLooseText(rawLabel);
   const target = ONBOARDING_EXPENSE_CATEGORY_MAP.find((item) =>
@@ -211,28 +259,36 @@ const resolveOnboardingExpenseBucket = (rawLabel: string): keyof ExpenseBreakdow
   return target?.key ?? "others";
 };
 
+const hasOnboardingExpenseCategorySignal = (rawLabel: string) => {
+  const normalizedLabel = normalizeLooseText(rawLabel);
+  return ONBOARDING_EXPENSE_CATEGORY_MAP.some((item) =>
+    item.aliases.some((alias) => normalizedLabel.includes(alias))
+  );
+};
+
 export const parseManualExpenseBreakdownDetails = (
   raw: string
 ): ManualExpenseBreakdownDetail[] => {
-  return raw
-    .split(/\r?\n|,|;/)
-    .map((item) => item.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const [rawLabel, rawAmount] = line.split(":");
-      const amount = rawAmount
-        ? extractMoneyFromFreeText(rawAmount)
-        : extractMoneyFromFreeText(line);
-      if (amount === null) return null;
+  const moneyMatches = getManualExpenseMoneyMatches(raw);
+  if (!moneyMatches.length) {
+    return [];
+  }
 
-      const labelSource = normalizeText(rawLabel ?? line);
-      return {
-        label: labelSource,
-        amount,
-        bucket: resolveOnboardingExpenseBucket(labelSource)
-      };
-    })
-    .filter((item): item is ManualExpenseBreakdownDetail => Boolean(item));
+  return moneyMatches.map((match, index) => {
+    const previousEnd = index === 0 ? 0 : moneyMatches[index - 1].end;
+    const leadingLabel = cleanManualExpenseLabel(raw.slice(previousEnd, match.index));
+    const trailingLabel =
+      index === 0 && !leadingLabel
+        ? cleanManualExpenseLabel(raw.slice(match.end, moneyMatches[index + 1]?.index ?? raw.length))
+        : "";
+    const labelSource = leadingLabel || trailingLabel || normalizeText(raw);
+
+    return {
+      label: labelSource,
+      amount: match.amount,
+      bucket: resolveOnboardingExpenseBucket(labelSource)
+    };
+  });
 };
 
 export const parseManualExpenseBreakdown = (raw: string): ExpenseBreakdown | null => {
@@ -255,6 +311,12 @@ export const parseManualExpenseBreakdown = (raw: string): ExpenseBreakdown | nul
   }
 
   return result;
+};
+
+export const isManualExpenseBreakdownTooGeneric = (raw: string) => {
+  const details = parseManualExpenseBreakdownDetails(raw);
+  if (details.length !== 1) return false;
+  return !hasOnboardingExpenseCategorySignal(details[0].label);
 };
 
 export const isGuidedOtherExpenseAnswer = (value: unknown): value is GuidedOtherExpenseAnswer => {

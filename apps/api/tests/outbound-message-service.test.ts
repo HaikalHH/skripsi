@@ -13,5 +13,17 @@ describe("outbound message safety", () => {
     expect(value.length).toBeLessThanOrEqual(191);
     expect(value.endsWith("...")).toBe(true);
   });
+
+  it("removes invalid unicode before storing outbound messages", () => {
+    const value = toSafeOutboundMessageText("Reminder \uD83D");
+    expect(value).toBe("Reminder");
+  });
+
+  it("does not split emoji surrogate pairs when truncating", () => {
+    const value = toSafeOutboundMessageText(`${"a".repeat(187)}😀 reminder`);
+    expect(value.length).toBeLessThanOrEqual(191);
+    expect(value).not.toMatch(/[\uD800-\uDFFF](?![\uDC00-\uDFFF])/);
+    expect(value.endsWith("...")).toBe(true);
+  });
 });
 

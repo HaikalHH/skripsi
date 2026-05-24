@@ -40,29 +40,23 @@ const buildQuietHoursText = (preference: ReminderPreferenceState) => {
 
 const formatToggle = (enabled: boolean) => (enabled ? "🟢 ON" : "🔴 OFF");
 
-const numberEmoji = (value: number) =>
-  String(value)
-    .split("")
-    .map((digit) => `${digit}\uFE0F\u20E3`)
-    .join("");
-
 export const buildReminderPreferenceText = (
   preference: ReminderPreferenceState,
   updateCommand?: ReminderPreferenceCommand | null
 ) => {
   const lines = [
     "Pengaturan reminder kamu sekarang:",
-    `${numberEmoji(1)} Budget: ${formatToggle(preference.budgetEnabled)}`,
-    `${numberEmoji(2)} Spending mingguan: ${formatToggle(preference.weeklyEnabled)}`,
-    `${numberEmoji(3)} Recap harian jam 07.00: ${formatToggle(preference.weeklyReviewEnabled)}`,
-    `${numberEmoji(4)} Langganan/recurring: ${formatToggle(preference.recurringEnabled)}`,
-    `${numberEmoji(5)} Cashflow: ${formatToggle(preference.cashflowEnabled)}`,
-    `${numberEmoji(6)} Goal: ${formatToggle(preference.goalEnabled)}`,
-    `${numberEmoji(7)} Closing bulanan: ${formatToggle(preference.monthlyClosingEnabled)}`,
-    `${numberEmoji(8)} Jeda minimum reminder sejenis: ${preference.minIntervalHours} jam`,
-    `${numberEmoji(9)} Maksimal reminder per hari: ${preference.maxPerDay}`,
-    `${numberEmoji(10)} Quiet hours: ${buildQuietHoursText(preference)}`,
-    `${numberEmoji(11)} Snooze sampai: ${preference.snoozedUntil ? formatJakartaDateTime(preference.snoozedUntil) : formatToggle(false)}`
+    `1. Budget: ${formatToggle(preference.budgetEnabled)}`,
+    `2. Spending mingguan: ${formatToggle(preference.weeklyEnabled)}`,
+    `3. Recap harian jam 07.00: ${formatToggle(preference.weeklyReviewEnabled)}`,
+    `4. Langganan/recurring: ${formatToggle(preference.recurringEnabled)}`,
+    `5. Cashflow: ${formatToggle(preference.cashflowEnabled)}`,
+    `6. Goal: ${formatToggle(preference.goalEnabled)}`,
+    `7. Closing bulanan: ${formatToggle(preference.monthlyClosingEnabled)}`,
+    `8. Jeda minimum reminder sejenis: ${preference.minIntervalHours} jam`,
+    `9. Maksimal reminder per hari: ${preference.maxPerDay}`,
+    `10. Quiet hours: ${buildQuietHoursText(preference)}`,
+    `11. Snooze sampai: ${preference.snoozedUntil ? formatJakartaDateTime(preference.snoozedUntil) : formatToggle(false)}`
   ];
 
   if (updateCommand?.action === "UPDATE") {

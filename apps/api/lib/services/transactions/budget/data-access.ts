@@ -88,7 +88,7 @@ export const replaceActiveExpensePlanBudgetItems = async (params: {
     await expensePlanModel.create({
       data: {
         userId: params.userId,
-        source: ExpensePlanSource.AUTO_GENERATED_LATER,
+        source: ExpensePlanSource.MANUAL_USER_PLAN,
         totalMonthlyExpense: BigInt(totalMonthlyExpense),
         isActive: true,
         items: {
@@ -128,10 +128,9 @@ export const getMonthlyCategorySpent = async (params: {
 
   return transactions.reduce((sum, transaction) => {
     const transactionCategory = String(transaction.category ?? "");
-    if (
-      getBudgetCategoryLookupKey(transactionCategory) !== lookupKey &&
-      getBudgetCategoryBucket(transactionCategory) !== bucket
-    ) {
+    const exactMatch = getBudgetCategoryLookupKey(transactionCategory) === lookupKey;
+    const bucketMatch = bucket !== "Others" && getBudgetCategoryBucket(transactionCategory) === bucket;
+    if (!exactMatch && !bucketMatch) {
       return sum;
     }
     return sum + toNumber(transaction.amount);
@@ -150,5 +149,6 @@ export const pickMatchingBudgetItem = async (params: { userId: string; category:
 
   const items = await listExpensePlanBudgetItems(params.userId);
   const bucket = getBudgetCategoryBucket(params.category);
+  if (bucket === "Others") return null;
   return items.find((item) => getBudgetCategoryBucket(item.category) === bucket) ?? null;
 };

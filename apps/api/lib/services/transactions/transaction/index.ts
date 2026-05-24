@@ -1,6 +1,7 @@
 import type { GeminiExtraction } from "@finance/shared";
 import { TransactionSource } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { findBudgetItemByCategoryName } from "@/lib/services/transactions/budget";
 import { normalizeTransactionCategory } from "../category";
 import { inferTransactionDetailTag } from "../detail-tags";
 import { resolveMerchantNameForUser } from "../merchant";
@@ -34,12 +35,20 @@ export const createTransactionFromExtraction = async (params: {
       ))
       ? "SAVING"
       : extraction.type!;
-  const normalizedCategory = normalizeTransactionCategory({
+  const ruleBasedCategory = normalizeTransactionCategory({
     type: normalizedType,
     category: extraction.category!,
     merchant: extraction.merchant,
     rawText: params.rawText ?? null
   });
+  const exactBudgetCategory =
+    normalizedType === "EXPENSE" && ruleBasedCategory === "Others"
+      ? await findBudgetItemByCategoryName({
+          userId: params.userId,
+          category: extraction.category!
+        })
+      : null;
+  const normalizedCategory = exactBudgetCategory?.category ?? ruleBasedCategory;
   const normalizedMerchant =
     normalizedType === "SAVING"
       ? extraction.merchant?.trim() || "Tabungan Pribadi"

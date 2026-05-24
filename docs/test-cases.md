@@ -1,6 +1,6 @@
 # Test Cases Finance Bot
 
-Tanggal pembaruan: 2026-05-12
+Tanggal pembaruan: 2026-05-24
 
 Dokumen ini berisi daftar test case berdasarkan flow kode aktif pada project saat ini:
 
@@ -9,7 +9,7 @@ Dokumen ini berisi daftar test case berdasarkan flow kode aktif pada project saa
 - Flow inbound utama di `apps/api/lib/inbound`.
 - Onboarding terstruktur di `apps/api/lib/services/onboarding/flow`.
 - Services transaksi, laporan, goals, assets, portfolio, reminders, market, dan admin monitoring.
-- Admin/customer web di `apps/admin-web`.
+- Admin web di `apps/admin-web`.
 
 ## Preconditions Umum
 
@@ -118,7 +118,7 @@ Dokumen ini berisi daftar test case berdasarkan flow kode aktif pada project saa
 | TC-073 | Onboarding goal date | Target masa lalu | Jawab tahun lampau | Ditolak/klarifikasi |
 | TC-074 | Onboarding budget mode | Manual plan | Pilih manual | Lanjut manual expense breakdown |
 | TC-075 | Onboarding budget mode | Guided plan | Pilih dipandu | Lanjut guided food |
-| TC-076 | Onboarding budget mode | Auto from transactions | Pilih otomatis dari transaksi | Expense plan auto generated later |
+| TC-076 | Onboarding budget mode | Opsi auto dari transaksi sudah dihapus | Jawab `3` atau `lihat dari catatan transaksi bulan ini` | Ditolak, prompt hanya menampilkan manual plan dan guided plan |
 | TC-077 | Onboarding budget mode | Input invalid | Jawab `terserah` | Prompt pilihan mode budget |
 | TC-078 | Onboarding employment | Pilih employee | Jawab karyawan | Lanjut active income count tanpa tanya has active income |
 | TC-079 | Onboarding employment | Pilih student | Jawab mahasiswa | Lanjut tanya punya income aktif |
@@ -141,8 +141,8 @@ Dokumen ini berisi daftar test case berdasarkan flow kode aktif pada project saa
 | TC-096 | Onboarding passive income | Ada passive income | Jawab `ya`, lalu `500000` | Passive income tersimpan |
 | TC-097 | Onboarding passive income | Tidak ada passive income | Jawab `tidak` | Flow lanjut expense |
 | TC-098 | Onboarding estimated income | Estimated income valid | Jawab `2 juta` | Estimated monthly income tersimpan |
-| TC-099 | Onboarding manual expense | Breakdown valid | Jawab `makan 1jt, transport 500rb` | Expense plan manual dibuat |
-| TC-100 | Onboarding manual expense | Total expense > income | Input expense lebih besar dari income | Analysis tetap dibuat dengan saving negatif/alert |
+| TC-099 | Onboarding manual expense | Breakdown valid | Jawab `makan 1jt, transport 500rb`, lalu `sudah` | Bot konfirmasi rincian, lalu ExpensePlan manual dibuat setelah user selesai |
+| TC-100 | Onboarding manual expense | Jawaban terlalu umum | Jawab `pengeluaran saya sekitar 5 juta` | Bot menolak total-only dan menawarkan `Saya belum punya, tolong bantu susun` |
 | TC-101 | Onboarding guided food | Food valid | Jawab `1.5 juta` | Item food tersimpan |
 | TC-102 | Onboarding guided transport | Transport valid | Jawab `500 ribu` | Item transport tersimpan |
 | TC-103 | Onboarding guided bills | Bills valid | Jawab `800000` | Item bills tersimpan |
@@ -157,10 +157,10 @@ Dokumen ini berisi daftar test case berdasarkan flow kode aktif pada project saa
 | TC-112 | Onboarding asset gold physical | Pilih emas fisik | Isi brand/name/gram/karat | Asset GOLD dibuat dengan quantity/unit |
 | TC-113 | Onboarding asset gold digital | Pilih emas digital | Isi platform + gram | Asset GOLD dibuat |
 | TC-114 | Onboarding asset stock | Pilih saham | Isi symbol + lot | Asset STOCK dibuat |
-| TC-115 | Onboarding asset crypto | Pilih crypto | Isi symbol + quantity | Asset CRYPTO dibuat |
-| TC-116 | Onboarding asset mutual fund | Pilih reksa dana | Isi symbol + unit | Asset MUTUAL_FUND dibuat |
+| TC-115 | Onboarding asset removed crypto | Jawab `crypto` saat asset selection | Input tidak masuk pilihan aktif | Bot meminta pilih Tabungan, Emas, Saham, Properti, atau Belum punya |
+| TC-116 | Onboarding asset removed mutual fund | Jawab `reksa dana` saat asset selection | Input tidak masuk pilihan aktif | Bot meminta pilih Tabungan, Emas, Saham, Properti, atau Belum punya |
 | TC-117 | Onboarding asset property | Pilih properti | Isi nama + estimasi nilai | Asset PROPERTY dibuat |
-| TC-118 | Onboarding asset other | Pilih asset lain | Isi nama + estimasi nilai | Asset OTHER dibuat |
+| TC-118 | Onboarding asset unsupported other | Jawab aset di luar pilihan aktif | Input tidak cocok pilihan | Bot meminta klarifikasi/pilihan aktif |
 | TC-119 | Onboarding asset invalid quantity | Isi gram/lot `abc` | Step tetap, minta angka valid |
 | TC-120 | Onboarding asset add more | Jawab tambah asset `ya` | Kembali ke asset selection |
 | TC-121 | Onboarding asset finish | Jawab tambah asset `tidak` | Lanjut completion/analysis |
@@ -234,8 +234,8 @@ Dokumen ini berisi daftar test case berdasarkan flow kode aktif pada project saa
 | TC-189 | Cashflow forecast | Forecast basic | Chat `cashflow 3 bulan ke depan` | Reply forecast horizon 3 bulan |
 | TC-190 | Cashflow forecast | Scenario expense | Chat `kalau beli hp 3 juta cashflow aman?` | Reply scenario impact |
 | TC-191 | Budget command | Slash flow start | Chat `/budget set` | Bot minta kategori/nominal |
-| TC-192 | Budget command | Natural budget | Chat `budget makan 2 juta per bulan` | Budget kategori makan tersimpan |
-| TC-193 | Budget command | Upsert category same | Set budget makan dua kali | Row budget sama terupdate, tidak duplikat |
+| TC-192 | Budget command | Natural budget write tidak langsung disimpan | Chat `budget makan 2 juta per bulan` | Tidak menjadi write command otomatis; user diarahkan pakai `/budget set` bila perlu |
+| TC-193 | Budget command | Upsert category same | Set kategori sama dua kali lewat `/budget set` | ExpensePlanItem aktif terupdate, kategori tidak duplikat |
 | TC-194 | Budget command | Invalid amount | Chat `budget makan nol` | Reply minta nominal valid |
 | TC-195 | Goal command | Slash set flow | Chat `/set goal` | Bot mulai flow set goal |
 | TC-196 | Goal command | Goal add flow | Chat `/goal add` | Bot mulai flow tambah goal |
@@ -262,15 +262,15 @@ Dokumen ini berisi daftar test case berdasarkan flow kode aktif pada project saa
 | TC-217 | Goals priorities API | Sync priorities valid | POST array goals | Priority order tersimpan |
 | TC-218 | Portfolio command | Tambah saham | Chat `tambah saham BBRI 2 lot harga 5000` | PortfolioAsset STOCK dan trade BUY dibuat |
 | TC-219 | Portfolio command | Tambah emas | Chat `tambah emas 5 gram harga 1100000` | PortfolioAsset GOLD dibuat |
-| TC-220 | Portfolio command | Tambah crypto | Chat `tambah crypto BTC 0.01 harga 900 juta` | PortfolioAsset CRYPTO dibuat |
-| TC-221 | Portfolio command | Tambah reksa dana | Chat `tambah reksa dana RDPU 100 unit harga 1000` | PortfolioAsset MUTUAL_FUND dibuat |
+| TC-220 | Portfolio command | Tambah tabungan/kas | Chat `tambah tabungan 5 juta` | PortfolioAsset DEPOSIT dibuat |
+| TC-221 | Portfolio command | Tambah properti | Chat `catat properti rumah senilai 300 juta` | PortfolioAsset PROPERTY dibuat |
 | TC-222 | Portfolio command | Portfolio summary | Chat `portofolio saya` | Reply snapshot nilai dan komposisi |
 | TC-223 | Portfolio command | Portfolio empty | Chat `portofolio saya` tanpa asset | Reply empty state |
-| TC-224 | Portfolio command | Rebalance | Chat `rebalance portofolio` | Reply rekomendasi rebalancing |
+| TC-224 | Portfolio command | Rebalance command tidak diekspos | Chat `rebalance portofolio` | Tidak diroute sebagai command portfolio; saran diversifikasi cukup muncul di summary/risk portfolio |
 | TC-225 | Portfolio command | Risiko portfolio | Chat `risiko portofolio saya gimana` | Reply risk analysis |
 | TC-226 | Portfolio command | Asset symbol invalid | Chat `tambah saham XYZINVALID 1 lot` | Reply minta symbol valid/saran |
 | TC-227 | Market command | Harga saham | Chat `harga BBRI hari ini` | Reply quote saham |
-| TC-228 | Market command | Harga crypto | Chat `harga BTC sekarang` | Reply quote crypto |
+| TC-228 | Market command | Harga crypto sudah dihapus | Chat `harga BTC sekarang` | Tidak resolve symbol crypto; bot fallback/minta konteks lain |
 | TC-229 | Market command | Harga emas | Chat `harga emas hari ini` | Reply quote emas |
 | TC-230 | Market command | Provider primary gagal | Mock provider pertama error | Provider fallback dipakai |
 | TC-231 | Market command | Semua provider gagal | Mock semua error | Reply fallback market unavailable |
@@ -340,9 +340,9 @@ Dokumen ini berisi daftar test case berdasarkan flow kode aktif pada project saa
 | TC-295 | Security | XSS in user name | PATCH name `<script>` | Disimpan/ditampilkan aman tanpa execute script |
 | TC-296 | Security | SQL-like text | Chat `makan 1; drop table` | Diproses sebagai text biasa, DB aman |
 | TC-297 | Data integrity | Delete user cascade | Hapus user dengan transaksi/log/asset | Related records terhapus sesuai Prisma cascade |
-| TC-298 | Data integrity | Unique budget | Set budget kategori sama berulang | Tidak ada duplikat `[userId, category]` |
+| TC-298 | Data integrity | Unique budget category | Set budget kategori sama berulang | ExpensePlanItem aktif terdedupe berdasarkan kategori, tidak membuat kategori double |
 | TC-299 | Data integrity | Unique portfolio asset | Tambah asset symbol sama dua kali | Quantity/average price terupdate sesuai service |
-| TC-300 | Data integrity | Decimal precision | Input crypto quantity 0.00012345 | Precision tersimpan benar |
+| TC-300 | Data integrity | Decimal precision | Input lot/gram saham atau emas desimal | Precision tersimpan benar |
 | TC-301 | Data integrity | BigInt JSON safe | Dashboard dengan nilai BigInt besar | Response JSON tidak error serialize |
 | TC-302 | AI fallback | Gemini unavailable extraction | Mock Gemini network error | Reply fallback, tidak insert data rusak |
 | TC-303 | AI fallback | Gemini return invalid JSON | Mock invalid JSON | Parser fallback/validation error aman |
@@ -388,7 +388,7 @@ Dokumen ini berisi daftar test case berdasarkan flow kode aktif pada project saa
 8. Kirim transaksi text: `makan siang 45000`.
 9. Kirim image struk.
 10. Kirim `/monthly report`.
-11. Kirim `budget makan 2 juta per bulan`.
+11. Kirim `/budget set`, isi kategori dan limit, lalu `simpan`.
 12. Kirim `mau nabung 50 juta buat rumah`.
 13. Kirim `portofolio saya`.
 14. Jalankan reminder sweep dari bot/API.

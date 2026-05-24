@@ -4,7 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { createAIAnalysisLog } from "@/lib/services/ai/analysis-logs";
 import { refreshSavingsGoalProgress } from "@/lib/services/planning/goal";
 import {
+  findBudgetItemByCategoryName,
   getMatchingCategoryBudget,
+  listCategoryBudgets,
   normalizeBudgetCategoryName,
   upsertCategoryBudget
 } from "@/lib/services/transactions/budget";
@@ -15,10 +17,10 @@ import {
 import { parsePositiveAmount } from "@/lib/services/transactions/amount";
 import { setSavingsGoalTarget } from "@/lib/services/planning/goal";
 import { formatMoney } from "@/lib/services/shared/money";
+import { inferTransactionDetailTag } from "@/lib/services/transactions/detail-tags";
 import {
   buildBudgetSetText,
-  buildGoalStatusReplyPayload,
-  confirmTransactionText
+  buildGoalStatusReplyPayload
 } from "@/lib/inbound/formatting/formatters";
 import { ok, type InboundHandlerResult } from "@/lib/inbound/shared/result";
 import { saveTransactionAndBuildReply } from "@/lib/inbound/transactions/transaction-reply";
@@ -31,10 +33,34 @@ type PendingTransactionDraftPayload = {
   sourceMessageId: string;
 };
 
+type PendingTransactionCategoryChoicePayload = {
+  kind: "PENDING_TRANSACTION_CATEGORY_CHOICE";
+  rawText: string;
+  extraction: GeminiExtraction;
+  forcedCategory?: string | null;
+  categoryOptions: string[];
+  sourceMessageId: string;
+};
+
+type PendingTransactionCategoryCreatePayload = {
+  kind: "PENDING_TRANSACTION_CATEGORY_CREATE";
+  rawText: string;
+  extraction: GeminiExtraction;
+  forcedCategory?: string | null;
+  step: "ASK_CATEGORY" | "ASK_AMOUNT";
+  category?: string | null;
+  sourceMessageId: string;
+};
+
 type PendingBudgetDraftPayload = {
   kind: "PENDING_BUDGET_DRAFT";
   category: string;
   monthlyLimit: number;
+  returnTransaction?: {
+    rawText: string;
+    extraction: GeminiExtraction;
+    forcedCategory?: string | null;
+  } | null;
   sourceMessageId: string;
 };
 
@@ -66,6 +92,8 @@ type PendingResolutionPayload = {
 
 type PendingDraftPayload =
   | PendingTransactionDraftPayload
+  | PendingTransactionCategoryChoicePayload
+  | PendingTransactionCategoryCreatePayload
   | PendingBudgetDraftPayload
   | PendingGoalDraftPayload
   | PendingDeleteDraftPayload;
@@ -76,7 +104,15 @@ type PendingDraft = {
 };
 
 const ACTION_TEXT =
-  "Balas dengan salah satu:\n✅ simpan: kalau sudah benar\n✏️ edit (Transaksi): contoh `edit 50rb` atau `edit kategori Food & Drink`\n🗑️ buang: kalau batal";
+  [
+    "📝 Instruksi:",
+    "",
+    "· Ketik edit untuk masuk mode edit, lalu kirim koreksi yang diinginkan. Contoh: `edit 50rb` atau `edit kategori Food & Drink`",
+    "",
+    "· Ketik simpan untuk konfirmasi dan menyimpan data ini",
+    "",
+    "· Ketik buang untuk membatalkan draf ini"
+  ].join("\n");
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -86,6 +122,26 @@ const isTransactionDraftPayload = (value: unknown): value is PendingTransactionD
   value.kind === "PENDING_TRANSACTION_DRAFT" &&
   isRecord(value.extraction) &&
   typeof value.rawText === "string" &&
+  typeof value.sourceMessageId === "string";
+
+const isTransactionCategoryChoicePayload = (
+  value: unknown
+): value is PendingTransactionCategoryChoicePayload =>
+  isRecord(value) &&
+  value.kind === "PENDING_TRANSACTION_CATEGORY_CHOICE" &&
+  isRecord(value.extraction) &&
+  typeof value.rawText === "string" &&
+  Array.isArray(value.categoryOptions) &&
+  typeof value.sourceMessageId === "string";
+
+const isTransactionCategoryCreatePayload = (
+  value: unknown
+): value is PendingTransactionCategoryCreatePayload =>
+  isRecord(value) &&
+  value.kind === "PENDING_TRANSACTION_CATEGORY_CREATE" &&
+  isRecord(value.extraction) &&
+  typeof value.rawText === "string" &&
+  (value.step === "ASK_CATEGORY" || value.step === "ASK_AMOUNT") &&
   typeof value.sourceMessageId === "string";
 
 const isBudgetDraftPayload = (value: unknown): value is PendingBudgetDraftPayload =>
@@ -119,23 +175,112 @@ const buildBubbleResult = (first: string, second = ACTION_TEXT): InboundHandlerR
     preserveReplyTextBubbles: true
   });
 
-const buildTransactionDraftText = (payload: PendingTransactionDraftPayload) =>
-  {
-    const category =
-      payload.extraction.type === "EXPENSE"
-        ? normalizeExpenseBucketCategory(payload.extraction.category ?? "")
-        : payload.extraction.category ?? "Others";
-    return [
-    "📝 Draf transaksi belum disimpan:",
-    `- Tipe: ${payload.extraction.type ?? "EXPENSE"}`,
-    `- Amount: ${formatMoney(payload.extraction.amount ?? 0)}`,
-    `- Category: ${category}`,
-    payload.extraction.merchant ? `- Merchant: ${payload.extraction.merchant}` : null,
-    "Saya tunggu konfirmasi dulu sebelum masuk ke catatan."
+const AMOUNT_TEXT_PATTERN =
+  /\b(?:rp\.?\s*)?\d[\d.,]*(?:\s*(?:jt|juta|rb|ribu|k))?\b/gi;
+
+const stripTransactionAmountText = (value: string) =>
+  value
+    .replace(/\bkategori\s+.+$/i, "")
+    .replace(AMOUNT_TEXT_PATTERN, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const buildTransactionDraftTitle = (payload: {
+  rawText: string;
+  extraction: GeminiExtraction;
+}) => {
+  const note = payload.extraction.note?.trim();
+  const rawTitle = stripTransactionAmountText(payload.rawText);
+  const merchant = payload.extraction.merchant?.trim();
+  return titleCase(note || rawTitle || merchant || "Transaksi");
+};
+
+const buildCategoryDisplayLabel = (category: string, detailTag?: string | null) => {
+  const detail = detailTag?.trim();
+  if (!detail || detail.toLowerCase() === category.toLowerCase()) return category;
+  return `${category} / ${detail}`;
+};
+
+const resolveExpenseDraftCategory = (rawCategory: string | null | undefined, rawText: string) => {
+  const normalized = normalizeExpenseBucketCategory(rawCategory ?? rawText);
+  const cleaned = rawCategory?.trim();
+  if (cleaned && normalized === "Others" && cleaned.toLowerCase() !== "others") {
+    return titleCase(cleaned);
+  }
+  return normalized;
+};
+
+const buildTransactionDraftText = (payload: PendingTransactionDraftPayload) => {
+  const type = payload.extraction.type ?? "EXPENSE";
+  const category =
+    type === "EXPENSE"
+      ? resolveExpenseDraftCategory(payload.extraction.category, payload.rawText)
+      : titleCase(payload.extraction.category ?? "Other Income");
+  const detailTag = inferTransactionDetailTag({
+    type,
+    category,
+    merchant: payload.extraction.merchant,
+    note: payload.extraction.note,
+    rawText: payload.rawText
+  });
+  const merchantLabel =
+    type === "INCOME" ? "Sumber" : type === "SAVING" ? "Tujuan" : "Toko";
+  const merchant = payload.extraction.merchant?.trim();
+
+  return [
+    "📝 Cek dulu ya, Boss",
+    "",
+    "Aku menangkap transaksi ini:",
+    "",
+    buildTransactionDraftTitle(payload),
+    formatMoney(payload.extraction.amount ?? 0),
+    `Kategori: ${buildCategoryDisplayLabel(category, detailTag)}`,
+    merchant ? `${merchantLabel}: ${merchant}` : null,
+    "",
+    "Mau disimpan ke catatan keuangan?",
+    "",
+    "Balas:",
+    "",
+    "✅ simpan untuk menyimpan",
+    "✏️ edit untuk ubah data",
+    "❌ buang untuk batal"
   ]
-    .filter(Boolean)
+    .filter((line) => line !== null)
     .join("\n");
 };
+
+const buildTransactionDraftResult = (payload: PendingTransactionDraftPayload): InboundHandlerResult =>
+  ok({ replyText: buildTransactionDraftText(payload) });
+
+const OPTION_LABELS = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣"];
+
+const formatOptionNumber = (index: number) => OPTION_LABELS[index] ?? `${index + 1}.`;
+
+const buildTransactionCategoryChoiceText = (payload: PendingTransactionCategoryChoicePayload) => {
+  const createOptionNumber = payload.categoryOptions.length;
+  const othersOptionNumber = payload.categoryOptions.length + 1;
+  const optionLines = [
+    ...payload.categoryOptions.map(
+      (category, index) => `${formatOptionNumber(index)} ${category}`
+    ),
+    `${formatOptionNumber(createOptionNumber)} Buat kategori baru`,
+    `${formatOptionNumber(othersOptionNumber)} Masukkan ke Others`
+  ];
+
+  return [
+    "📝 Aku belum yakin kategori transaksi ini",
+    "",
+    `${buildTransactionDraftTitle(payload)} — ${formatMoney(payload.extraction.amount ?? 0)}`,
+    "",
+    "Mau dimasukkan ke kategori mana?",
+    "",
+    ...optionLines
+  ].join("\n");
+};
+
+const buildTransactionCategoryChoiceResult = (
+  payload: PendingTransactionCategoryChoicePayload
+): InboundHandlerResult => ok({ replyText: buildTransactionCategoryChoiceText(payload) });
 
 const buildBudgetDraftText = (payload: PendingBudgetDraftPayload) =>
   [
@@ -213,6 +358,8 @@ const findLatestPendingDraft = async (userId: string): Promise<PendingDraft | nu
 
     if (
       (isTransactionDraftPayload(payload) ||
+        isTransactionCategoryChoicePayload(payload) ||
+        isTransactionCategoryCreatePayload(payload) ||
         isBudgetDraftPayload(payload) ||
         isGoalDraftPayload(payload) ||
         isDeleteDraftPayload(payload)) &&
@@ -279,6 +426,86 @@ const MONTH_YEAR_FORMATTER = new Intl.DateTimeFormat("id-ID", {
 
 const formatMonthYearLabel = (month: number, year: number) =>
   MONTH_YEAR_FORMATTER.format(new Date(Date.UTC(year, Math.max(0, month - 1), 1)));
+
+const CHOICE_WORDS: Record<string, number> = {
+  satu: 1,
+  pertama: 1,
+  dua: 2,
+  kedua: 2,
+  tiga: 3,
+  ketiga: 3,
+  empat: 4,
+  keempat: 4,
+  lima: 5,
+  kelima: 5,
+  enam: 6,
+  keenam: 6,
+  tujuh: 7,
+  ketujuh: 7,
+  delapan: 8,
+  kedelapan: 8,
+  sembilan: 9,
+  kesembilan: 9
+};
+
+const parseChoiceNumber = (text: string) => {
+  const normalized = text.trim().toLowerCase();
+  const digit = normalized.match(/\d+/)?.[0];
+  if (digit) return Number(digit);
+
+  for (const [word, value] of Object.entries(CHOICE_WORDS)) {
+    if (new RegExp(`\\b(?:yang\\s+)?(?:ke\\s*)?${word}\\b`, "i").test(normalized)) {
+      return value;
+    }
+  }
+
+  return null;
+};
+
+const normalizeChoiceText = (text: string) =>
+  text
+    .trim()
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s/&]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const resolveCategoryChoice = (
+  payload: PendingTransactionCategoryChoicePayload,
+  text: string
+):
+  | { kind: "CATEGORY"; category: string }
+  | { kind: "CREATE_CATEGORY" }
+  | { kind: "OTHERS" }
+  | null => {
+  const choiceNumber = parseChoiceNumber(text);
+  const createNumber = payload.categoryOptions.length + 1;
+  const othersNumber = payload.categoryOptions.length + 2;
+
+  if (choiceNumber != null) {
+    if (choiceNumber >= 1 && choiceNumber <= payload.categoryOptions.length) {
+      return { kind: "CATEGORY", category: payload.categoryOptions[choiceNumber - 1]! };
+    }
+    if (choiceNumber === createNumber) return { kind: "CREATE_CATEGORY" };
+    if (choiceNumber === othersNumber) return { kind: "OTHERS" };
+  }
+
+  const normalized = normalizeChoiceText(text);
+  if (/\b(buat|bikin|tambah|kategori baru|baru)\b/i.test(normalized)) {
+    return { kind: "CREATE_CATEGORY" };
+  }
+  if (/\b(others|other|lainnya|lain)\b/i.test(normalized)) {
+    return { kind: "OTHERS" };
+  }
+
+  const matchedCategory = payload.categoryOptions.find(
+    (category) =>
+      normalizeChoiceText(category) === normalized ||
+      normalizeChoiceText(category).includes(normalized) ||
+      normalized.includes(normalizeChoiceText(category))
+  );
+  return matchedCategory ? { kind: "CATEGORY", category: matchedCategory } : null;
+};
 
 const patchTransactionDraft = (
   payload: PendingTransactionDraftPayload,
@@ -351,6 +578,74 @@ const buildMissingBudgetReply = (category: string) =>
     "Setelah budget tersimpan, kirim ulang transaksinya ya Boss."
   ].join("\n");
 
+const buildDiscardReply = (payload: PendingDraftPayload) => {
+  if (payload.kind === "PENDING_DELETE_DRAFT") {
+    return "Penghapusan dibatalkan. Transaksi tetap tersimpan.";
+  }
+  if (payload.kind === "PENDING_TRANSACTION_DRAFT") {
+    return "✅ Draf transaksi berhasil dibuang.";
+  }
+  if (
+    payload.kind === "PENDING_TRANSACTION_CATEGORY_CHOICE" ||
+    payload.kind === "PENDING_TRANSACTION_CATEGORY_CREATE"
+  ) {
+    return "✅ Draf transaksi berhasil dibuang.";
+  }
+  if (payload.kind === "PENDING_BUDGET_DRAFT") {
+    return "✅ Draf budget berhasil dibuang.";
+  }
+  return "✅ Draf goal berhasil dibuang.";
+};
+
+const buildTransactionDraftPayload = (params: {
+  rawText: string;
+  extraction: GeminiExtraction;
+  forcedCategory?: string | null;
+  sourceMessageId: string;
+  category?: string | null;
+}): PendingTransactionDraftPayload => ({
+  kind: "PENDING_TRANSACTION_DRAFT",
+  rawText: params.rawText,
+  extraction: params.category
+    ? { ...params.extraction, category: params.category }
+    : params.extraction,
+  forcedCategory: params.forcedCategory ?? null,
+  sourceMessageId: params.sourceMessageId
+});
+
+const listUserCategoryChoiceOptions = async (userId: string) =>
+  (await listCategoryBudgets(userId))
+    .map((budget) => budget.category)
+    .filter((category) => normalizeBudgetCategoryName(category).toLowerCase() !== "others");
+
+const resolveKnownExpenseCategory = async (params: {
+  userId: string;
+  extraction: GeminiExtraction;
+}) => {
+  if (params.extraction.type !== "EXPENSE" || !params.extraction.category) return null;
+  const exactBudget = await findBudgetItemByCategoryName({
+    userId: params.userId,
+    category: params.extraction.category
+  });
+  return exactBudget?.category ?? null;
+};
+
+const shouldAskExpenseCategory = async (params: {
+  userId: string;
+  extraction: GeminiExtraction;
+  rawText: string;
+  forcedCategory?: string | null;
+}) => {
+  if (params.extraction.type !== "EXPENSE" || params.forcedCategory) return false;
+  const knownCategory = await resolveKnownExpenseCategory({
+    userId: params.userId,
+    extraction: params.extraction
+  });
+  if (knownCategory) return false;
+
+  return normalizeExpenseBucketCategory(params.extraction.category ?? params.rawText) === "Others";
+};
+
 export const stageTransactionAndBuildReply = async (params: {
   userId: string;
   messageId: string;
@@ -384,13 +679,43 @@ export const stageTransactionAndBuildReply = async (params: {
     }
   }
 
-  const payload: PendingTransactionDraftPayload = {
-    kind: "PENDING_TRANSACTION_DRAFT",
+  if (
+    await shouldAskExpenseCategory({
+      userId: params.userId,
+      extraction: params.extraction,
+      rawText: params.rawText,
+      forcedCategory: params.forcedCategory
+    })
+  ) {
+    const payload: PendingTransactionCategoryChoicePayload = {
+      kind: "PENDING_TRANSACTION_CATEGORY_CHOICE",
+      rawText: params.rawText,
+      extraction: params.extraction,
+      forcedCategory: params.forcedCategory ?? null,
+      categoryOptions: await listUserCategoryChoiceOptions(params.userId),
+      sourceMessageId: params.messageId
+    };
+
+    await createPendingDraft({
+      userId: params.userId,
+      messageId: params.messageId,
+      payload
+    });
+
+    return buildTransactionCategoryChoiceResult(payload);
+  }
+
+  const knownCategory = await resolveKnownExpenseCategory({
+    userId: params.userId,
+    extraction: params.extraction
+  });
+  const payload = buildTransactionDraftPayload({
     rawText: params.rawText,
     extraction: params.extraction,
-    forcedCategory: params.forcedCategory ?? null,
-    sourceMessageId: params.messageId
-  };
+    forcedCategory: params.forcedCategory,
+    sourceMessageId: params.messageId,
+    category: knownCategory
+  });
 
   await createPendingDraft({
     userId: params.userId,
@@ -398,7 +723,7 @@ export const stageTransactionAndBuildReply = async (params: {
     payload
   });
 
-  return buildBubbleResult(buildTransactionDraftText(payload));
+  return buildTransactionDraftResult(payload);
 };
 
 export const stageExpenseTransactionAndBuildReply = stageTransactionAndBuildReply;
@@ -488,7 +813,25 @@ const savePendingDraft = async (params: {
       category: payload.category,
       monthlyLimit: payload.monthlyLimit
     });
-    return ok({ replyText: buildBudgetSetText(budget) });
+    const budgetReplyText = buildBudgetSetText(budget);
+    if (payload.returnTransaction) {
+      const transactionPayload = buildTransactionDraftPayload({
+        rawText: payload.returnTransaction.rawText,
+        extraction: payload.returnTransaction.extraction,
+        forcedCategory: payload.returnTransaction.forcedCategory ?? null,
+        sourceMessageId: params.messageId,
+        category: budget.category
+      });
+      await createPendingDraft({
+        userId: params.userId,
+        messageId: params.messageId,
+        payload: transactionPayload
+      });
+      return ok({
+        replyText: `${budgetReplyText}\n\n${buildTransactionDraftText(transactionPayload)}`
+      });
+    }
+    return ok({ replyText: budgetReplyText });
   }
 
   if (payload.kind === "PENDING_DELETE_DRAFT") {
@@ -500,6 +843,13 @@ const savePendingDraft = async (params: {
     await refreshSavingsGoalProgress(params.userId);
     return ok({
       replyText: `Transaksi ${payload.transactionLabel} sebesar ${formatMoney(payload.transactionAmount)} berhasil dihapus.`
+    });
+  }
+
+  if (payload.kind !== "PENDING_GOAL_DRAFT") {
+    return ok({
+      replyText:
+        "Pilih kategori transaksi dulu ya Boss, baru nanti bisa disimpan ke catatan."
     });
   }
 
@@ -520,12 +870,19 @@ const editPendingDraft = async (params: {
   text: string;
 }): Promise<InboundHandlerResult> => {
   const { payload } = params.draft;
-  const patched =
-    payload.kind === "PENDING_TRANSACTION_DRAFT"
-      ? patchTransactionDraft(payload, params.text)
-      : payload.kind === "PENDING_BUDGET_DRAFT"
-        ? patchBudgetDraft(payload, params.text)
-        : patchGoalDraft(payload, params.text);
+  let patched: PendingDraftPayload | null = null;
+  if (payload.kind === "PENDING_TRANSACTION_DRAFT") {
+    patched = patchTransactionDraft(payload, params.text);
+  } else if (payload.kind === "PENDING_BUDGET_DRAFT") {
+    patched = patchBudgetDraft(payload, params.text);
+  } else if (payload.kind === "PENDING_GOAL_DRAFT") {
+    patched = patchGoalDraft(payload, params.text);
+  } else {
+    return ok({
+      replyText:
+        "Untuk tahap ini, pilih kategori dulu ya Boss. Balas nomor kategori, nama kategorinya, `buat kategori baru`, atau `Others`."
+    });
+  }
 
   if (!patched) {
     return ok({
@@ -547,7 +904,7 @@ const editPendingDraft = async (params: {
   });
 
   if (patched.kind === "PENDING_TRANSACTION_DRAFT") {
-    return buildBubbleResult(buildTransactionDraftText(patched));
+    return buildTransactionDraftResult(patched);
   }
   if (patched.kind === "PENDING_BUDGET_DRAFT") {
     return buildBubbleResult(buildBudgetDraftText(patched));
@@ -582,14 +939,133 @@ export const stageDeleteAndBuildReply = async (params: {
   return buildBubbleResult(params.confirmationText, deleteActionText);
 };
 
+const handleCategoryChoiceDraft = async (params: {
+  userId: string;
+  messageId: string;
+  draft: PendingDraft;
+  payload: PendingTransactionCategoryChoicePayload;
+  text: string;
+}): Promise<InboundHandlerResult> => {
+  const choice = resolveCategoryChoice(params.payload, params.text);
+  if (!choice) {
+    return ok({
+      replyText:
+        "Saya belum menangkap pilihan kategorinya. Balas nomor kategori, nama kategorinya, `buat kategori baru`, atau `Others` ya Boss."
+    });
+  }
+
+  await markDraftResolved({
+    userId: params.userId,
+    messageId: params.messageId,
+    draftId: params.draft.id,
+    action: "EDITED"
+  });
+
+  if (choice.kind === "CREATE_CATEGORY") {
+    const payload: PendingTransactionCategoryCreatePayload = {
+      kind: "PENDING_TRANSACTION_CATEGORY_CREATE",
+      rawText: params.payload.rawText,
+      extraction: params.payload.extraction,
+      forcedCategory: params.payload.forcedCategory ?? null,
+      step: "ASK_CATEGORY",
+      sourceMessageId: params.messageId
+    };
+    await createPendingDraft({
+      userId: params.userId,
+      messageId: params.messageId,
+      payload
+    });
+    return ok({ replyText: "Nama kategori barunya apa Boss?" });
+  }
+
+  const transactionPayload = buildTransactionDraftPayload({
+    rawText: params.payload.rawText,
+    extraction: params.payload.extraction,
+    forcedCategory: params.payload.forcedCategory ?? null,
+    sourceMessageId: params.messageId,
+    category: choice.kind === "OTHERS" ? "Others" : choice.category
+  });
+  await createPendingDraft({
+    userId: params.userId,
+    messageId: params.messageId,
+    payload: transactionPayload
+  });
+  return buildTransactionDraftResult(transactionPayload);
+};
+
+const handleCategoryCreateDraft = async (params: {
+  userId: string;
+  messageId: string;
+  draft: PendingDraft;
+  payload: PendingTransactionCategoryCreatePayload;
+  text: string;
+}): Promise<InboundHandlerResult> => {
+  if (params.payload.step === "ASK_CATEGORY") {
+    const category = normalizeBudgetCategoryName(params.text);
+    if (!category) {
+      return ok({ replyText: "Nama kategorinya belum kebaca. Coba tulis nama kategori baru ya Boss." });
+    }
+
+    await markDraftResolved({
+      userId: params.userId,
+      messageId: params.messageId,
+      draftId: params.draft.id,
+      action: "EDITED"
+    });
+    const payload: PendingTransactionCategoryCreatePayload = {
+      ...params.payload,
+      step: "ASK_AMOUNT",
+      category,
+      sourceMessageId: params.messageId
+    };
+    await createPendingDraft({
+      userId: params.userId,
+      messageId: params.messageId,
+      payload
+    });
+    return ok({ replyText: `Limit bulanan untuk ${category} berapa Boss?` });
+  }
+
+  const amount = parsePositiveAmount(params.text);
+  if (!amount) {
+    return ok({
+      replyText:
+        "Nominal budget belum terbaca. Coba tulis ulang lagi Boss, misalnya `500rb` atau `Rp500.000`."
+    });
+  }
+
+  await markDraftResolved({
+    userId: params.userId,
+    messageId: params.messageId,
+    draftId: params.draft.id,
+    action: "EDITED"
+  });
+  const category = params.payload.category ?? "Kategori Baru";
+  const budgetPayload: PendingBudgetDraftPayload = {
+    kind: "PENDING_BUDGET_DRAFT",
+    category,
+    monthlyLimit: amount,
+    returnTransaction: {
+      rawText: params.payload.rawText,
+      extraction: { ...params.payload.extraction, category },
+      forcedCategory: params.payload.forcedCategory ?? null
+    },
+    sourceMessageId: params.messageId
+  };
+  await createPendingDraft({
+    userId: params.userId,
+    messageId: params.messageId,
+    payload: budgetPayload
+  });
+  return buildBubbleResult(buildBudgetDraftText(budgetPayload));
+};
+
 export const tryHandlePendingAction = async (params: {
   userId: string;
   messageId: string;
   text: string;
 }): Promise<InboundHandlerResult | null> => {
   const action = detectPendingAction(params.text);
-  if (!action) return null;
-
   const draft = await findLatestPendingDraft(params.userId);
   if (!draft) return null;
 
@@ -600,12 +1076,30 @@ export const tryHandlePendingAction = async (params: {
       draftId: draft.id,
       action: "DISCARDED"
     });
-    const discardText =
-      draft.payload.kind === "PENDING_DELETE_DRAFT"
-        ? "Penghapusan dibatalkan. Transaksi tetap tersimpan."
-        : "Draf saya buang. Tidak ada data yang disimpan.";
-    return ok({ replyText: discardText });
+    return ok({ replyText: buildDiscardReply(draft.payload) });
   }
+
+  if (draft.payload.kind === "PENDING_TRANSACTION_CATEGORY_CHOICE") {
+    return handleCategoryChoiceDraft({
+      userId: params.userId,
+      messageId: params.messageId,
+      draft,
+      payload: draft.payload,
+      text: params.text
+    });
+  }
+
+  if (draft.payload.kind === "PENDING_TRANSACTION_CATEGORY_CREATE") {
+    return handleCategoryCreateDraft({
+      userId: params.userId,
+      messageId: params.messageId,
+      draft,
+      payload: draft.payload,
+      text: params.text
+    });
+  }
+
+  if (!action) return null;
 
   if (action === "EDIT") {
     if (draft.payload.kind === "PENDING_DELETE_DRAFT") {

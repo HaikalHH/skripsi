@@ -144,13 +144,11 @@ enum IncomeStability {
 enum BudgetMode {
   MANUAL_PLAN
   GUIDED_PLAN
-  AUTO_FROM_TRANSACTIONS
 }
 
 enum ExpensePlanSource {
   MANUAL_USER_PLAN
   GUIDED_ONBOARDING_PLAN
-  AUTO_GENERATED_LATER
 }
 
 enum FinancialGoalType {

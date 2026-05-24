@@ -83,7 +83,7 @@ const tryHandleContextModules = async (
             messageId: params.messageId,
             transactionId: candidate.id,
             transactionLabel: `${candidate.category}${candidate.merchant ? ` (${candidate.merchant})` : ""}`,
-            transactionAmount: candidate.amount,
+            transactionAmount: Number(candidate.amount),
             confirmationText: transactionMutation.replyText
           });
         }

@@ -40,6 +40,57 @@ const getGoalTrackingEmoji = (goal: {
   return "✅";
 };
 
+const TRANSACTION_AMOUNT_TEXT_PATTERN =
+  /\b(?:rp\.?\s*)?\d[\d.,]*(?:\s*(?:jt|juta|rb|ribu|k))?\b/gi;
+
+const normalizeTransactionTitle = (value: string) =>
+  value
+    .replace(/\bkategori\s+.+$/i, "")
+    .replace(TRANSACTION_AMOUNT_TEXT_PATTERN, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+
+const buildTransactionTitle = (params: {
+  type: "INCOME" | "EXPENSE" | "SAVING";
+  rawText?: string | null;
+  note?: string | null;
+  merchant?: string | null;
+}) => {
+  const fallback =
+    params.type === "INCOME"
+      ? "Pemasukan"
+      : params.type === "SAVING"
+        ? "Tabungan"
+        : params.merchant
+          ? `Beli ${params.merchant}`
+          : "Pengeluaran";
+  return normalizeTransactionTitle(params.note ?? params.rawText ?? fallback) || fallback;
+};
+
+const buildTransactionCategoryLabel = (params: {
+  category: string;
+  detailTag?: string | null;
+}) => {
+  const detail = params.detailTag?.trim();
+  if (!detail || detail.toLowerCase() === params.category.toLowerCase()) return params.category;
+  return `${params.category} / ${detail}`;
+};
+
+const buildTransactionMerchantLine = (params: {
+  type: "INCOME" | "EXPENSE" | "SAVING";
+  merchant?: string | null;
+}) => {
+  const merchant = params.merchant?.trim();
+  if (!merchant) return null;
+  if (params.type === "INCOME") return `Sumber: ${merchant}`;
+  if (params.type === "SAVING") return `Tujuan: ${merchant}`;
+  return `Toko: ${merchant}`;
+};
+
 export const confirmTransactionText = (params: {
   type: "INCOME" | "EXPENSE" | "SAVING";
   amount: number;
@@ -47,16 +98,19 @@ export const confirmTransactionText = (params: {
   detailTag?: string | null;
   occurredAt: Date;
   merchant?: string | null;
+  note?: string | null;
+  rawText?: string | null;
 }) =>
   [
-    "✅ Transaksi berhasil dicatat:",
-    `- Tipe: ${params.type}${params.type === "SAVING" ? " ✅" : ""}`,
-    `- Amount: ${formatMoney(params.amount)}`,
-    `- Category: ${params.category}${params.detailTag ? ` / ${params.detailTag}` : ""}`,
-    params.merchant ? `- Merchant: ${params.merchant}` : null,
-    `- Tanggal: ${TRANSACTION_DATE_FORMATTER.format(params.occurredAt)}`
+    "✅ Transaksi berhasil dicatat",
+    "",
+    buildTransactionTitle(params),
+    formatMoney(params.amount),
+    `Kategori: ${buildTransactionCategoryLabel(params)}`,
+    buildTransactionMerchantLine(params),
+    `Tanggal: ${TRANSACTION_DATE_FORMATTER.format(params.occurredAt)}`
   ]
-    .filter(Boolean)
+    .filter((line) => line !== null)
     .join("\n");
 
 export const buildBudgetSetText = (params: {

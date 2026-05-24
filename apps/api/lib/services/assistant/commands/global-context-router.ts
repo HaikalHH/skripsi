@@ -114,6 +114,16 @@ export const ALL_GLOBAL_CONTEXT_MODULES: GlobalContextModule[] = [
 
 const normalizeText = (value: string) => value.trim().replace(/\s+/g, " ");
 
+const hasMoneyLikeText = (text: string) =>
+  /(?:rp\.?\s*)?\d[\d.,]*(?:\s*(?:jt|juta|rb|ribu|k))?/i.test(text);
+
+const looksLikeDirectTransactionRecord = (text: string) =>
+  hasMoneyLikeText(text) &&
+  !/[?？]/.test(text) &&
+  /\b(beli|bayar|masuk|gaji|transfer|top up|topup|nabung|menabung|setor tabungan|simpan|saving|belanja|makan|minum|kopi|parkir|listrik|internet|qr|qris|ongkir|transport|pulsa)\b/i.test(
+    text
+  );
+
 const parseFlexibleGoalCommand = (text: string): GlobalContextCommand => {
   if (isLikelySavingTransactionText(text)) {
     return { kind: "NONE" };
@@ -223,6 +233,9 @@ const parseFlexibleReportCommand = (text: string): GlobalContextCommand => {
 
 const parseFlexibleCategoryDetailCommand = (text: string): GlobalContextCommand => {
   if (/\b(hapus|delete|ubah|edit|ganti|koreksi)\b/i.test(text)) {
+    return { kind: "NONE" };
+  }
+  if (looksLikeDirectTransactionRecord(text)) {
     return { kind: "NONE" };
   }
 
@@ -378,9 +391,6 @@ const addModuleCandidate = (
   }
   candidates.push({ module, score });
 };
-
-const hasMoneyLikeText = (text: string) =>
-  /(?:rp\.?\s*)?\d[\d.,]*(?:\s*(?:jt|juta|rb|ribu|k))?/i.test(text);
 
 const looksLikeTransactionMutation = (text: string) =>
   /\b(hapus|delete|ubah|edit|ganti|koreksi)\b/i.test(text);

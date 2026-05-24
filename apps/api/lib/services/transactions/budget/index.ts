@@ -13,7 +13,7 @@ import {
 const BUDGET_WARNING_THRESHOLD = 0.8;
 
 export { normalizeBudgetCategoryName } from "./category";
-export { listExpensePlanBudgetItems } from "./data-access";
+export { findBudgetItemByCategoryName, listExpensePlanBudgetItems } from "./data-access";
 
 const normalizeCategory = (value: string) => normalizeBudgetCategoryName(value);
 
@@ -187,4 +187,35 @@ export const checkBudgetAlert = async (
   }
 
   return null;
+};
+
+export const getCategoryBudgetProgress = async (params: {
+  userId: string;
+  category: string;
+  occurredAt: Date;
+}) => {
+  const normalizedCategory = normalizeCategory(params.category);
+  const budget = await pickMatchingBudgetItem({
+    userId: params.userId,
+    category: normalizedCategory
+  });
+
+  if (!budget) return null;
+
+  const monthlyLimit = toNumber(budget.monthlyLimit);
+  if (monthlyLimit <= 0) return null;
+
+  const spentThisMonth = await getMonthlyCategorySpent({
+    userId: params.userId,
+    category: normalizedCategory,
+    baseDate: params.occurredAt
+  });
+
+  return {
+    category: budget.category,
+    monthlyLimit,
+    spentThisMonth,
+    remainingThisMonth: Math.max(0, monthlyLimit - spentThisMonth),
+    usagePercent: (spentThisMonth / monthlyLimit) * 100
+  };
 };

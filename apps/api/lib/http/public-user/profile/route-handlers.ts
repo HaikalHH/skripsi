@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { buildInitialFinancialProfile } from "@/lib/services/onboarding/flow/shared/calculation/onboarding-calculation-service";
 import { resolveUserIdentity, toJsonSafe } from "@/lib/services/onboarding/flow/shared/route/onboarding-route-helper";
 
+const activeBudgetModeSchema = z.enum([BudgetMode.MANUAL_PLAN, BudgetMode.GUIDED_PLAN]);
+
 const userIdentityPatchSchema = z
   .object({
     userId: z.string().min(1).optional(),
@@ -19,7 +21,7 @@ const profilePatchSchema = userIdentityPatchSchema.and(
     name: z.string().trim().min(2).max(120).optional(),
     currency: z.string().trim().min(3).max(6).optional(),
     primaryGoal: z.nativeEnum(PrimaryGoal).nullable().optional(),
-    budgetMode: z.nativeEnum(BudgetMode).nullable().optional(),
+    budgetMode: activeBudgetModeSchema.nullable().optional(),
     salaryDate: z.number().int().min(1).max(31).nullable().optional()
   })
 );

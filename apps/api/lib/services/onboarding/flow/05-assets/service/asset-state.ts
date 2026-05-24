@@ -5,10 +5,6 @@ import {
   type OnboardingSession
 } from "@prisma/client";
 import type { GoldAssetTypeValue } from "@/lib/services/onboarding/flow/shared/questions/question-types";
-import {
-  getSessionNormalizedValue,
-  latestSessionForQuestion
-} from "@/lib/services/onboarding/flow/shared/answers/common-input";
 
 const getConfirmedSessions = (sessions: OnboardingSession[]) =>
   sessions.filter((session) => session.isCompleted === true);
@@ -24,14 +20,6 @@ export const getCurrentAssetBatchSessions = (sessions: OnboardingSession[]) => {
   const latestSelectionIndex = confirmedSessions.findIndex((session) => session.id === latestSelection.id);
   return latestSelectionIndex >= 0 ? confirmedSessions.slice(latestSelectionIndex) : confirmedSessions;
 };
-
-export const getCurrentBatchAnswerValue = <T>(
-  sessions: OnboardingSession[],
-  questionKey: OnboardingQuestionKey
-) =>
-  getSessionNormalizedValue<T>(
-    latestSessionForQuestion(getCurrentAssetBatchSessions(sessions), questionKey)
-  );
 
 export const isFinalAssetStep = (context: {
   user: { onboardingStep: OnboardingStep };

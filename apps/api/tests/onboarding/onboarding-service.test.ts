@@ -426,6 +426,350 @@ describe("onboarding service", () => {
     });
   });
 
+  it("asks for category detail when manual expense answer is only a total", async () => {
+    seedUser({
+      onboardingStep: OnboardingStep.ASK_MANUAL_EXPENSE_BREAKDOWN,
+      budgetMode: BudgetMode.MANUAL_PLAN
+    });
+
+    const result = await sendText(
+      "pengeluaran saya sekitar 5 juta",
+      "msg_manual_total_only"
+    );
+
+    expect(result.handled).toBe(true);
+    expect(result.replyText).toContain("baru kebaca sebagai total pengeluaran");
+    expect(result.replyText).toContain("Saya belum punya, tolong bantu susun");
+    expect(hoisted.store.users[0].onboardingStep).toBe(
+      OnboardingStep.ASK_MANUAL_EXPENSE_BREAKDOWN
+    );
+    expect(replaceExpensePlan).not.toHaveBeenCalled();
+    expect(hoisted.store.sessions).toHaveLength(0);
+  });
+
+  it("routes manual expense help requests into guided expense setup", async () => {
+    seedUser({
+      onboardingStep: OnboardingStep.ASK_MANUAL_EXPENSE_BREAKDOWN,
+      budgetMode: BudgetMode.MANUAL_PLAN
+    });
+
+    const result = await sendText(
+      "Saya belum punya, tolong bantu susun",
+      "msg_manual_help"
+    );
+
+    expect(result.handled).toBe(true);
+    expect(result.replyText).toContain("saya bantu susun satu per satu");
+    expect(result.replyText).toContain("makan dan minum");
+    expect(hoisted.store.users[0].onboardingStep).toBe(
+      OnboardingStep.ASK_GUIDED_EXPENSE_FOOD
+    );
+    expect(hoisted.store.users[0].budgetMode).toBe(BudgetMode.GUIDED_PLAN);
+    expect(replaceExpensePlan).not.toHaveBeenCalled();
+  });
+
+  it("confirms manual expense breakdown and allows adding another category before saving", async () => {
+    seedUser({
+      onboardingStep: OnboardingStep.ASK_MANUAL_EXPENSE_BREAKDOWN,
+      budgetMode: BudgetMode.MANUAL_PLAN
+    });
+    hoisted.store.financialProfiles = [
+      {
+        userId: "user_1",
+        monthlyIncomeTotal: 5000000,
+        monthlyExpenseTotal: null,
+        potentialMonthlySaving: null,
+        emergencyFundTarget: null,
+        activeIncomeMonthly: 5000000,
+        passiveIncomeMonthly: null,
+        estimatedMonthlyIncome: null
+      }
+    ];
+
+    const first = await sendText(
+      "makan 1jt, transport 200rb",
+      "msg_manual_breakdown"
+    );
+
+    expect(first.handled).toBe(true);
+    expect(first.replyText).toContain("Siap, saya catat dulu");
+    expect(first.replyText).toContain("Masih ada kategori pengeluaran lain");
+    expect(first.replyText).not.toContain("Makan: Rp1.000.000");
+    expect(hoisted.store.users[0].onboardingStep).toBe(
+      OnboardingStep.ASK_MANUAL_EXPENSE_BREAKDOWN
+    );
+    expect(hoisted.store.sessions.at(-1)?.isCompleted).toBe(false);
+    expect(replaceExpensePlan).not.toHaveBeenCalled();
+
+    const additional = await sendText("cicilan motor 500rb", "msg_manual_add_more");
+
+    expect(additional.handled).toBe(true);
+    expect(additional.replyText).toContain("Siap, saya catat dulu");
+    expect(additional.replyText).toContain("Masih ada kategori pengeluaran lain");
+    expect(additional.replyText).not.toContain("Total: Rp1.700.000");
+    expect(hoisted.store.sessions.at(-1)?.isCompleted).toBe(false);
+    expect(replaceExpensePlan).not.toHaveBeenCalled();
+
+    const review = await sendText("sudah", "msg_manual_review");
+
+    expect(review.handled).toBe(true);
+    expect(review.replyText).toContain("Saya rapihin pengeluaran bulanan");
+    expect(review.replyText).toContain("Makan: Rp1.000.000");
+    expect(review.replyText).toContain("Transport: Rp200.000");
+    expect(review.replyText).toContain("Tagihan: Rp500.000");
+    expect(review.replyText).toContain("Total: Rp1.700.000");
+    expect(hoisted.store.users[0].onboardingStep).toBe(
+      OnboardingStep.ASK_MANUAL_EXPENSE_BREAKDOWN
+    );
+    expect(replaceExpensePlan).not.toHaveBeenCalled();
+
+    const done = await sendText("sudah", "msg_manual_done");
+
+    expect(done.handled).toBe(true);
+    expect(hoisted.store.users[0].onboardingStep).toBe(OnboardingStep.ASK_ASSET_SELECTION);
+    expect(replaceExpensePlan).toHaveBeenCalledWith({
+      userId: "user_1",
+      source: ExpensePlanSource.MANUAL_USER_PLAN,
+      breakdown: {
+        food: 1000000,
+        transport: 200000,
+        bills: 500000,
+        entertainment: 0,
+        others: 0
+      }
+    });
+  });
+
+  it("asks one-by-one before merging manual expense categories that look related", async () => {
+    seedUser({
+      onboardingStep: OnboardingStep.ASK_MANUAL_EXPENSE_BREAKDOWN,
+      budgetMode: BudgetMode.MANUAL_PLAN
+    });
+    hoisted.store.financialProfiles = [
+      {
+        userId: "user_1",
+        monthlyIncomeTotal: 5000000,
+        monthlyExpenseTotal: null,
+        potentialMonthlySaving: null,
+        emergencyFundTarget: null,
+        activeIncomeMonthly: 5000000,
+        passiveIncomeMonthly: null,
+        estimatedMonthlyIncome: null
+      }
+    ];
+
+    const first = await sendText(
+      "listrik 200rb indihome 100rb makan 500rb minum 200rb transport 100rb",
+      "msg_manual_merge_candidates"
+    );
+
+    expect(first.handled).toBe(true);
+    expect(first.replyText).toContain("Siap, saya catat dulu");
+    expect(first.replyText).not.toContain("Tagihan: Rp300.000");
+    expect(first.replyText).not.toContain("Makan: Rp700.000");
+    expect(first.replyText).not.toContain("Transport: Rp100.000");
+    expect(first.replyText).toContain("Masih ada kategori pengeluaran lain");
+    expect(replaceExpensePlan).not.toHaveBeenCalled();
+
+    const billsMergeQuestion = await sendText("sudah", "msg_manual_merge_done");
+
+    expect(billsMergeQuestion.handled).toBe(true);
+    expect(billsMergeQuestion.replyText).toContain("kategori Tagihan");
+    expect(billsMergeQuestion.replyText).toContain("- listrik: Rp200.000");
+    expect(billsMergeQuestion.replyText).toContain("- indihome: Rp100.000");
+    expect(billsMergeQuestion.replyText).toContain("Balas `gabung` atau `pisah`");
+    expect(hoisted.store.users[0].onboardingStep).toBe(
+      OnboardingStep.ASK_MANUAL_EXPENSE_BREAKDOWN
+    );
+    expect(replaceExpensePlan).not.toHaveBeenCalled();
+
+    const foodMergeQuestion = await sendText("gabung", "msg_manual_merge_bills");
+
+    expect(foodMergeQuestion.handled).toBe(true);
+    expect(foodMergeQuestion.replyText).toContain("kategori Makan");
+    expect(foodMergeQuestion.replyText).toContain("- makan: Rp500.000");
+    expect(foodMergeQuestion.replyText).toContain("- minum: Rp200.000");
+    expect(replaceExpensePlan).not.toHaveBeenCalled();
+
+    const review = await sendText("pisah", "msg_manual_split_food");
+
+    expect(review.handled).toBe(true);
+    expect(review.replyText).toContain("Saya rapihin pengeluaran bulanan");
+    expect(review.replyText).toContain("Tagihan: Rp300.000");
+    expect(review.replyText).toContain("Transport: Rp100.000");
+    expect(review.replyText).toContain("makan: Rp500.000");
+    expect(review.replyText).toContain("minum: Rp200.000");
+    expect(review.replyText).toContain("Total: Rp1.100.000");
+    expect(review.replyText).not.toContain("Sekarang aset yang sudah Boss punya apa aja?");
+    expect(hoisted.store.users[0].onboardingStep).toBe(
+      OnboardingStep.ASK_MANUAL_EXPENSE_BREAKDOWN
+    );
+    expect(replaceExpensePlan).not.toHaveBeenCalled();
+
+    const completed = await sendText("sudah", "msg_manual_final_done");
+
+    expect(completed.handled).toBe(true);
+    expect(completed.replyText).toContain("Sekarang aset yang sudah Boss punya apa aja?");
+    expect(hoisted.store.users[0].onboardingStep).toBe(OnboardingStep.ASK_ASSET_SELECTION);
+    expect(replaceExpensePlan).toHaveBeenCalledWith({
+      userId: "user_1",
+      source: ExpensePlanSource.MANUAL_USER_PLAN,
+      breakdown: {
+        food: 0,
+        transport: 100000,
+        bills: 300000,
+        entertainment: 0,
+        others: 700000
+      },
+      customExpenseItems: [
+        { label: "makan", amount: 500000 },
+        { label: "minum", amount: 200000 }
+      ]
+    });
+  });
+
+  it("blocks manual expense save when expenses exceed income until extra income makes it safe", async () => {
+    seedUser({
+      onboardingStep: OnboardingStep.ASK_MANUAL_EXPENSE_BREAKDOWN,
+      budgetMode: BudgetMode.MANUAL_PLAN
+    });
+    hoisted.store.financialProfiles = [
+      {
+        userId: "user_1",
+        monthlyIncomeTotal: 1000000,
+        monthlyExpenseTotal: null,
+        potentialMonthlySaving: null,
+        emergencyFundTarget: null,
+        activeIncomeMonthly: 1000000,
+        passiveIncomeMonthly: null,
+        estimatedMonthlyIncome: null
+      }
+    ];
+
+    await sendText("makan 1500000", "msg_deficit_manual_breakdown");
+    const review = await sendText("sudah", "msg_deficit_manual_review");
+    expect(review.replyText).toContain("Total: Rp1.500.000");
+    expect(replaceExpensePlan).not.toHaveBeenCalled();
+
+    const warning = await sendText("sudah", "msg_deficit_manual_final");
+    expect(warning.replyText).toContain("Pengeluaran bulanan Boss lebih besar dari income");
+    expect(warning.replyText).toContain("Income saat ini: Rp1.000.000/bulan");
+    expect(warning.replyText).toContain("Defisit: Rp500.000/bulan");
+    expect(hoisted.store.users[0].onboardingStep).toBe(
+      OnboardingStep.ASK_MANUAL_EXPENSE_BREAKDOWN
+    );
+    expect(replaceExpensePlan).not.toHaveBeenCalled();
+
+    const incomeType = await sendText("ada", "msg_deficit_manual_has_income");
+    expect(incomeType.replyText).toContain("Income tambahannya masuk jenis apa");
+
+    const incomeAmount = await sendText("active income", "msg_deficit_manual_active_type");
+    expect(incomeAmount.replyText).toContain("Nominal active income tambahannya");
+
+    const safeConfirm = await sendText("1jt", "msg_deficit_manual_active_amount");
+    expect(safeConfirm.replyText).toContain("Budget sudah aman untuk disimpan");
+    expect(safeConfirm.replyText).toContain("Income: Rp2.000.000/bulan");
+    expect(replaceExpensePlan).not.toHaveBeenCalled();
+
+    const completed = await sendText("simpan", "msg_deficit_manual_save");
+    expect(completed.replyText).toContain("Sekarang aset yang sudah Boss punya apa aja?");
+    expect(hoisted.store.users[0].onboardingStep).toBe(OnboardingStep.ASK_ASSET_SELECTION);
+    expect(hoisted.upsertIncomeProfile).toHaveBeenLastCalledWith({
+      userId: "user_1",
+      activeIncomeMonthly: 2000000,
+      passiveIncomeMonthly: 0
+    });
+    expect(replaceExpensePlan).toHaveBeenCalledWith({
+      userId: "user_1",
+      source: ExpensePlanSource.MANUAL_USER_PLAN,
+      breakdown: {
+        food: 1500000,
+        transport: 0,
+        bills: 0,
+        entertainment: 0,
+        others: 0
+      }
+    });
+  });
+
+  it("blocks guided expense save and lets the user revise expenses before saving", async () => {
+    seedUser({
+      onboardingStep: OnboardingStep.ASK_GUIDED_EXPENSE_OTHERS,
+      budgetMode: BudgetMode.GUIDED_PLAN
+    });
+    hoisted.store.financialProfiles = [
+      {
+        userId: "user_1",
+        monthlyIncomeTotal: 1000000,
+        monthlyExpenseTotal: null,
+        potentialMonthlySaving: null,
+        emergencyFundTarget: null,
+        activeIncomeMonthly: 1000000,
+        passiveIncomeMonthly: null,
+        estimatedMonthlyIncome: null
+      }
+    ];
+    addSession({
+      stepKey: OnboardingStep.ASK_GUIDED_EXPENSE_FOOD,
+      questionKey: OnboardingQuestionKey.GUIDED_EXPENSE_FOOD,
+      normalizedAnswerJson: 1200000,
+      rawAnswerJson: "1.2jt"
+    });
+    addSession({
+      stepKey: OnboardingStep.ASK_GUIDED_EXPENSE_TRANSPORT,
+      questionKey: OnboardingQuestionKey.GUIDED_EXPENSE_TRANSPORT,
+      normalizedAnswerJson: 100000,
+      rawAnswerJson: "100rb"
+    });
+    addSession({
+      stepKey: OnboardingStep.ASK_GUIDED_EXPENSE_BILLS,
+      questionKey: OnboardingQuestionKey.GUIDED_EXPENSE_BILLS,
+      normalizedAnswerJson: 0,
+      rawAnswerJson: "0"
+    });
+    addSession({
+      stepKey: OnboardingStep.ASK_GUIDED_EXPENSE_ENTERTAINMENT,
+      questionKey: OnboardingQuestionKey.GUIDED_EXPENSE_ENTERTAINMENT,
+      normalizedAnswerJson: 0,
+      rawAnswerJson: "0"
+    });
+
+    const warning = await sendText("ga ada", "msg_deficit_guided_no_other");
+    expect(warning.replyText).toContain("Pengeluaran bulanan Boss lebih besar dari income");
+    expect(warning.replyText).toContain("Pengeluaran: Rp1.300.000/bulan");
+    expect(replaceExpensePlan).not.toHaveBeenCalled();
+
+    const adjust = await sendText("tidak ada", "msg_deficit_guided_no_income");
+    expect(adjust.replyText).toContain("Mau ubah nominal pengeluaran dulu");
+
+    const categories = await sendText("ubah", "msg_deficit_guided_edit");
+    expect(categories.replyText).toContain("Kategori pengeluaran mana yang mau diubah");
+    expect(categories.replyText).toContain("1. Makan");
+
+    const amountPrompt = await sendText("1", "msg_deficit_guided_choose_food");
+    expect(amountPrompt.replyText).toContain("Nominal baru untuk Makan");
+
+    const safeConfirm = await sendText("800rb", "msg_deficit_guided_food_amount");
+    expect(safeConfirm.replyText).toContain("Budget sudah aman untuk disimpan");
+    expect(safeConfirm.replyText).toContain("Pengeluaran: Rp900.000/bulan");
+    expect(replaceExpensePlan).not.toHaveBeenCalled();
+
+    const completed = await sendText("simpan", "msg_deficit_guided_save");
+    expect(completed.replyText).toContain("Sekarang aset yang sudah Boss punya apa aja?");
+    expect(hoisted.store.users[0].onboardingStep).toBe(OnboardingStep.ASK_ASSET_SELECTION);
+    expect(replaceExpensePlan).toHaveBeenCalledWith({
+      userId: "user_1",
+      source: ExpensePlanSource.GUIDED_ONBOARDING_PLAN,
+      breakdown: {
+        food: 800000,
+        transport: 100000,
+        bills: 0,
+        entertainment: 0,
+        others: 0
+      }
+    });
+  });
+
   it("waits until guided other-expense input is finished before showing the full recap", async () => {
     hoisted.store.financialProfiles = [
       {

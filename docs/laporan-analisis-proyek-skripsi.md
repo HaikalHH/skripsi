@@ -8,7 +8,7 @@
 
 ## 2. Ringkasan Umum Sistem
 
-Project ini adalah sistem pencatatan dan analisis keuangan pribadi yang memanfaatkan WhatsApp sebagai antarmuka utama pengguna. Pengguna dapat mencatat transaksi dengan bahasa alami seperti "beli kopi 25 ribu", mengirim gambar struk untuk dibaca OCR, meminta laporan keuangan, mengatur budget, membuat target keuangan, memantau aset, melihat harga market, menerima berita finance, dan memperoleh reminder otomatis.
+Project ini adalah sistem pencatatan dan analisis keuangan pribadi yang memanfaatkan WhatsApp sebagai antarmuka utama pengguna. Pengguna dapat mencatat transaksi dengan bahasa alami seperti "beli kopi 25 ribu", mengirim gambar struk untuk dibaca OCR, meminta laporan keuangan, mengatur kategori budget, membuat target keuangan, memantau aset, melihat harga emas/saham, menerima berita finance, dan memperoleh reminder otomatis.
 
 Secara arsitektur, sistem ini tidak hanya terdiri dari satu aplikasi, tetapi dibagi menjadi beberapa komponen terpisah: backend API utama, panel admin web, worker bot WhatsApp, service reporting berbasis Python, dan package shared untuk schema/prompt/utilitas bersama. Penyimpanan data menggunakan MySQL yang diakses melalui Prisma ORM.
 
@@ -51,7 +51,8 @@ Secara implementasi, sistem dibangun dengan pendekatan monorepo menggunakan `pnp
 ### 4.4 Budgeting
 
 - Pengguna dapat menetapkan limit bulanan per kategori.
-- Budget bisa diinput manual atau dibentuk dari onboarding.
+- Budget aktif disimpan sebagai `ExpensePlan` dan `ExpensePlanItem`, bukan tabel `Budget` terpisah.
+- Budget bisa diinput manual lewat `/budget set`, dibentuk dari onboarding manual, atau dibantu lewat guided onboarding.
 - Sistem memantau kategori yang mendekati atau melewati limit.
 
 ### 4.5 Goal keuangan
@@ -82,7 +83,8 @@ Secara implementasi, sistem dibangun dengan pendekatan monorepo menggunakan `pnp
   - ringkasan teks
   - grafik PNG
   - PDF bulanan
-- Laporan menghitung income, expense, saving, balance, top category, trend, dan rincian transaksi.
+- Laporan menghitung income, expense, saving, balance, top category, trend, dan progress budget kategori.
+- Daily dan weekly report aktif tidak menampilkan daftar transaksi detail panjang; fokusnya ringkasan dan progress kategori.
 
 ### 4.8 Analitik kategori dan cashflow
 
@@ -97,17 +99,17 @@ Secara implementasi, sistem dibangun dengan pendekatan monorepo menggunakan `pnp
   - tabungan
   - emas
   - saham
-  - crypto
-  - reksa dana
   - properti
-  - aset lain
+  - deposito/kas
+  - bisnis atau aset lain yang dicatat sebagai portfolio non-market
 - Mendukung portfolio valuation.
 - Mendukung penambahan trade/holding.
 - Menyediakan ringkasan komposisi aset dan evaluasi risiko diversifikasi.
+- Crypto dan reksa dana tidak termasuk flow aktif saat ini.
 
 ### 4.10 Informasi market dan berita finance
 
-- Cek harga market untuk saham, crypto, emas, dan instrumen lain yang didukung.
+- Cek harga market untuk saham dan emas yang didukung provider.
 - Mendukung berita finance umum dan berita terkait aset portfolio pengguna.
 - Terdapat fallback provider dan caching data market.
 
@@ -221,8 +223,8 @@ Konfigurasi datasource pada Prisma:
 
 Schema database pada project ini cukup besar dan sudah mencerminkan aplikasi yang bukan hanya chatbot sederhana. Saat ini terdapat:
 
-- **24 enum Prisma**
-- **24 model Prisma**
+- **21 enum Prisma**
+- **20 model Prisma**
 
 ### 8.1 Tabel/model inti
 
@@ -237,7 +239,6 @@ Schema database pada project ini cukup besar dan sudah mencerminkan aplikasi yan
 
 ### 8.2 Tabel untuk budgeting dan goal
 
-- `Budget`
 - `SavingsGoal`
 - `FinancialGoal`
 - `GoalContribution`
@@ -262,7 +263,7 @@ Schema database pada project ini cukup besar dan sudah mencerminkan aplikasi yan
 
 ### 8.5 Relasi data utama
 
-- Satu `User` memiliki banyak `Transaction`, `MessageLog`, `Budget`, `Asset`, `FinancialGoal`, dan `ReminderEvent`.
+- Satu `User` memiliki banyak `Transaction`, `MessageLog`, `ExpensePlan`, `Asset`, `FinancialGoal`, dan `ReminderEvent`.
 - `Transaction` terhubung ke `User`.
 - `MessageLog` dan `AIAnalysisLog` dipakai untuk jejak analisis percakapan.
 - `FinancialGoal` terhubung dengan `GoalContribution`.
@@ -346,7 +347,7 @@ Folder `apps/api/lib/services` dibagi per domain fitur. Ini merupakan struktur y
 
 - `ai`: integrasi Gemini, OCR, dan logging analisis
 - `assistant`: command parsing, routing, conversation memory, chat umum
-- `market`: harga market, valuasi portfolio, news
+- `market`: harga saham/emas, valuasi portfolio, news
 - `messaging`: outbound message dan formatting bot
 - `observability`: analytics intent/routing
 - `onboarding`: flow onboarding, parser, helper route, kalkulasi
@@ -392,13 +393,13 @@ Folder `apps/api/lib/services` dibagi per domain fitur. Ini merupakan struktur y
 ### 11.4 Alur reminder
 
 1. Worker bot menjadwalkan reminder sweep.
-2. API memeriksa kondisi budget, recurring expense, cashflow, goal, dan review periodik.
+2. API memeriksa kondisi budget kategori, recurring expense, cashflow, goal, dan review periodik.
 3. Reminder yang lolos filter cooldown/preference dimasukkan ke outbound queue.
 4. Worker bot mengirim pesan ke WhatsApp.
 
 ## 12. API dan Endpoint
 
-Pada sisi backend terdapat **28 route handler**.
+Pada sisi backend terdapat **26 route handler**.
 
 ### 12.1 Kelompok endpoint utama
 
@@ -566,5 +567,5 @@ Dari sisi teknis, project ini dibangun dengan kombinasi **TypeScript + Next.js +
 - **Testing:** Vitest
 - **Struktur:** monorepo `apps`, `packages`, `services`
 - **Komponen utama:** API, admin web, bot worker, reporting service
-- **Fitur utama:** transaksi, OCR struk, onboarding, budget, goal, aset, portfolio, market, news, report, reminder, admin monitoring
+- **Fitur utama:** transaksi, OCR struk, onboarding, budget kategori, goal, aset, portfolio saham/emas/kas/properti, market saham/emas, news, report, reminder, admin monitoring
 

@@ -10,7 +10,7 @@ describe("inbound formatters", () => {
       occurredAt: new Date("2026-04-03T15:38:46.096Z")
     });
 
-    expect(text).toContain("- Amount: Rp10.000");
+    expect(text).toContain("Rp10.000");
   });
 
   it("formats budget summaries as fixed rupiah", () => {
@@ -35,8 +35,8 @@ describe("inbound formatters", () => {
       occurredAt: new Date("2026-04-17T08:00:00.000Z")
     });
 
-    expect(text).toContain("- Tipe: SAVING ✅");
-    expect(text).toContain("- Category: Tabungan");
-    expect(text).toContain("- Merchant: Tabungan Pribadi");
+    expect(text).toContain("✅ Transaksi berhasil dicatat");
+    expect(text).toContain("Kategori: Tabungan");
+    expect(text).toContain("Tujuan: Tabungan Pribadi");
   });
 });

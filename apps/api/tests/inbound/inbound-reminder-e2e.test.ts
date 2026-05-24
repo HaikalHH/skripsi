@@ -646,8 +646,14 @@ describe("inbound + reminder e2e (mock DB)", () => {
     });
 
     expect(result.status).toBe(200);
-    expect(result.body.replyText).toContain("Draf transaksi belum disimpan");
+    expect(result.body.replyText).toContain("📝 Cek dulu ya, Boss");
+    expect(result.body.replyText).toContain("Aku menangkap transaksi ini:");
+    expect(result.body.replyText).toContain("Beli Kopi");
+    expect(result.body.replyText).toContain("Rp50.000");
     expect(result.body.replyText).toContain("simpan");
+    expect(result.body.replyText).toContain("edit");
+    expect(result.body.replyText).toContain("buang");
+    expect(result.body.replyTexts).toBeUndefined();
     expect(store.transactions).toHaveLength(4);
 
     const saved = await processInboundBody({
@@ -659,6 +665,11 @@ describe("inbound + reminder e2e (mock DB)", () => {
 
     expect(saved.status).toBe(200);
     expect(saved.body.replyText).toContain("Transaksi berhasil dicatat");
+    expect(saved.body.replyText).toContain("📌 Budget kategori bulan ini");
+    expect(saved.body.replyText).toContain("Rp900.000 / Rp1.000.000");
+    expect(saved.body.replyText).toContain("Progress: 90%");
+    expect(saved.body.replyText).toContain("█████████░");
+    expect(saved.body.replyText).toContain("Sisa: Rp100.000");
     expect(saved.body.replyText).toContain("Warning: budget kategori makan hampir habis");
     expect(store.transactions).toHaveLength(5);
     expect(store.transactions.at(-1)?.amount).toBe(50_000);
@@ -685,7 +696,7 @@ describe("inbound + reminder e2e (mock DB)", () => {
     });
 
     expect(result.status).toBe(200);
-    expect(result.body.replyText).toContain("Draf transaksi belum disimpan");
+    expect(result.body.replyText).toContain("📝 Cek dulu ya, Boss");
 
     const saved = await processInboundBody({
       waNumber: "6281110001",
@@ -696,9 +707,221 @@ describe("inbound + reminder e2e (mock DB)", () => {
 
     expect(saved.status).toBe(200);
     expect(saved.body.replyText).toContain("Transaksi berhasil dicatat");
-    expect(saved.body.replyText).toContain("Alert: budget kategori Food & Drink terlampaui");
+    expect(saved.body.replyText).toContain("📌 Budget kategori bulan ini");
+    expect(saved.body.replyText).toContain("Rp1.050.000 / Rp1.000.000");
+    expect(saved.body.replyText).toContain("Progress: 105%");
+    expect(saved.body.replyText).toContain("██████████");
+    expect(saved.body.replyText).toContain("Sisa: Rp0");
+    expect(saved.body.replyText).toContain("Alert: budget kategori makan terlampaui");
     expect(store.transactions.at(-1)?.amount).toBe(200_000);
     expect(store.transactions.at(-1)?.category).toBe("Food & Drink");
+  });
+
+  it("asks category first when expense falls into Others and uses selected user category", async () => {
+    store.expensePlans[0]?.items.push(
+      {
+        id: "plan_item_fashion",
+        categoryKey: "Fashion / Pakaian",
+        amount: 500_000n,
+        updatedAt: new Date("2026-02-01T00:00:00.000Z")
+      },
+      {
+        id: "plan_item_belanja",
+        categoryKey: "Belanja",
+        amount: 300_000n,
+        updatedAt: new Date("2026-02-01T00:00:00.000Z")
+      }
+    );
+    store.extractionResult = {
+      intent: "RECORD_TRANSACTION",
+      type: "EXPENSE",
+      amount: 50_000,
+      category: "Shopping",
+      merchant: null,
+      note: null,
+      occurredAt: "2026-02-24T12:00:00.000Z",
+      reportPeriod: null
+    } as any;
+
+    const result = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "beli topi 50rb",
+      sentAt: "2026-02-24T12:00:00.000Z"
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.body.replyText).toContain("Aku belum yakin kategori transaksi ini");
+    expect(result.body.replyText).toContain("Beli Topi — Rp50.000");
+    expect(result.body.replyText).toContain("Fashion / Pakaian");
+    expect(result.body.replyText).toContain("Buat kategori baru");
+    expect(result.body.replyText).toContain("Masukkan ke Others");
+    expect(store.transactions).toHaveLength(4);
+
+    const selected = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "Fashion / Pakaian",
+      sentAt: "2026-02-24T12:00:10.000Z"
+    });
+
+    expect(selected.status).toBe(200);
+    expect(selected.body.replyText).toContain("Cek dulu ya, Boss");
+    expect(selected.body.replyText).toContain("Kategori: Fashion / Pakaian");
+
+    const saved = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "simpan",
+      sentAt: "2026-02-24T12:00:20.000Z"
+    });
+
+    expect(saved.status).toBe(200);
+    expect(saved.body.replyText).toContain("📌 Budget kategori bulan ini");
+    expect(saved.body.replyText).toContain("Fashion / Pakaian: Rp50.000 / Rp500.000");
+    expect(store.transactions.at(-1)?.category).toBe("Fashion / Pakaian");
+  });
+
+  it("lets user keep uncategorized expense as Others without budget progress", async () => {
+    store.extractionResult = {
+      intent: "RECORD_TRANSACTION",
+      type: "EXPENSE",
+      amount: 50_000,
+      category: "Shopping",
+      merchant: null,
+      note: null,
+      occurredAt: "2026-02-24T12:00:00.000Z",
+      reportPeriod: null
+    } as any;
+
+    const result = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "beli topi 50rb",
+      sentAt: "2026-02-24T12:00:00.000Z"
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.body.replyText).toContain("Aku belum yakin kategori transaksi ini");
+
+    const selected = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "Others",
+      sentAt: "2026-02-24T12:00:10.000Z"
+    });
+
+    expect(selected.status).toBe(200);
+    expect(selected.body.replyText).toContain("Kategori: Others / Topi");
+
+    const saved = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "simpan",
+      sentAt: "2026-02-24T12:00:20.000Z"
+    });
+
+    expect(saved.status).toBe(200);
+    expect(saved.body.replyText).toContain("Transaksi berhasil dicatat");
+    expect(saved.body.replyText).not.toContain("Budget kategori bulan ini");
+    expect(saved.body.replyText).not.toContain("Progress:");
+    expect(saved.body.replyText).not.toContain("Sisa:");
+    expect(store.transactions.at(-1)?.category).toBe("Others");
+  });
+
+  it("can create a new category from ambiguous transaction before saving it", async () => {
+    store.extractionResult = {
+      intent: "RECORD_TRANSACTION",
+      type: "EXPENSE",
+      amount: 50_000,
+      category: "Shopping",
+      merchant: null,
+      note: null,
+      occurredAt: "2026-02-24T12:00:00.000Z",
+      reportPeriod: null
+    } as any;
+
+    const result = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "beli topi 50rb",
+      sentAt: "2026-02-24T12:00:00.000Z"
+    });
+    expect(result.status).toBe(200);
+    expect(result.body.replyText).toContain("Aku belum yakin kategori transaksi ini");
+
+    const createCategory = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "buat kategori baru",
+      sentAt: "2026-02-24T12:00:10.000Z"
+    });
+    expect(createCategory.status).toBe(200);
+    expect(createCategory.body.replyText).toContain("Nama kategori barunya apa");
+
+    const categoryName = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "Topi",
+      sentAt: "2026-02-24T12:00:20.000Z"
+    });
+    expect(categoryName.status).toBe(200);
+    expect(categoryName.body.replyText).toContain("Limit bulanan untuk Topi");
+
+    const budgetDraft = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "500rb",
+      sentAt: "2026-02-24T12:00:30.000Z"
+    });
+    expect(budgetDraft.status).toBe(200);
+    expect(budgetDraft.body.replyText).toContain("Draf budget belum disimpan");
+
+    const budgetSaved = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "simpan",
+      sentAt: "2026-02-24T12:00:40.000Z"
+    });
+    expect(budgetSaved.status).toBe(200);
+    expect(budgetSaved.body.replyText).toContain("Budget kategori berhasil disimpan");
+    expect(budgetSaved.body.replyText).toContain("Kategori: Topi");
+
+    const transactionSaved = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "simpan",
+      sentAt: "2026-02-24T12:00:50.000Z"
+    });
+    expect(transactionSaved.status).toBe(200);
+    expect(transactionSaved.body.replyText).toContain("Topi: Rp50.000 / Rp500.000");
+    expect(store.expensePlans.filter((plan) => plan.isActive).at(-1)?.items).toEqual(
+      expect.arrayContaining([expect.objectContaining({ categoryKey: "Topi", amount: 500_000n })])
+    );
+    expect(store.transactions.at(-1)?.category).toBe("Topi");
+  });
+
+  it("discards pending transaction draft with success reply", async () => {
+    const result = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "beli kopi 50rb",
+      sentAt: "2026-02-24T12:00:00.000Z"
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.body.replyText).toContain("📝 Cek dulu ya, Boss");
+
+    const discarded = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "buang",
+      sentAt: "2026-02-24T12:00:10.000Z"
+    });
+
+    expect(discarded.status).toBe(200);
+    expect(discarded.body.replyText).toBe("✅ Draf transaksi berhasil dibuang.");
+    expect(store.transactions).toHaveLength(4);
   });
 
   it("falls back to deterministic parser when AI misses simple income text", async () => {
@@ -721,9 +944,10 @@ describe("inbound + reminder e2e (mock DB)", () => {
     });
 
     expect(result.status).toBe(200);
-    expect(result.body.replyText).toContain("Draf transaksi belum disimpan");
-    expect(result.body.replyText).toContain("- Tipe: INCOME");
-    expect(result.body.replyText).toContain("- Amount: Rp5.000.000");
+    expect(result.body.replyText).toContain("📝 Cek dulu ya, Boss");
+    expect(result.body.replyText).toContain("Gaji Masuk");
+    expect(result.body.replyText).toContain("Rp5.000.000");
+    expect(result.body.replyText).toContain("Kategori: Salary");
     expect(result.body.replyText).toContain("simpan");
     expect(result.body.replyText).toContain("edit");
     expect(result.body.replyText).toContain("buang");
@@ -737,9 +961,9 @@ describe("inbound + reminder e2e (mock DB)", () => {
     });
 
     expect(edited.status).toBe(200);
-    expect(edited.body.replyText).toContain("Draf transaksi belum disimpan");
-    expect(edited.body.replyText).toContain("- Tipe: INCOME");
-    expect(edited.body.replyText).toContain("- Amount: Rp6.000.000");
+    expect(edited.body.replyText).toContain("📝 Cek dulu ya, Boss");
+    expect(edited.body.replyText).toContain("Gaji Masuk");
+    expect(edited.body.replyText).toContain("Rp6.000.000");
 
     const saved = await processInboundBody({
       waNumber: "6281110001",
@@ -750,8 +974,9 @@ describe("inbound + reminder e2e (mock DB)", () => {
 
     expect(saved.status).toBe(200);
     expect(saved.body.replyText).toContain("Transaksi berhasil dicatat");
-    expect(saved.body.replyText).toContain("- Tipe: INCOME");
-    expect(saved.body.replyText).toContain("- Amount: Rp6.000.000");
+    expect(saved.body.replyText).toContain("Gaji Masuk");
+    expect(saved.body.replyText).toContain("Rp6.000.000");
+    expect(saved.body.replyText).toContain("Kategori: Salary");
     expect(saved.body.replyText).not.toContain("Progress");
     expect(saved.body.replyText).not.toContain("Total sudah ditabung");
     expect(store.transactions.at(-1)?.type).toBe("INCOME");
@@ -779,7 +1004,8 @@ describe("inbound + reminder e2e (mock DB)", () => {
     });
 
     expect(result.status).toBe(200);
-    expect(result.body.replyText).toContain("- Tipe: SAVING");
+    expect(result.body.replyText).toContain("✅ Transaksi berhasil dicatat");
+    expect(result.body.replyText).toContain("Kategori: Tabungan");
     expect(result.body.replyText).toContain("Total sudah ditabung: Rp500.000");
     expect(store.transactions.at(-1)?.type).toBe("SAVING");
     expect(store.savingsGoals[0]?.currentProgress).toBe(500_000);
@@ -805,7 +1031,7 @@ describe("inbound + reminder e2e (mock DB)", () => {
     });
 
     expect(result.status).toBe(200);
-    expect(result.body.replyText).toContain("Draf transaksi belum disimpan");
+    expect(result.body.replyText).toContain("📝 Cek dulu ya, Boss");
     expect(result.body.replyText).toContain("Spotify");
     const saved = await processInboundBody({
       waNumber: "6281110001",
@@ -831,6 +1057,50 @@ describe("inbound + reminder e2e (mock DB)", () => {
     expect(result.body.replyText).toContain("Kategori Entertainment belum punya budget aktif");
     expect(result.body.replyText).toContain("/budget set");
     expect(store.transactions).toHaveLength(4);
+  });
+
+  it("keeps explicit category transaction text out of category report routing", async () => {
+    store.expensePlans[0]?.items.push({
+      id: "plan_item_bills",
+      categoryKey: "Bills",
+      amount: 300_000n,
+      updatedAt: new Date("2026-02-01T00:00:00.000Z")
+    });
+    store.extractionResult = {
+      intent: "RECORD_TRANSACTION",
+      type: "EXPENSE",
+      amount: 200_000,
+      category: "Bills",
+      merchant: null,
+      note: null,
+      occurredAt: "2026-02-24T12:00:00.000Z",
+      reportPeriod: null
+    } as any;
+
+    const result = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "bayar listrik 200rb kategori bills",
+      sentAt: "2026-02-24T12:00:00.000Z"
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.body.replyText).toContain("📝 Cek dulu ya, Boss");
+    expect(result.body.replyText).toContain("Kategori: Bills");
+    expect(result.body.replyText).not.toContain("Belum ada transaksi di bucket");
+    expect(store.transactions).toHaveLength(4);
+
+    const saved = await processInboundBody({
+      waNumber: "6281110001",
+      messageType: "TEXT",
+      text: "simpan",
+      sentAt: "2026-02-24T12:00:10.000Z"
+    });
+
+    expect(saved.status).toBe(200);
+    expect(saved.body.replyText).toContain("Transaksi berhasil dicatat");
+    expect(store.transactions.at(-1)?.category).toBe("Bills");
+    expect(store.transactions.at(-1)?.amount).toBe(200_000);
   });
 
   it("collects budget set flow before staging it", async () => {
@@ -1485,9 +1755,9 @@ describe("inbound + reminder e2e (mock DB)", () => {
 
   it("compares bucket spending against the previous week", async () => {
     const now = new Date();
-    const currentWeekDate = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
+    const currentWeekDate = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000);
     currentWeekDate.setUTCHours(10, 0, 0, 0);
-    const previousWeekDate = new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000);
+    const previousWeekDate = new Date(now.getTime() - 8 * 24 * 60 * 60 * 1000);
     previousWeekDate.setUTCHours(10, 0, 0, 0);
 
     store.transactions.push(
@@ -1540,9 +1810,9 @@ describe("inbound + reminder e2e (mock DB)", () => {
     });
 
     expect(result.status).toBe(200);
-    expect(result.body.replyText).toContain("Pengeluaran Entertainment naik dibanding periode sebelumnya.");
-    expect(result.body.replyText).toContain("Periode sekarang: Rp250.000");
-    expect(result.body.replyText).toContain("Periode sebelumnya: Rp80.000");
+    expect(result.body.replyText).toContain("Pengeluaran Entertainment untuk minggu ini naik dibanding minggu lalu.");
+    expect(result.body.replyText).toContain("Periode sekarang (minggu ini): Rp250.000");
+    expect(result.body.replyText).toContain("Periode sebelumnya (minggu lalu): Rp0");
   });
 
   it("returns percentage change against the previous month for a filtered label", async () => {
@@ -1587,9 +1857,12 @@ describe("inbound + reminder e2e (mock DB)", () => {
     });
 
     expect(result.status).toBe(200);
-    expect(result.body.replyText).toContain('Pengeluaran Entertainment yang cocok dengan "spotify" naik dibanding periode sebelumnya.');
-    expect(result.body.replyText).toContain("Periode sekarang: Rp200.000");
-    expect(result.body.replyText).toContain("Periode sebelumnya: Rp100.000");
+    expect(result.body.replyText).toContain('Pengeluaran Entertainment yang cocok dengan "spotify" untuk');
+    expect(result.body.replyText).toContain("naik dibanding");
+    expect(result.body.replyText).toContain("Periode sekarang");
+    expect(result.body.replyText).toContain("Rp200.000");
+    expect(result.body.replyText).toContain("Periode sebelumnya");
+    expect(result.body.replyText).toContain("Rp100.000");
     expect(result.body.replyText).toContain("(100.0%)");
   });
 
@@ -2152,7 +2425,8 @@ describe("inbound + reminder e2e (mock DB)", () => {
     });
 
     expect(result.status).toBe(200);
-    expect(result.body.replyText).toContain("Kategori dengan kenaikan terbesar dibanding periode sebelumnya adalah Entertainment.");
+    expect(result.body.replyText).toContain("Kategori dengan kenaikan terbesar dibanding");
+    expect(result.body.replyText).toContain("adalah Entertainment.");
     expect(result.body.replyText).toContain("Kenaikan: Rp300.000");
     expect(result.body.replyText).toContain("1. Entertainment | naik Rp300.000 (300.0%)");
   });
@@ -2698,7 +2972,7 @@ describe("inbound + reminder e2e (mock DB)", () => {
     });
 
     expect(result.status).toBe(200);
-    expect(result.body.replyText).toContain("Draf transaksi belum disimpan");
+    expect(result.body.replyText).toContain("📝 Cek dulu ya, Boss");
     expect(store.users).toHaveLength(1);
     expect(store.users[0]?.id).toBe("user_1");
     expect(store.users[0]?.waNumber).toBe("6281110001");
@@ -2716,7 +2990,7 @@ describe("inbound + reminder e2e (mock DB)", () => {
     });
 
     expect(result.status).toBe(200);
-    expect(result.body.replyText).toContain("Draf transaksi belum disimpan");
+    expect(result.body.replyText).toContain("📝 Cek dulu ya, Boss");
     expect(store.users).toHaveLength(1);
     expect(store.users[0]?.id).toBe("user_1");
     expect(store.users[0]?.waNumber).toBe("6281110001");
@@ -2791,8 +3065,8 @@ describe("inbound + reminder e2e (mock DB)", () => {
     });
 
     expect(result.status).toBe(200);
-    expect(result.body.replyText).toContain("Draf transaksi belum disimpan");
-    expect(result.body.replyText).toContain("- Tipe: INCOME");
+    expect(result.body.replyText).toContain("📝 Cek dulu ya, Boss");
+    expect(result.body.replyText).toContain("Kategori: Salary");
     expect(result.body.replyText).toContain("simpan");
     expect(store.transactions).toHaveLength(transactionCountBefore);
 

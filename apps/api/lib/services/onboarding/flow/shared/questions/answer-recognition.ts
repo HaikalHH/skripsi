@@ -65,22 +65,20 @@ export const BUDGET_MODE_INTENT_OPTIONS: FlexibleChoiceOption[] = BUDGET_MODE_OP
   aliases:
     option.value === BudgetMode.MANUAL_PLAN
       ? ["sudah punya", "udah punya", "sudah ada budget", "udah ada budget", "sudah ada alokasi", "punya perencanaan", "punya budgeting"]
-      : option.value === BudgetMode.GUIDED_PLAN
-        ? [
-            "bantu buat",
-            "dibantu buat",
-            "tolong buatin",
-            "bikinin budget",
-            "buatkan alokasi",
-            "belum punya tapi mau dibantu",
-            "bantu susun",
-            "bantu susunin",
-            "tolong susunin",
-            "susunin aja",
-            "belum ada bantu susunin",
-            "belum ada bantu susunin aja"
-          ]
-        : ["analisis otomatis", "analisa otomatis", "auto dari transaksi", "dari transaksi aja", "pelajari transaksi dulu", "nanti dari transaksi"]
+      : [
+          "bantu buat",
+          "dibantu buat",
+          "tolong buatin",
+          "bikinin budget",
+          "buatkan alokasi",
+          "belum punya tapi mau dibantu",
+          "bantu susun",
+          "bantu susunin",
+          "tolong susunin",
+          "susunin aja",
+          "belum ada bantu susunin",
+          "belum ada bantu susunin aja"
+        ]
 }));
 
 export const GOAL_INTENT_OPTIONS: FlexibleChoiceOption[] = GOAL_OPTIONS.map((option) => ({

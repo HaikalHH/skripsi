@@ -33,6 +33,11 @@ type HandleTextMessageInput = MessageContext & {
   text: string | undefined;
 };
 
+const shouldSkipSemanticNormalization = (text: string) => {
+  const { cleanedText } = extractForcedCategory(text);
+  return parseFallbackTransactionExtraction(cleanedText) !== null;
+};
+
 export const handleTextMessage = async (
   params: HandleTextMessageInput
 ): Promise<InboundHandlerResult> => {
@@ -182,48 +187,50 @@ export const handleTextMessage = async (
     });
   }
 
-  try {
-    const recentTurns = await loadRecentConversationTurns({
-      userId: params.userId,
-      currentMessageId: params.messageId,
-      limit: 6
-    });
-    const normalizedText = await canonicalizeSupportedFinanceMessage({
-      userMessage: effectiveText,
-      recentMessages: recentTurns.map((turn) => `${turn.role}: ${turn.text}`)
-    });
-    if (normalizedText && normalizedText.toLowerCase() !== effectiveText.toLowerCase()) {
-      const normalizedResult = await tryHandleStructuredText({
+  if (!shouldSkipSemanticNormalization(effectiveText)) {
+    try {
+      const recentTurns = await loadRecentConversationTurns({
         userId: params.userId,
-        messageId: params.messageId,
-        text: normalizedText
+        currentMessageId: params.messageId,
+        limit: 6
       });
-      if (normalizedResult) {
-        await createAIAnalysisLog({
+      const normalizedText = await canonicalizeSupportedFinanceMessage({
+        userMessage: effectiveText,
+        recentMessages: recentTurns.map((turn) => `${turn.role}: ${turn.text}`)
+      });
+      if (normalizedText && normalizedText.toLowerCase() !== effectiveText.toLowerCase()) {
+        const normalizedResult = await tryHandleStructuredText({
           userId: params.userId,
           messageId: params.messageId,
-          analysisType: AnalysisType.INTENT,
-          payload: {
-            source: "semantic_command_normalizer",
-            originalText: effectiveText,
-            normalizedText
-          }
+          text: normalizedText
         });
-        const normalizedRoute = routeGlobalTextContext(normalizedText);
-        return observeAndReturn(normalizedResult, {
-          commandKind: normalizedRoute.command.kind,
-          topModule: normalizedRoute.moduleOrder[0] ?? null,
-          moduleOrder: normalizedRoute.moduleOrder,
-          semanticNormalizedText: normalizedText,
-          handledBy:
-            normalizedRoute.command.kind !== "NONE"
-              ? `semantic:${normalizedRoute.command.kind}`
-              : `semantic:${normalizedRoute.moduleOrder[0] ?? "module"}`
-        });
+        if (normalizedResult) {
+          await createAIAnalysisLog({
+            userId: params.userId,
+            messageId: params.messageId,
+            analysisType: AnalysisType.INTENT,
+            payload: {
+              source: "semantic_command_normalizer",
+              originalText: effectiveText,
+              normalizedText
+            }
+          });
+          const normalizedRoute = routeGlobalTextContext(normalizedText);
+          return observeAndReturn(normalizedResult, {
+            commandKind: normalizedRoute.command.kind,
+            topModule: normalizedRoute.moduleOrder[0] ?? null,
+            moduleOrder: normalizedRoute.moduleOrder,
+            semanticNormalizedText: normalizedText,
+            handledBy:
+              normalizedRoute.command.kind !== "NONE"
+                ? `semantic:${normalizedRoute.command.kind}`
+                : `semantic:${normalizedRoute.moduleOrder[0] ?? "module"}`
+          });
+        }
       }
+    } catch (error) {
+      logger.warn({ err: error }, "Semantic command normalization failed");
     }
-  } catch (error) {
-    logger.warn({ err: error }, "Semantic command normalization failed");
   }
 
   const quickGeneralChat = await tryHandleGeneralChat({

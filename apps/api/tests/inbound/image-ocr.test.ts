@@ -240,7 +240,7 @@ describe("Image OCR Tests (TC-166 – TC-170)", () => {
 
         expect(result.status).toBe(200);
         expect(result.body.replyText).toContain("Transaksi berhasil dicatat");
-        expect(result.body.replyText).toContain("EXPENSE");
+        expect(result.body.replyText).toContain("Kategori: Food & Drink / Meals");
         expect(result.body.replyText).toContain("27.000");
         expect(store.transactions).toHaveLength(1);
         expect(store.transactions[0]?.amount).toBe(27000);

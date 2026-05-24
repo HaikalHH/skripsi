@@ -26,6 +26,7 @@ import {
   getMoneyAnswerLowerBound,
   parseMultiChoiceInput,
   parseGuidedOtherExpenseInput,
+  isManualExpenseBreakdownTooGeneric,
   parseManualExpenseBreakdown,
   parseManualExpenseBreakdownDetails,
   parseMonthYearInput,
@@ -74,6 +75,8 @@ describe("onboarding parser service", () => {
   it("parses guided budget mode from free text", () => {
     expect(parseBudgetMode("belum punya, tolong buatin aja")).toBe(BudgetMode.GUIDED_PLAN);
     expect(parseBudgetMode("belom puny, tolong buatin aja")).toBe(BudgetMode.GUIDED_PLAN);
+    expect(parseBudgetMode("lihat dari catatan transaksi bulan ini")).toBeNull();
+    expect(parseBudgetMode("3")).toBeNull();
   });
 
   it("parses goal and asset selections from context", () => {
@@ -360,6 +363,20 @@ describe("onboarding parser service", () => {
     });
   });
 
+  it("parses repeated category amount pairs without comma separators", () => {
+    expect(
+      parseManualExpenseBreakdown(
+        "makan 1jt transport 100rb belanja 1jt hiburan 500rb keluarga 300rb"
+      )
+    ).toEqual({
+      food: 1000000,
+      transport: 100000,
+      bills: 0,
+      entertainment: 500000,
+      others: 1300000
+    });
+  });
+
   it("maps unknown manual expense labels into others and does not require entertainment", () => {
     expect(
       parseManualExpenseBreakdown(
@@ -396,5 +413,33 @@ describe("onboarding parser service", () => {
       { label: "bpjs", amount: 200000, bucket: "bills" },
       { label: "sembako", amount: 900000, bucket: "food" }
     ]);
+  });
+
+  it("does not treat digits inside category labels as expense amounts", () => {
+    const raw =
+      "makan 1jt minum 200rb bayar pln 200rb indihome 200rb bensin motor 200rb bensin mobil 300rb jalan2 500rb";
+
+    expect(parseManualExpenseBreakdownDetails(raw)).toEqual([
+      { label: "makan", amount: 1000000, bucket: "food" },
+      { label: "minum", amount: 200000, bucket: "food" },
+      { label: "bayar pln", amount: 200000, bucket: "bills" },
+      { label: "indihome", amount: 200000, bucket: "bills" },
+      { label: "bensin motor", amount: 200000, bucket: "transport" },
+      { label: "bensin mobil", amount: 300000, bucket: "transport" },
+      { label: "jalan2", amount: 500000, bucket: "entertainment" }
+    ]);
+    expect(parseManualExpenseBreakdown(raw)).toEqual({
+      food: 1200000,
+      transport: 500000,
+      bills: 400000,
+      entertainment: 500000,
+      others: 0
+    });
+  });
+
+  it("detects generic total-only manual expense answers", () => {
+    expect(isManualExpenseBreakdownTooGeneric("pengeluaran saya sekitar 5 juta")).toBe(true);
+    expect(isManualExpenseBreakdownTooGeneric("keluarga 500rb")).toBe(false);
+    expect(isManualExpenseBreakdownTooGeneric("makan 1jt, transport 500rb")).toBe(false);
   });
 });

@@ -1,11 +1,15 @@
 import type { GeminiExtraction } from "@finance/shared";
 import { AnalysisType, TransactionSource } from "@prisma/client";
 import { createAIAnalysisLog } from "@/lib/services/ai/analysis-logs";
-import { checkBudgetAlert } from "@/lib/services/transactions/budget";
+import {
+  checkBudgetAlert,
+  getCategoryBudgetProgress
+} from "@/lib/services/transactions/budget";
 import { buildSavingsProgressUpdateText } from "@/lib/services/planning/savings-progress";
 import { checkUnusualExpenseAlert } from "@/lib/services/transactions/spending-anomaly";
 import { syncSavingTransactionGoalProgress } from "@/lib/services/planning/saving-transaction";
 import { createTransactionFromExtraction } from "@/lib/services/transactions/transaction";
+import { formatMoney } from "@/lib/services/shared/money";
 import { confirmTransactionText } from "../formatting/formatters";
 import { ok, type InboundHandlerResult } from "../shared/result";
 
@@ -16,6 +20,48 @@ type SaveTransactionAndBuildReplyParams = {
   rawText: string;
   analysisPayload?: unknown;
   forcedCategory?: string | null;
+};
+
+const BUDGET_PROGRESS_BAR_SEGMENTS = 10;
+const PERCENT_FORMATTER = new Intl.NumberFormat("id-ID", {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 1
+});
+
+const clampPercent = (value: number) =>
+  Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0));
+
+const buildProgressBar = (progressPercent: number) => {
+  const filledSegments = Math.round(
+    (clampPercent(progressPercent) / 100) * BUDGET_PROGRESS_BAR_SEGMENTS
+  );
+  return `${"█".repeat(filledSegments)}${"░".repeat(
+    BUDGET_PROGRESS_BAR_SEGMENTS - filledSegments
+  )}`;
+};
+
+const formatBudgetPercent = (value: number) => `${PERCENT_FORMATTER.format(value)}%`;
+
+const isUnbudgetedOthersCategory = (category: string | null | undefined) =>
+  category?.trim().toLowerCase() === "others";
+
+const buildCategoryBudgetProgressText = async (params: {
+  userId: string;
+  category: string;
+  occurredAt: Date;
+}) => {
+  const progress = await getCategoryBudgetProgress(params);
+  if (!progress) return null;
+
+  return [
+    "📌 Budget kategori bulan ini",
+    `${progress.category}: ${formatMoney(progress.spentThisMonth)} / ${formatMoney(
+      progress.monthlyLimit
+    )}`,
+    `Sisa: ${formatMoney(progress.remainingThisMonth)}`,
+    `Progress: ${formatBudgetPercent(progress.usagePercent)}`,
+    buildProgressBar(progress.usagePercent)
+  ].join("\n");
 };
 
 export const saveTransactionAndBuildReply = async (
@@ -51,8 +97,16 @@ export const saveTransactionAndBuildReply = async (
 
   const amountNumber = Number(transaction.amount);
   const alertText =
-    transaction.type === "EXPENSE"
+    transaction.type === "EXPENSE" && !isUnbudgetedOthersCategory(transaction.category)
       ? await checkBudgetAlert(params.userId, transaction.category, transaction.occurredAt)
+      : null;
+  const categoryBudgetProgressText =
+    transaction.type === "EXPENSE" && !isUnbudgetedOthersCategory(transaction.category)
+      ? await buildCategoryBudgetProgressText({
+          userId: params.userId,
+          category: transaction.category,
+          occurredAt: transaction.occurredAt
+        })
       : null;
   const goalProgressText = goalStatus
     ? await buildSavingsProgressUpdateText({
@@ -79,15 +133,18 @@ export const saveTransactionAndBuildReply = async (
       category: transaction.category,
       detailTag: transaction.detailTag ?? null,
       occurredAt: transaction.occurredAt,
-      merchant: transaction.merchant
+      merchant: transaction.merchant,
+      note: transaction.note,
+      rawText: params.rawText
     }),
     categoryOverrideText,
+    categoryBudgetProgressText,
     alertText,
     anomalyText,
     goalProgressText
   ]
     .filter(Boolean)
-    .join("\n");
+    .join("\n\n");
 
   return ok({ replyText });
 };

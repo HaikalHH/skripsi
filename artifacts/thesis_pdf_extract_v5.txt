@@ -1,0 +1,5792 @@
+
+
+===== PAGE 1 =====
+ 
+1 
+=-DEVELOPMENT OF A WHATSAPP-BASED FINANCIAL ASSISTANT WITH AI 
+INTEGRATION (NLP AND OCR) FOR AUTOMATED FINANCIAL RECORD-
+KEEPING AND ANALYSIS 
+ 
+ 
+Haikal Hamizan Hazmi 
+ 
+Defara Putra Nurimaba 
+ 
+Felisha Levana 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Computer Science 
+Computer Science Study Program 
+School of Computer Science 
+Universitas Bina Nusantara 
+Bandung 
+ 
+ 
+OUTLINE SKRIPSI NON KELAS/ARTIKEL ILMIAH 
+
+
+
+===== PAGE 2 =====
+ 
+2 
+PENGEMBANGAN ASISTEN KEUANGAN BERBASIS WHATSAPP DENGAN 
+INTEGRASI AI (NLP DAN OCR) UNTUK OTOMATISASI PENCATATAN DAN 
+ANALISIS KEUANGAN 
+ 
+DEVELOPMENT OF A WHATSAPP-BASED FINANCIAL ASSISTANT WITH AI 
+INTEGRATION (NLP AND OCR) FOR AUTOMATED FINANCIAL RECORD-
+KEEPING AND ANALYSIS 
+ 
+Topik: Application Development 
+ 
+2602182556/HaikalHamizan Hazmi/Computer Science/081275167471 
+2602208486/Defara Putra Nurimaba/Computer Science/085183066469 
+2602150182/Felisha Levana/Computer Science/087748874494 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Computer Science 
+Computer Science Study Program 
+School of Computer Science 
+Universitas Bina Nusantara 
+Bandung 
+2025 
+ 
+
+
+
+===== PAGE 3 =====
+ 
+3 
+UNIVERSITAS BINA NUSANTARA 
+ 
+Computer Science Study Program 
+School of Computer Science 
+Skripsi Sarjana Teknik Informatika 
+ 
+PENGEMBANGAN ASISTEN KEUANGAN BERBASIS WHATSAPP 
+DENGAN INTEGRASI AI (NLP DAN OCR) UNTUK OTOMATISASI 
+PENCATATAN DAN ANALISIS KEUANGAN 
+HaikalHamizan Hazmi 2602182556 
+Defara Putra Nurimaba 2602208486 
+Felisha Levana 2602150182 
+ 
+ABSTRAK 
+Penelitian ini bertujuan mengembangkan asisten keuangan personal berbasis chatbot 
+WhatsApp yang memanfaatkan teknologi Artificial Intelligence, khususnya Natural Language 
+Processing (NLP) dan Optical Character Recognition (OCR), untuk mengotomatisasi 
+pencatatan dan analisis keuangan. Sistem memungkinkan pengguna mencatat transaksi 
+pemasukan dan pengeluaran melalui pesan teks maupun gambar struk tanpa perlu menginstal 
+aplikasi tambahan, di mana NLP digunakan untuk mengekstraksi informasi dari pesan tidak 
+terstruktur dan OCR untuk memproses data dari gambar bukti transaksi. Data yang dihasilkan 
+disimpan dan dianalisis untuk menghasilkan laporan, visualisasi grafik, serta insight keuangan 
+yang dikirimkan langsung kepada pengguna melalui WhatsApp. Metode pengembangan yang 
+digunakan adalah Kanban dengan pendekatan iteratif, dan hasil penelitian menunjukkan bahwa 
+sistem mampu mengurangi friksi input (masukan) manual, meningkatkan kemudahan 
+pencatatan transaksi, serta menyajikan laporan dan insight keuangan secara r eal-time melalui 
+platform (wadah sistem) yang telah menjadi bagian dari kebiasaan pengguna sehari-hari. 
+Kata kunci: asisten keuangan, WhatsApp chatbot, NLP, OCR, artificial intelligence, pencatatan 
+keuangan. 
+ 
+
+
+===== PAGE 4 =====
+ 
+4 
+ABSTRACT 
+This research aims to develop a WhatsApp -based personal financial assistant chatbot that 
+leverages Artificial Intelligence technologies, specifically Natural Language Processing (NLP) 
+and Optical Character Recognition (OCR), to automate financial record-keeping and analysis. 
+The system enables users to record income and expense transactions through text messages or 
+receipt images without installing additional applications, where NLP is used to extract 
+structured information from unstructured text and OCR pr ocesses transaction data from 
+images. The extracted data is stored and analyzed to generate financial reports, visualizations, 
+and insights delivered directly to users via WhatsApp. Developed using the Kanban method 
+with an iterative approach, the results indicate that the system reduces manual input friction, 
+improves transaction recording convenience, and delivers real -time financial reports and 
+insights through a platform aligned with users’ daily communication habits. 
+Keywords: personal finance assistant, WhatsApp chatbot, NLP, OCR, artificial intelligence, 
+financial record-keeping 
+  
+
+
+===== PAGE 5 =====
+ 
+5 
+KATA PENGANTAR 
+Puji dan syukur penulis panjatkan ke hadirat Tuhan Yang Maha Esa atas rahmat dan karunia -
+Nya, sehingga tesis yang berjudul “Pengembangan Asisten Keuangan Berbasis WhatsApp 
+dengan Integrasi AI (NLP dan OCR) untuk Otomatisasi Pencatatan dan Analisis Keuangan  
+dapat diselesaikan dengan baik. 
+Tesis ini disusun sebagai salah satu persyaratan untuk memperoleh gelar Sarjana Komputer 
+pada Program Studi Computer Science, Faculty of School of Computer Science, Universitas 
+Bina Nusantara Bandung. Penelitian ini bertujuan untuk mengembangkan sistem asi sten 
+keuangan personal yang memanfaatkan platform WhatsApp sebagai media utama pencatatan 
+transaksi, dengan dukungan teknologi Artificial Intelligence, khususnya Natural Language 
+Processing (NLP) dan Optical Character Recognition (OCR), guna mempermudah pencatatan 
+keuangan, meningkatkan konsistensi pengguna, serta menyajikan laporan dan keuangan. 
+Penulis menyadari bahwa penyusunan tesis ini tidak terlepas dari bantuan, bimbingan, serta 
+dukungan dari berbagai pihak. Oleh karena itu, penulis ingin menyampaikan ucapan terima 
+kasih yang sebesar-besarnya kepada: 
+1. Dr. Nelly, S.Kom., M.M., CSCA. selaku Rektor Universitas Bina Nusantara yang telah 
+memberikan kesempatan dan fasilitas untuk menempuh pendidikan. 
+2. Prof. Dr. Ir. Derwin Suhartono, S.Kom., M.T.I. selaku Dean Faculty of School of 
+Computer Science yang telah memberikan dukungan akademik dan fasilitas penelitian. 
+3. Dr. Dany Eka Saputra, S.T., M.T. selaku Head of Study Program Computer Science 
+yang telah memberikan arahan dan dukungan dalam proses akademik. 
+4. Soni Yora, S.Kom, M.Kom. selaku dosen pembimbing yang telah memberikan 
+bimbingan, arahan, serta masukan yang sangat berharga selama proses penyusunan 
+tesis ini. 
+Seluruh dosen dan staf pengajar Program Studi Computer Science Universitas Bina Nusantara 
+Bandung yang telah memberikan ilmu pengetahuan dan pengalaman berharga selama masa 
+perkuliahan. Orang tua dan keluarga yang senantiasa memberikan doa, dukungan moral,  dan 
+motivasi yang tiada henti. Rekan -rekan mahasiswa dan sahabat yang telah memberikan 
+semangat, bantuan, dan kerja sama selama proses penelitian. Semua pihak yang tidak dapat 
+disebutkan satu per satu yang telah membantu dalam penyelesaian tesis ini. 
+Penulis menyadari bahwa tesis ini masih memiliki keterbatasan dan belum sepenuhnya 
+sempurna. Oleh karena itu, penulis mengharapkan kritik dan saran yang membangun untuk 
+perbaikan di masa mendatang. Penulis berharap tesis ini dapat memberikan manfaat dan 
+kontribusi bagi pengembangan teknologi informasi, khususnya dalam penerapan kecerdasan 
+buatan pada sistem pengelolaan keuangan personal berbasis conversational interface  di 
+Indonesia. 
+Bandung, 22 Desember 2025  
+Tim Penulis 
+
+
+===== PAGE 6 =====
+ 
+6 
+DAFTAR ISI 
+DAFTAR ISI ............................................................................................................................. vi 
+BAB I PENDAHULUAN .......................................................................................................... 8  
+   1.1 Latar Belakang .................................................................................................................. 8 
+   1.2 Rumusan Masalah ........................................................................................................... 11 
+   1.3 Ruang Lingkup................................................................................................................ 11 
+   1.4 Tujuan dan Manfaat ........................................................................................................ 13 
+   1.5 Metodologi Penelitian ..................................................................................................... 14 
+         1.5.1 Pengumpulan Data ................................................................................................. 14 
+         1.5.2 Metode Pengembangan .......................................................................................... 15 
+BAB II TINJAUAN REFERENSI........................................................................................... 18 
+   2.1 Landasan Teori................................................................................................................ 18 
+         2.1.1 Teknologi Pesan Instan .......................................................................................... 18 
+            2.1.1.1 Pengertian Instant Messaging .......................................................................... 18 
+            2.1.1.2 WhatsApp sebagai Platform Komunikasi ........................................................ 18 
+         2.1.2 Teknologi Pengembangan Sistem .......................................................................... 18 
+            2.1.2.1 TypeScript ........................................................................................................ 18 
+            2.1.2.2 Python .............................................................................................................. 19 
+            2.1.2.3 Runtime Backend: Node.js .............................................................................. 19 
+            2.1.2.4 WhatsApp Integration: Baileys ........................................................................ 20 
+            2.1.2.5 Google Gemini API ......................................................................................... 21 
+            2.1.2.6 Google Cloud Vision API ................................................................................ 22 
+            2.1.2.7 ORM: Prisma ................................................................................................... 24 
+         2.1.3 Database Management System .............................................................................. 25 
+            2.1.3.1 Pengertian Database ......................................................................................... 25 
+            2.1.3.2 Database Management System (DBMS) ......................................................... 25 
+            2.1.3.3 MySQL ............................................................................................................ 25 
+            2.1.3.4 Entity Relationship Diagram (ERD) ................................................................ 26 
+         2.1.4 Metodologi Pengembangan Perangkat Lunak ....................................................... 27 
+            2.1.4.1 Software Development Life Cycle (SDLC) ..................................................... 27 
+            2.1.4.2 Kanban ............................................................................................................. 27 
+         2.1.5 Keamanan Aplikasi ................................................................................................ 28 
+            2.1.5.1 Autentikasi dan Otorisasi ................................................................................. 28 
+
+
+===== PAGE 7 =====
+ 
+7 
+            2.1.5.2 Keamanan Data ................................................................................................ 29 
+         2.1.6 Chatbot ................................................................................................................... 29 
+            2.1.6.1 Pengertian Chatbot ........................................................................................... 29 
+            2.1.6.2 Chatbot pada Platform WhatsApp ................................................................... 30 
+         2.1.7 Natural Language Processing (NLP) ..................................................................... 30 
+            2.1.7.1 Pengertian NLP ................................................................................................ 30 
+            2.1.7.2 Pendekatan AI-Based NLP .............................................................................. 30 
+         2.1.8 Optical Character Recognition (OCR) ................................................................... 31 
+            2.1.8.1 Pengertian OCR ............................................................................................... 31 
+            2.1.8.2 OCR dalam Sistem Keuangan ......................................................................... 31 
+   2.2 Perbandingan System Financial Tugas Sejenisnya ......................................................... 32 
+BAB III METODE PENELITIAN .......................................................................................... 34 
+   3.1 Kerangka Berpikir ........................................................................................................... 34 
+   3.2 List Pertanyaan Interview ............................................................................................... 35 
+   3.3 Perancangan .................................................................................................................... 36 
+         3.3.1 Software Design Document ................................................................................... 36 
+         3.3.2 Perancangan Sistem ............................................................................................... 39 
+            3.3.2.1 Entity Relationship Diagram (ERD) ................................................................ 39 
+BAB IV HASIL DAN PEMBAHASAN ................................................................................. 48 
+DAFTAR PUSTAKA .............................................................................................................. 48 
+ 
+ 
+  
+
+
+===== PAGE 8 =====
+ 
+1 
+BAB I  
+PENDAHULUAN 
+ 
+1.1.  LATAR BELAKANG 
+Pengelolaan keuangan pribadi menjadi salah satu aspek penting dalam menjaga kestabilan 
+ekonomi individu, terutama di tengah tuntutan hidup modern yang semakin kompleks dan 
+biaya konsumsi yang cenderung tidak stabil. Kemampuan mengatur pemasukan dan 
+pengeluaran bukan hanya berdampak pada kondisi keuangan saat ini, tetapi juga berpengaruh 
+besar terhadap kesiapan seseorang dalam menghadapi risiko finansial di masa mendatang. 
+Namun, pada kenyataannya, masih banyak masyarakat Indonesia yang menghadapi kesulitan 
+mendasar dalam mencatat dan mengelola keuangan secara konsisten. 
+ 
+Masalah yang paling sering muncul adalah pencatatan arus kas yang tidak teratur. Banyak 
+individu tidak membiasakan diri mencatat transaksi harian, seperti belanja kebutuhan pokok, 
+biaya transportasi, langganan layanan digital, hingga pengeluaran kecil sepe rti membeli 
+makanan ringan. Padahal, jika dikumpulkan, transaksi -transaksi kecil tersebut dapat 
+memberikan dampak yang cukup besar terhadap kondisi keuangan bulanan. Pencatatan 
+manual, baik menggunakan buku catatan maupun aplikasi sederhana, sering diangga p 
+merepotkan, membutuhkan kesadaran tinggi, serta sulit dipertahankan dalam jangka panjang. 
+Akibatnya, tidak sedikit orang yang hanya mencatat transaksi di awal penggunaan, lalu 
+berhenti karena merasa repot, lupa, atau tidak langsung merasakan manfaatnya. 
+ 
+Situasi ini semakin diperkuat  oleh rendahnya tingkat literasi keuangan masyarakat. 
+Berdasarkan Survei Nasional Literasi dan Inklusi Keuangan (SNLIK) yang dilakukan oleh 
+OJK, meskipun tingkat inklusi keuangan di Indonesia telah mencapai 88,55%, tingkat literasi 
+keuangan masih berada di sekitar 49,50 %. Hal ini menunjukkan bahwa hampir setengah 
+masyarakat Indonesia belum memahami konsep dasar terkait pengelolaan risiko, pengaturan 
+arus kas, maupun  perencanaan keuangan. Rendahnya pemahaman tersebut membuat  banyak 
+individu kesulitan menilai  dan mengevaluasi pola pengeluaran mereka sendiri, sehingga 
+pengendalian keuangan menjadi tidak optimal.  Data dari Asian Development Bank (ADB) 
+tahun 2023 juga memperkuat kondisi ini dengan mencatat bahwa lebih dari 60% masyarakat 
+Indonesia tidak memiliki catatan arus kas bulanan. 
+ 
+
+
+===== PAGE 9 =====
+ 
+2 
+Solusi teknologi aplikasi manajemen keuangan banyak yang tersedia, namun tingkat adaptasi 
+dan retensi pengguna terhadap aplikasi tersebut sering kali  rendah. Mayoritas   aplikasi 
+menuntut proses yang panjang,  mulai dari navigasi menu yang kompleks, dan mengisi input 
+data secara manual setiap kali melakukan transaksi. Kompleksitas antarmuka pengguna (User 
+Interface) dan pengalaman pengguna ( User Experience ) yang tidak intuitif sering menjadi 
+banyak kendala utama pengguna berhenti melakukan pencatatan  keuangan setelah beberapa 
+waktu .  
+ 
+Hambatan utama bukan pada ketiadaan aplikasi, melainkan pada friksi input manual yang 
+meningkatkan beban pengguna. Ketika proses pencatatan terasa merepotkan, retensi 
+penggunaan menurun dan data keuangan menjadi tidak lengkap untuk dianalisis. 
+ 
+Akibatnya, data keuangan yang dihasilkan menjadi kurang akurat dan tidak dapat dimanfaatkan 
+secara optimal sebagai dasar pengambilan keputusan. Untuk mengatasi kendala tersebut, 
+dibutuhkan pendekatan yang lebih selaras dengan aktivitas sehari -hari pengguna. Salah satu 
+platform komunikasi yang memiliki peran sangat dominan di Indonesia adalah WhatsApp, 
+yang menempati posisi teratas dalam kategori aplikasi sosial dengan tingkat penggunaan yang 
+tinggi. 
+ 
+Berdasarkan laporan We Are Social tahun 2024, WhatsApp menjadi aplikasi yang paling sering 
+diakses oleh masyarakat Indonesia dengan durasi penggunaan harian yang cukup besar [3]. 
+Kondisi ini menunjukkan bahwa WhatsApp telah menjadi bagian dari kebiasaan ko munikasi 
+masyarakat, baik dalam kehidupan pribadi, aktivitas pekerjaan, maupun keperluan bisnis. 
+ 
+Pemanfaatan platform chat untuk keperluan finansial kini dimungkinkan berkat kemajuan 
+teknologi Artificial Intelligence  (AI). Khususnya Natural Language Processing  (NLP). 
+Teknologi tersebut memungkinkan sistem komputer memahami, mengekstraksi informasi dari 
+bahasa manusia yang tidak berstruktur. Dengan NLP, chat sederhana seperti  “Beli Kopi 25K” 
+dapat diolah secara otomatis oleh AI: sistem mengenali “Beli Kopi” dikategorikan pengeluaran 
+dan “25k” adalah nominal transaksi yang dikeluarkan [4]. Kemampuan tersebut 
+memungkinkan sistem tidak hanya mencatat, tetapi juga memberikan wawasan, laporan, dan 
+saran atau rekomendasi finansial secara otomatis tanpa proses yang manual dan rumit dari 
+pengguna (User). 
+ 
+
+
+===== PAGE 10 =====
+ 
+3 
+Namun, tidak semua transaksi tercatat dalam bentuk teks. Banyak dokumen finansial pengguna 
+yang berbentuk gambar, misalnya: 
+• Foto struk belanja supermarket 
+• Screenshot pembayaran digital 
+• Nota manual warung 
+• Bukti transfer bank 
+• Invoice sederhana 
+ 
+Untuk menangani kebutuhan ini, teknologi Optical Character Recognition (OCR) menjadi 
+krusial. OCR memungkinkan komputer membaca tulisan dalam gambar dan mengubahnya 
+menjadi teks yang bisa diproses lebih lanjut. Dengan OCR, sistem dapat mengenali elemen -
+elemen transaksi seperti total belanja, tanggal, nama toko, atau item belanja. Integrasi OCR 
+dan NLP menciptakan sistem pencatatan keuangan yang lebih kuat karena mampu memahami 
+baik teks chat maupun bukti visual transaksi. 
+ 
+Walaupun beberapa solusi serupa telah muncul di luar negeri, termasuk chatbot finansial di 
+Telegram atau aplikasi finansial yang menawarkan fitur pemindai struk, sebagian besar solusi 
+tersebut belum terintegrasi dengan WhatsApp, dan banyak di antaranya tidak menggabungkan 
+NLP dan OCR secara bersamaan. Di Indonesia sendiri, penerapan AI pada platform WhatsApp 
+masih sangat terbatas, terutama pada domain pencatatan keuangan personal. Belum banyak 
+penelitian yang mengkaji integrasi WhatsApp + NLP + OCR + sistem pelaporan dan 
+monitoring (pemantauan) keuangan sebagai satu kesatuan sistem pengelolaan keuangan 
+otomatis. Di sinilah terdapat gap penelitian yang penting. 
+ 
+Berdasarkan permasalahan dan peluang yang telah diuraikan sebelumnya, solusi yang 
+dikembangkan diharapkan mampu: 
+1. Menyediakan sistem pencatatan keuangan otomatis yang selaras dengan kebiasaan 
+komunikasi sehari-hari pengguna. 
+2. Mengurangi kebutuhan input manual yang selama ini menjadi salah satu penyebab 
+rendahnya tingkat keberlanjutan penggunaan aplikasi keuangan. 
+3. Mengintegrasikan teknologi Natural Language Processing (NLP) dan Optical Character 
+Recognition (OCR) agar transaksi dapat dicatat dari berbagai format, baik teks maupun 
+gambar. 
+
+
+===== PAGE 11 =====
+ 
+4 
+4. Menyajikan visualisasi laporan keuangan (misalnya grafik pemasukan, pengeluaran, 
+dan kategori transaksi) yang dikirimkan langsung kepada pengguna melalui WhatsApp. 
+Penelitian ini berfokus pada pengembangan asisten keuangan berbasis kecerdasan 
+buatan yang memanfaatkan teknologi NLP dan OCR, dengan WhatsApp digunakan 
+sebagai media pencatatan transaksi sekaligus penyampaian laporan/visualisasi 
+keuangan (mis. grafik) secara langsung, sedangkan web berbasis Next.js digunakan 
+khusus untuk panel administrasi. Deng an demikian, pengguna tidak perlu mengakses 
+dashboard web untuk melihat laporan karena ringkasan dan visualisasi dikirim melalui 
+WhatsApp. Sistem yang dikembangkan dirancang untuk mendukung pencatatan secara 
+real-time, melakukan ekstraksi data secara otomatis, serta menyajikan visualisasi dan 
+insight terkait pola pengeluaran pengguna. Melalui pendekatan yang sederhana, natural, 
+dan memanfaat kan teknologi terkini, penelitian ini diharapkan dapat memberikan 
+kontribusi nyata dalam meningkatkan literasi keuanga n dan kedisiplinan finansial 
+masyarakat. 
+ 
+1.2. RUMUSAN MASALAH 
+a. Bagaimana merancang dan mengembangkan chatbot berbasis WhatsApp yang mampu 
+menerima input transaksi dalam bentuk teks maupun gambar sebagai media pencatatan 
+keuangan? 
+b. Bagaimana penerapan teknologi Natural Language Processing (NLP) dilakukan untuk 
+mengenali, mengekstraksi, serta mengklasifikasikan informasi transaksi dari pesan teks 
+yang bersifat tidak terstruktur? 
+c. Bagaimana teknologi Optical Character Recognition (OCR) dapat diintegrasikan untuk 
+mengekstraksi informasi transaksi dari gambar, seperti struk belanja atau bukti 
+pembayaran? 
+d. Bagaimana merancang sistem penyimpanan data dan mekanisme pelaporan yang 
+mampu menyajikan riwayat transaksi, ringkasan laporan keuangan, serta analisis 
+keuangan (budgeting kategori, target tabungan, dan tujuan finansial), dengan 
+penyampaian laporan melalui  WhatsApp serta panel web khusus admin untuk 
+pengelolaan sistem? 
+e. Bagaimana mekanisme yang diterapkan untuk menjaga  keamanan dan privasi data 
+pengguna selama  proses pengiriman dan penyimpanan data transaksi melalui 
+WhatsApp? 
+ 
+
+
+===== PAGE 12 =====
+ 
+5 
+ 
+1.3  RUANG LINGKUP 
+Penelitian ini mencakup pengembangan chatbot berbasis WhatsApp yang dirancang 
+untuk memproses input transaksi dalam bentuk teks dan gambar dengan memanfaatkan 
+teknologi NLP dan OCR. Sistem yang dibangun mendukung pencatatan transaksi secara 
+otomatis, pengelolaan dan penyimpanan data, penyajian laporan transaksi, analisis arus kas, 
+budgeting berdasarkan kategori, perencanaan target keuangan, serta pengelolaan aset dan 
+portfolio dasar seperti tabungan, emas, saham, crypto, reksa dana, dan properti. Selain itu, 
+sistem juga menyediakan rekomendasi dan insight keuangan berdasarkan analisis pola 
+pengeluaran dan komposisi aset pengguna. 
+1. Lingkup kajian 
+Ruang lingkup penelitian ini meliputi pengembangan chatbot berbasis WhatsApp 
+yang dirancang untuk memproses input transaksi dalam bentuk teks dan gambar dengan 
+memanfaatkan teknologi NLP dan OCR, sehingga sistem mampu mengenali serta 
+mengelola data transak si secara otomatis. Penelitian juga mencakup perancangan 
+sistem backend, analisis keuangan otomatis, pengelolaan aset dan portfolio dasar, serta 
+integrasi dengan Baileys (WhatsApp API) sebagai antarmuka utama pengguna. 
+2. Limitasi penelitian 
+a. Sistem rekomendasi keuangan bersifat sederhana, berbasis AI dengan parser 
+deterministik sebagai fallback dan routing. 
+b. Perencanaan dan pengelolaan keuangan pada sistem terbatas pada: 
+• Budgeting kategori 
+• Progress target tabungan 
+• Insight pencapaian tujuan finansial 
+• Pencatatan dan valuasi sederhana aset/portfolio 
+• Analisis komposisi aset dan risiko dasar 
+c. Pengelolaan portfolio pada sistem tidak mencakup eksekusi transaksi jual -beli 
+investasi, integrasi broker atau exchange, perhitungan pajak investasi, maupun 
+rekomendasi investasi profesional. 
+d. Visualisasi dan laporan keuangan untuk pengguna dikirim melalui WhatsApp 
+dalam bentuk ringkasan teks, gambar grafik (misalnya pemasukan, pengeluaran, 
+kategori, progres tujuan, dan komposisi aset), serta file PDF untuk laporan periodik 
+tertentu. Panel web hanya digunakan oleh admin untuk monitoring sistem. 
+
+
+===== PAGE 13 =====
+ 
+6 
+e. Data yang diproses adalah teks WhatsApp dan gambar struk/screenshot transaksi. 
+ 
+3. Kelompok pengguna 
+ 
+Gambar 1.1 Profil Pengguna 
+Target pengguna sistem ini adalah individu yang ingin mengelola keuangan pribadi 
+secara praktis melalui WhatsApp tanpa perlu menginstal aplikasi tambahan. Sistem 
+ditujukan bagi pengguna yang membutuhkan pencatatan otomatis, laporan sederhana, 
+dan rekomendasi keuangan yang mudah dipahami. 
+ 
+1.4.  TUJUAN DAN MANFAAT 
+Tujuan 
+
+
+
+===== PAGE 14 =====
+ 
+7 
+a. Mengembangkan chatbot berbasis WhatsApp yang mampu menerima dan memproses 
+pesan transaksi dari pengguna. 
+b. Menerapkan teknologi AI, khususnya NLP dan OCR, untuk mengekstraksi informasi 
+transaksi secara otomatis. 
+c. Menyediakan fitur rekomendasi finansial yang dapat membantu pengguna dalam 
+mengelola keuangan sehari-hari. 
+d. Menghasilkan laporan dan visualisasi keuangan (grafik pemasukan, pengeluaran, dan 
+kategori transaksi) secara periodik maupun real-time yang disampaikan kepada 
+pengguna melalui WhatsApp, serta menyediakan panel web khusus admin untuk 
+pengelolaan sistem. 
+e. Mengembangkan fitur budgeting, perencanaan target keuangan, serta insight terkait 
+pencapaian tujuan finansial pengguna. 
+f. Menghasilkan rekomendasi finansial sederhana berdasarkan analisis pola transaksi 
+pengguna. 
+g. Menjamin keamanan dan privasi data pengguna pada seluruh proses pengolahan dan 
+penyimpanan data. 
+Manfaat 
+a. Pengguna 
+• Mempermudah pencatatan keuangan tanpa aplikasi tambahan. 
+• Memberikan analisis pengeluaran secara otomatis. 
+• Membantu memahami kondisi keuangan dan mencapai target finansial. 
+b. Peneliti 
+• Menjadi studi pengembangan AI untuk analisis keuangan berbasis pesan. 
+• Kontribusi pada teknologi chatbot dalam konteks literasi keuangan. 
+c. Akademik 
+• Menjadi referensi pengembangan sistem keuangan berbasis conversational 
+interface. 
+• Memberikan contoh implementasi NLP dan OCR dalam domain fintech 
+sederhana. 
+ 
+1.5.  METODOLOGI PENELITIAN 
+1.5.1 Pengumpulan Data 
+
+
+===== PAGE 15 =====
+ 
+8 
+Pengumpulan data dalam penelitian ini dilakukan melalui studi literatur yang 
+mendalam terkait pengembangan chatbot, pemrosesan bahasa alami (NLP), serta 
+teknologi Optical Character Recognition (OCR). Sumber literatur  yang digunakan 
+meliputi jurnal ilmiah, prosiding konferensi, artikel penelitian, serta dokumentasi 
+resmi, baik  dari Baileys(Whatsapp API) maupun berbagai  library NLP dan layanan 
+OCR yang relevan. 
+ 
+Kajian literatur difokuskan pada: 
+• pemanfaatan AI dalam pencatatan keuangan, 
+• teknik ekstraksi data transaksi dari teks dan gambar, 
+• pendekatan analisis keuangan otomatis, 
+• praktik terbaik dalam integrasi API, backend, dan antarmuka pengguna. 
+Studi ini menjadi landasan dalam merancang arsitektur sistem serta menentukan 
+pendekatan implementasi yang tepat. 
+ 
+1.5.2 Metode Pengembangan 
+Kanban digunakan sebagai metode pengelolaan pekerjaan pengembangan (task 
+management), sementara proses pengembangan dilakukan secara bertahap dan iteratif 
+hingga seluruh modul utama terintegrasi . Kanban dipilih karena memungkinkan 
+pengembangan sistem dilakukan secara bertahap dan berkelanjutan, serta memberikan 
+fleksibilitas tinggi dalam menyesuaikan fitur berdasarkan hasil pengujian pada setiap 
+tahap pengembangan.  Pendekatan ini memungkinkan sistem dikembangkan secara 
+fleksibel dan terus disempurnakan. Tahapan pengembangan yang dilakukan meliputi: 
+1. Analisis Kebutuhan 
+• Tahap ini bertujuan untuk mengidentifikasi kebutuhan sistem, yang 
+mencakup penerimaan pesan melalui WhatsApp, pemrosesan input teks dan 
+gambar, penyimpanan data transaksi, analisis keuangan dasar, serta 
+penyajian laporan. 
+• Analisis kebutuhan dilakukan dengan mengacu pada studi literatur, 
+karakteristik pengguna, serta fitur-fitur inti yang dirancang dalam sistem. 
+2. Perancangan Sistem 
+
+
+===== PAGE 16 =====
+ 
+9 
+• Pada tahap perancangan, disusun arsitektur sistem yang meliputi modul 
+chatbot WhatsApp, modul NLP, modul OCR, backend server, basis data, 
+dan panel web khusus admin. 
+• Selain itu, dirancang alur data yang menggambarkan proses mulai dari input 
+transaksi oleh pengguna hingga keluaran berupa laporan transaksi dan 
+analisis keuangan. 
+3. Implementasi 
+• Tahap implementasi dilakukan dengan mengembangkan modul NLP untuk 
+mengekstraksi informasi transaksi dari pesan teks. 
+• Selanjutnya, modul OCR diimplementasikan untuk membaca data transaksi 
+dari gambar, seperti foto struk belanja atau tangkapan layar pembayaran. 
+• Backend dikembangkan untuk mengolah dan menyimpan data transaksi, 
+sedangkan modul pelaporan menghasilkan ringkasan dan visualisasi 
+keuangan yang dikirimkan kepada pengguna melalui WhatsApp. Panel web 
+dibangun khusus untuk kebutuhan administrasi sistem. 
+4. Integrasi Sistem 
+• Pada tahap ini, seluruh komponen sistem diintegrasikan agar dapat berjalan 
+secara terpadu. 
+• Integrasi dilakukan dengan menghubungkan Baileys (Whatsapp API) 
+dengan backend sistem. 
+• Modul NLP dan OCR diintegrasikan dengan sistem penyimpanan data. 
+• Panel web admin dihubungkan dengan backend untuk kebutuhan 
+monitoring dan pengelolaan sistem, sementara data transaksi pengguna 
+disajikan dalam bentuk laporan dan visualisasi yang dikirimkan melalui 
+WhatsApp. 
+5. Pengujian 
+• Pengujian dilakukan untuk memastikan setiap komponen sistem berfungsi 
+sesuai dengan kebutuhan. 
+• Pengujian mencakup pengujian fungsional terhadap chatbot, modul NLP, 
+modul OCR, serta panel web admin. 
+• Selain itu, dilakukan pengujian alur sistem secara menyeluruh, mulai dari 
+pengiriman pesan melalui WhatsApp hingga terbentuknya laporan 
+
+
+===== PAGE 17 =====
+ 
+10 
+transaksi, serta penilaian terhadap ketepatan hasil ekstraksi data dan 
+keandalan proses sistem. 
+ 
+ 
+6. Evaluasi 
+• Tahap evaluasi dilakukan untuk menilai kinerja sistem secara keseluruhan, 
+termasuk akurasi pemrosesan data, stabilitas sistem, serta kemudahan 
+penggunaan. 
+• Hasil evaluasi digunakan sebagai dasar untuk melakukan perbaikan dan 
+penyempurnaan sistem pada tahap pengembangan selanjutnya. 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+
+===== PAGE 18 =====
+ 
+11 
+BAB II  
+TINJAUAN REFERENSI 
+2.1.  LANDASAN TEORI 
+Bab ini membahas teori dan konsep yang menjadi dasar pengembangan Asisten Keuangan 
+Berbasis WhatsApp dengan integrasi Artificial Intelligence  (NLP dan OCR). Teori yang 
+disajikan mencakup teknologi chatbot, konsep dasar Natural Language Processing, teknologi 
+Optical Character Recognition, arsitektur backend dan penyimpanan data, keamanan sistem, 
+hingga perbandingan dengan sistem sejenis yang telah ada di pasaran. 
+ 
+2.1.1. Teknologi Pesan Instan 
+2.1.1.1 Pengertian Instant Messaging 
+Instant Messaging (IM) adalah layanan komunikasi digital yang memungkinkan pertukaran 
+pesan real-time antar pengguna melalui jaringan internet (Tanenbaum & Wetherall, 2011). 
+Platform IM berkembang menjadi media utama komunikasi karena aksesibilitas tinggi,  
+kemudahan penggunaan, dan integrasi multimedia. 
+ 
+2.1.1.2 WhatsApp sebagai Platform Komunikasi 
+WhatsApp merupakan aplikasi pesan instan paling populer di Indonesia. Menurut We Are 
+Social (2024), WhatsApp termasuk aplikasi yang paling sering diakses harian oleh masyarakat 
+Indonesia. 
+ Keunggulan WhatsApp antara lain: 
+1. Real-time messaging 
+2. Dukungan teks, gambar, dokumen, dan audio 
+3. Tingkat adopsi tinggi di semua umur 
+4. Kemudahan integrasi melalui Baileys (WhatsApp Web API) 
+Karena tingginya retensi pengguna, WhatsApp menjadi platform ideal untuk pencatatan 
+keuangan otomatis. 
+ 
+ 
+ 
+ 
+
+
+===== PAGE 19 =====
+ 
+12 
+2.1.2 Teknologi Pengembangan Sistem 
+2.1.2.1 TypeScript 
+TypeScript adalah bahasa pemrograman open -source yang dikembangkan oleh Microsoft 
+sebagai superset dari JavaScript. TypeScript menambahkan sistem tipe statis opsional ke 
+JavaScript, yang memungkinkan pengembang untuk mendeteksi kesalahan lebih awal dalam 
+proses pengembangan dan meningkatkan kualitas kode. 
+TypeScript dikompilasi menjadi JavaScript biasa dan dapat berjalan di berbagai environment 
+yang mendukung JavaScript. Dengan adanya fitur seperti type checking, interfaces, generics, 
+dan enums, TypeScript membuat pengembangan aplikasi skala besar menjadi lebih terstruktur 
+dan mudah dipelihara. TypeScript juga menyediakan IntelliSense dan autocomplete yang lebih 
+baik di editor kode, meningkatkan produktivitas pengembang secara signifikan. 
+2.1.2.2 Python 
+Python merupakan bahasa pemrograman tingkat tinggi yang banyak digunakan dalam 
+pengolahan data dan visualisasi karena sintaksnya yang sederhana serta dukungan pustaka yang 
+luas. Dalam pengembangan sistem ini, Python digunakan sebagai komponen backend 
+pendukung (reporting service) untuk menghasilkan laporan keuangan dalam bentuk visualisasi 
+grafik dan dokumen PDF yang dikirimkan kepada pengguna melalui platform WhatsApp. 
+Service Python dibangun menggunakan framework FastAPI untuk menyediakan 
+endpoint HTTP API yang digunakan backend utama dalam proses rendering laporan. Python 
+memanfaatkan pustaka visualisasi data seperti Matplotlib untuk membangun grafik 
+pengeluaran, pemas ukan, distribusi kategori transaksi, serta tren arus kas secara periodik. 
+Grafik dan laporan tersebut kemudian diekspor dalam format gambar (PNG) maupun dokumen 
+PDF agar dapat dikirimkan langsung melalui WhatsApp. 
+Pada arsitektur sistem ini, proses pengolahan data utama tetap dilakukan oleh backend 
+berbasis Node.js/Next.js. Backend mengambil data transaksi dari database MySQL melalui 
+Prisma ORM, kemudian menyusun payload laporan dalam format JSON dan mengirimkannya 
+ke service FastAPI melalui HTTP API. Service Python hanya bertanggung jawab untuk 
+melakukan proses rendering visualisasi dan menghasilkan file laporan berdasarkan data yang 
+diterima. 
+Pendekatan ini mendukung tujuan sistem untuk meminimalkan friksi pengguna dengan 
+menghilangkan kebutuhan pengguna akhir mengakses dashboard web secara langsung, 
+sekaligus tetap menyajikan informasi keuangan dalam bentuk yang mudah dipahami. Selain 
+itu, pem isahan reporting service berbasis Python dari backend utama membuat arsitektur 
+sistem menjadi lebih modular, terisolasi, dan mudah dikembangkan maupun dipelihara. 
+
+
+===== PAGE 20 =====
+ 
+13 
+Dengan demikian, Python berperan sebagai teknologi pendukung yang menghasilkan 
+visualisasi laporan berdasarkan data yang dikirimkan oleh backend utama sebelum hasil 
+akhirnya didistribusikan kepada pengguna melalui chatbot WhatsApp. 
+2.1.2.3 Runtime Backend: Node.js 
+Node.js adalah runtime environment JavaScript yang dibangun di atas V8 JavaScript 
+engine milik Google Chrome, yang memungkinkan eksekusi kode JavaScript di sisi server 
+(Tilkov & Vinoski, 2010). Node.js menggunakan arsitektur event-driven dan non-blocking I/O 
+yang menjadikannya sangat efisien untuk aplikasi yang membutuhkan pemrosesan real -time 
+dan komunikasi intensif, seperti sistem chatbot berbasis WhatsApp. 
+Karakteristik utama Node.js yang relevan dengan sistem ini meliputi: 
+• Event-Driven Architecture - Node.js menggunakan event loop yang memungkinkan 
+penanganan ribuan koneksi secara bersamaan tanpa memerlukan thread tambahan, 
+sangat cocok untuk aplikasi chatbot yang harus menangani banyak pesan masuk secara 
+simultan. 
+• Non-Blocking I/O - Operasi input/output seperti pembacaan database, pemanggilan 
+API eksternal (Gemini, Cloud Vision), dan pengiriman pesan WhatsApp dilakukan 
+secara asynchronous, sehingga server tidak perlu menunggu satu operasi selesai 
+sebelum memproses operasi lainnya. 
+• NPM Ecosystem - Node Package Manager (NPM) menyediakan akses ke jutaan library 
+open-source yang mempercepat pengembangan, termasuk library untuk integrasi 
+WhatsApp (Baileys), database ORM (Prisma), dan client untuk berbagai API. 
+• Single Language Stack  - Menggunakan JavaScript/TypeScript di seluruh stack 
+pengembangan (backend, scripting, automation) meningkatkan konsistensi kode dan 
+mengurangi context switching bagi developer. 
+Dalam sistem ini, Node.js berfungsi sebagai runtime utama yang menjalankan layanan 
+backend, mengelola koneksi WebSocket untuk WhatsApp melalui Baileys, melakukan 
+orchestration antara berbagai services (NLP, OCR, database), dan menangani business logic 
+untuk pencatatan serta analisis transaksi keuangan. 
+ 
+2.1.2.4. WhatsApp Integration: Baileys 
+Baileys adalah library open -source berbasis Node.js yang menyediakan implementasi 
+lengkap dari WhatsApp Web API, memungkinkan aplikasi untuk berinteraksi dengan 
+WhatsApp tanpa menggunakan WhatsApp Business API resmi yang berbayar (Adhami, 2021). 
+
+
+===== PAGE 21 =====
+ 
+14 
+Baileys bekerja dengan mensimulasikan koneksi WhatsApp Web melalui WebSocket, 
+sehingga dapat menerima dan mengirim pesan layaknya client WhatsApp Web pada browser. 
+Baileys dipilih dalam pengembangan sistem ini karena beberapa keunggulan teknis: 
+• Multi-Device Support  - Baileys mendukung protokol multi -device WhatsApp yang 
+memungkinkan satu nomor WhatsApp terhubung ke beberapa perangkat secara 
+bersamaan tanpa memutus koneksi perangkat utama. 
+• Message Handling  - Baileys mampu menerima berbagai tipe pesan termasuk teks 
+biasa, gambar, dokumen, dan audio, yang sangat penting untuk sistem yang harus 
+memproses bukti transaksi dalam bentuk foto struk. 
+• Real-time Processing  - Baileys bekerja secara event -driven sehingga sistem dapat 
+langsung merespons pesan masuk tanpa polling atau delay, memberikan pengalaman 
+chatbot yang responsif. 
+• Session Management - Baileys menyediakan mekanisme penyimpanan session (auth 
+state) yang memungkinkan bot tetap terhubung bahkan setelah restart server, 
+mengurangi kebutuhan untuk scan QR code berulang kali. 
+• Media Download  - Baileys dapat mengunduh media yang dikirim pengguna (foto 
+struk, screenshot) dan menyimpannya sebagai buffer atau file untuk diproses lebih 
+lanjut oleh layanan OCR. 
+Dalam arsitektur sistem, Baileys bertindak sebagai message gateway yang menjembatani 
+komunikasi antara pengguna di WhatsApp dengan backend processing engine. Setiap pesan 
+yang masuk dari pengguna akan di-handle oleh event listener Baileys, kemudian diteruskan ke 
+modul NLP/OCR untuk ekstraksi informasi, dan akhirnya hasil pemrosesan dikirim kembali 
+ke pengguna melalui Baileys. 
+2.1.2.5 Google Gemini API 
+Google Gemini adalah model AI multimodal generasi terbaru dari Google yang mampu 
+memahami dan memproses berbagai jenis input seperti teks, gambar, audio, dan video (Google 
+DeepMind, 2023). Gemini dikembangkan sebagai successor dari model PaLM dengan 
+kemampuan reasoning dan pemahaman konteks yang lebih baik, serta integrasi native dengan 
+ekosistem Google Cloud. Dalam sistem ini, Google Gemini API digunakan untuk dua fungsi 
+utama: 
+ 
+ 
+
+
+===== PAGE 22 =====
+ 
+15 
+Natural Language Processing (NLP) 
+Gemini digunakan untuk mengekstraksi informasi terstruktur dari pesan teks pengguna yang 
+bersifat tidak terstruktur. Ketika pengguna mengirim pesan seperti "Beli kopi 25 ribu di 
+Starbucks tadi pagi", Gemini melakukan: 
+• Entity Extraction: mengidentifikasi nominal transaksi (25.000), merchant (Starbucks), 
+kategori (Food & Beverage), dan waktu transaksi (pagi) 
+• Intent Classification : menentukan apakah pesan merupakan pencatatan transaksi, 
+pertanyaan saldo, permintaan laporan, atau percakapan umum 
+• Context Understanding: memahami variasi bahasa natural Indonesia termasuk bahasa 
+gaul, typo, dan singkatan yang umum digunakan 
+ 
+AI Financial Analysis 
+Gemini digunakan untuk menghasilkan insight dan analisis keuangan dari data transaksi 
+yang tersimpan. Sistem melakukan analisis terhadap pola pengeluaran (identifikasi kategori 
+boros, pengeluaran rutin vs impulsif), tren temporal (awal bulan vs akhir bulan ), dan rasio 
+keuangan (income vs expense, kebutuhan vs keinginan). 
+Sistem menghasilkan empat tipe insight: deskriptif (menjelaskan kondisi saat ini), 
+diagnostik (mengidentifikasi penyebab masalah), preskriptif (memberikan rekomendasi), dan 
+prediktif opsional (memproyeksikan kondisi masa depan). Gemini juga memungkinkan 
+interaksi conversational dimana pengguna dapat mengajukan pertanyaan dalam bahasa natural 
+seperti "Keuangan aku sehat ga?" atau "Aman ga beli HP bulan ini?" dan sistem akan 
+memberikan jawaban berdasarkan analisis data keuangan pengguna. 
+Gemini API diakses melalui REST endpoint dengan autentikasi menggunakan API key 
+yang disimpan secara aman di environment variables. Respons dari Gemini berupa JSON yang 
+berisi extracted entities untuk pencatatan transaksi, atau teks analisis untuk fitur in sight 
+keuangan. Penggunaan Gemini memungkinkan sistem untuk terus belajar dan beradaptasi 
+dengan variasi input pengguna tanpa perlu training model custom yang memerlukan dataset 
+besar dan computational resources tinggi. 
+2.1.2.6. Google Cloud Vision API 
+Google Cloud Vision API adalah layanan machine learning dari Google Cloud Platform 
+yang menyediakan kemampuan computer vision untuk menganalisis konten visual (Google 
+Cloud, 2023). Cloud Vision API dapat melakukan berbagai tugas seperti optical character 
+recognition (OCR), deteksi objek, face detection, dan content moderation. 
+
+
+===== PAGE 23 =====
+ 
+16 
+Dalam sistem ini, Google Cloud Vision API secara spesifik digunakan untuk fungsi OCR 
+(Optical Character Recognition)  guna mengekstraksi teks dari gambar struk belanja atau 
+bukti transaksi yang dikirim pengguna melalui WhatsApp. Proses OCR melibatkan beberapa 
+tahapan: 
+Image Preprocessing 
+Sebelum dikirim ke Cloud Vision API, gambar yang diterima dari Baileys dapat dioptimasi 
+terlebih dahulu untuk meningkatkan akurasi OCR, seperti: 
+• Konversi format gambar ke format yang didukung (JPEG, PNG) 
+• Kompresi ukuran file jika diperlukan untuk efisiensi bandwidth 
+• Encoding gambar ke base64 untuk dikirim via REST API 
+Text Detection 
+Cloud Vision API menyediakan beberapa mode deteksi teks: 
+• TEXT_DETECTION: mendeteksi dan mengekstrak teks dalam gambar dengan 
+berbagai orientasi 
+• DOCUMENT_TEXT_DETECTION: dioptimasi untuk dokumen yang padat teks 
+seperti struk belanja, invoice, atau bukti transfer 
+API akan mengembalikan hasil berupa: 
+• Teks lengkap yang terdeteksi dalam gambar 
+• Bounding box coordinates untuk setiap kata atau blok teks 
+• Confidence score yang menunjukkan tingkat keyakinan hasil deteksi 
+Information Extraction 
+Setelah mendapatkan raw text dari Cloud Vision, sistem melakukan post -processing untuk 
+mengekstrak informasi relevan: 
+• Nominal transaksi : menggunakan regex pattern untuk mendeteksi format angka 
+dengan pemisah ribuan 
+• Tanggal transaksi: mendeteksi format tanggal Indonesia atau format umum lainnya 
+• Merchant name: mengidentifikasi nama toko biasanya di bagian header struk 
+• Payment method: mendeteksi keyword seperti "CASH", "DEBIT", "QRIS", "Gopay", 
+dll. 
+Integration dengan NLP 
+Hasil OCR dari Cloud Vision kemudian dapat diperkaya dengan Gemini API untuk: 
+• Validasi dan normalisasi data yang diekstrak 
+• Klasifikasi kategori transaksi berdasarkan item-item yang terdeteksi di struk 
+
+
+===== PAGE 24 =====
+ 
+17 
+• Handling edge cases seperti struk yang blur, terpotong, atau format tidak standar 
+Cloud Vision API diakses melalui Google Cloud SDK dengan autentikasi 
+menggunakan service account credentials. Penggunaan Cloud Vision API dipilih 
+karena akurasi OCR yang tinggi untuk bahasa Indonesia, kemampuan menangani 
+berbagai kualitas gambar, dan integ rasi yang seamless dengan Gemini API dalam 
+ekosistem Google Cloud yang sama. 
+ 
+2.1.2.7. ORM: Prisma 
+Prisma adalah Object-Relational Mapping (ORM) modern yang dirancang khusus untuk 
+TypeScript dan Node.js. Prisma menyediakan cara yang type -safe dan intuitif untuk 
+berinteraksi dengan database, dengan dukungan untuk berbagai database MySQL, SQLite, 
+SQL Server, dan MongoDB. 
+Prisma terdiri dari tiga komponen utama: Prisma Client (auto -generated query builder 
+yang type-safe), Prisma Migrate (sistem migrasi database deklaratif), dan Prisma Studio (GUI 
+untuk melihat dan mengedit data dalam database). Dengan Prisma Schema, pengembang dapat 
+mendefinisikan model data secara deklaratif, dan Prisma akan menghasilkan client yang fully-
+typed yang memberikan autocomplete dan type safety penuh. 
+Beberapa keunggulan Prisma meliputi: 
+1. Type Safety - Prisma Client yang auto-generated menyediakan type safety penuh dari 
+database hingga aplikasi. 
+2. Prisma Schema  - Cara deklaratif dan mudah dibaca untuk mendefinisikan model 
+database. 
+3. Migrations - Sistem migrasi yang aman dan dapat di-track untuk perubahan database. 
+4. Prisma Studio  - Visual database editor untuk melihat dan mengedit data dengan 
+mudah. 
+5. Query Optimization  - Prisma mengoptimalkan query secara otomatis dan 
+menyediakan relation loading yang efisien. 
+ 
+2.1.3. Database Management System 
+2.1.3.1. Pengertian Database 
+Database merupakan sekumpulan data yang saling terhubung secara logis dan dapat 
+digunakan bersama -sama, beserta deskripsi data tersebut yang dirancang untuk memenuhi 
+
+
+===== PAGE 25 =====
+ 
+18 
+kebutuhan informasi suatu organisasi (Connolly dan Begg, 2002). Database juga dapat 
+didefinisikan sebagai kumpulan terintegrasi dari elemen-elemen data yang memiliki hubungan 
+logis satu sama lain (O'Brien, 2003). 
+Database menyimpan data secara terstruktur, sehingga memungkinkan proses 
+pengambilan dan manipulasi data dilakukan dengan efisien. Dalam konteks aplikasi berbasis 
+web, database berfungsi menyimpan seluruh informasi yang dibutuhkan oleh aplikasi, seperti 
+data pengguna, daftar tugas, jadwal kegiatan, dan berbagai informasi lainnya yang relevan. 
+2.1.3.2. Database Management System (DBMS) 
+DBMS adalah sistem perangkat lunak yang memberikan kemampuan kepada pengguna 
+untuk mendefinisikan, membuat, memelihara, dan mengendalikan akses terhadap database 
+(Connolly dan Begg, 2002). DBMS merupakan sekumpulan program komputer yang 
+mengelola proses pembuatan, pemeliharaan, dan penggunaan database dalam suatu organisasi 
+beserta para penggunanya (O'Brien, 2003). 
+Secara khusus, DBMS menyediakan fasilitas-fasilitas berikut: 
+• Memberikan kemampuan kepada pengguna untuk mendefinisikan struktur database, 
+umumnya melalui Data Definition Language (DDL). 
+• Memberikan kemampuan kepada pengguna untuk melakukan operasi insert, update, 
+delete, dan retrieve terhadap database, umumnya melalui Data Manipulation Language 
+(DML). 
+• Menyediakan mekanisme kontrol akses terhadap database untuk menjaga keamanan 
+dan integritas data. 
+2.1.3.3. MySQL 
+MySQL adalah Relational Database Management System (RDBMS) open -source yang 
+menggunakan Structured Query Language (SQL) sebagai bahasa utama dalam pengelolaan 
+data. MySQL dikenal sebagai salah satu RDBMS paling populer di dunia karena sifatnya yang 
+cepat, stabil, dan efisien dalam menangani data terstruktur (SILBERSCHATZ et al., 2019). 
+Karakteristik MySQL sebagai RDBMS meliputi: 
+• Model Relasional: data disimpan dalam tabel yang saling terhubung melalui primary 
+key dan foreign key. 
+• ACID Compliance : mendukung transaksi yang memenuhi sifat Atomicity, 
+Consistency, Isolation, dan Durability, terutama dengan engine InnoDB. 
+
+
+===== PAGE 26 =====
+ 
+19 
+• Indexing: meningkatkan efisiensi pencarian data melalui indeks pada kolom tertentu. 
+• Stored Procedures & Triggers : menyediakan kemampuan pemrosesan data bawaan 
+pada database. 
+• Multi-user & concurrent access : mendukung akses banyak pengguna secara 
+bersamaan. 
+Secara umum, MySQL digunakan dalam berbagai aplikasi web modern karena kinerjanya 
+yang stabil dan kemudahannya untuk diintegrasikan dengan teknologi backend. 
+2.1.3.4. Entity Relationship Diagram (ERD) 
+Entity Relationship Diagram (ERD) merupakan model data yang memanfaatkan notasi 
+grafis untuk menggambarkan struktur dari sebuah basis data relasional. Ramakrishnan dan 
+Gehrke (2016) menyatakan bahwa ERD adalah model yang banyak digunakan untuk 
+perancangan konseptual karena menyediakan konstruksi yang ekspresif dan sejalan dengan 
+cara manusia memahami aplikasi yang mereka kembangkan. ERD dikembangkan berdasarkan 
+prinsip dasar yang diperkenalkan oleh Codd (1970) dalam penelitiannya di IBM Research, 
+yang menge mukakan bahwa dunia terdiri dari individu/entitas dan hubungan/relasi yang 
+terbentuk di antara mereka. Konsep ini selanjutnya diadopsi dalam pengembangan model 
+Entity-Relationship yang kemudian menjadi standar dalam perancangan database secara 
+konseptual. 
+ERD terdiri dari komponen-komponen utama yaitu entitas, atribut, dan hubungan. Entitas 
+adalah objek di dunia nyata yang dapat dibedakan dari objek lain dan digambarkan 
+menggunakan sekumpulan atribut, sementara himpunan entitas adalah kumpulan dari entitas -
+entitas yang memiliki karakteristik sejenis (Elmasri dan Navathe, 2016). Hubungan 
+menggambarkan asosiasi atau keterkaitan antara dua entitas atau lebih dengan berbagai tipe 
+kardinalitas: one -to-one (1:1), one -to-many (1:M), many -to-one (M:1), dan many -to-many 
+(M:M). Dalam pemodelan ERD, konsep "Has -A" relationship merupakan tipe hubungan 
+mendasar yang menggambarkan kepemilikan atau komposisi di antara entitas, seperti 
+Organization has Division atau Division has User, yang memiliki perbedaan dengan "Is -A" 
+relationship yang menunjukkan konsep spesialisasi atau pewarisan sifat (Ramakrishnan dan 
+Gehrke, 2016). 
+
+
+===== PAGE 27 =====
+ 
+20 
+2.1.4. Metodologi Pengembangan Perangkat Lunak 
+2.1.4.1. Software Development Life Cycle (SDLC) 
+Software Development Life Cycle (SDLC) merupakan pendekatan sistematis yang 
+digunakan dalam pengembangan perangkat lunak dengan tujuan menyelesaikan proyek sesuai 
+dengan waktu yang telah ditentukan sambil mempertahankan standar kualitas produk yang 
+tinggi (Mishra dan Dubey, 2013). SDLC memiliki beberapa fase fundamental, meskipun 
+implementasi spesifiknya dapat bervariasi tergantung pada metodologi yang diterapkan. 
+Fase-fase umum dalam SDLC meliputi: 
+1. Perencanaan - Menentukan cakupan, sasaran, timeline, dan perkiraan anggaran 
+proyek. 
+2. Analisis - Mengidentifikasi kebutuhan pengguna dan persyaratan sistem. 
+3. Desain - Merancang arsitektur sistem, antarmuka pengguna, dan komponen-komponen 
+lainnya. 
+4. Implementasi - Membangun dan mengkodekan sistem berdasarkan rancangan yang 
+telah dibuat. 
+5. Pengujian - Melakukan testing sistem untuk menemukan dan memperbaiki bug atau 
+permasalahan. 
+6. Deployment - Meluncurkan sistem ke lingkungan produksi. 
+7. Pemeliharaan - Memperbaiki permasalahan dan meningkatkan fungsionalitas sistem 
+setelah diluncurkan. 
+2.1.4.2. Kanban 
+Kanban adalah metode untuk mengelola proses penciptaan produk dengan penekanan 
+pada pengiriman berkelanjutan tanpa membebani tim pengembangan secara berlebihan. Seperti 
+halnya Scrum, Kanban adalah proses yang dirancang untuk membantu tim berkolaborasi 
+dengan lebih efektif. 
+Kanban dibangun berdasarkan 3 prinsip fundamental: 
+1. Visualisasikan pekerjaan Anda  - Membuat representasi visual dari proses kerja 
+sehingga dapat dipantau dengan mudah. 
+2. Batasi jumlah pekerjaan yang sedang berlangsung (Work in Progress/WIP)  - 
+Membatasi berapa banyak item yang dapat dikerjakan secara bersamaan pada setiap 
+tahap proses. 
+3. Tingkatkan aliran kerja 
+
+
+===== PAGE 28 =====
+ 
+21 
+Ketika kapasitas tersedia, tarik item berikutnya dari daftar antrian.  Palle (2020) 
+mengemukakan bahwa Kanban menawarkan fleksibilitas yang lebih tinggi 
+dibandingkan dengan metode Agile lainnya seperti Scrum, karena tidak mewajibkan 
+adanya iterasi tetap (Sprint). Kanban lebih berfokus pada visualisasi alur kerja dan 
+pembatasan pekerjaan yang sedang berlangsung, yang sangat sesuai untuk tim 
+berukuran kecil dengan prioritas yang dinamis.  Dalam konteks pengembangan sistem 
+manajemen organisasi, Kanban dapat menjadi pilihan yang optimal karena: 
+• Ukuran Tim  - Dengan hanya 3 pengembang, Kanban menawarkan beban 
+administratif yang lebih rendah dibandingkan dengan metodologi lainnya. 
+• Visualisasi Proses  - Memudahkan pemantauan kemajuan dan identifikasi 
+hambatan dalam alur kerja. 
+• Fleksibilitas - Memungkinkan perubahan prioritas sesuai kebutuhan tanpa 
+mengganggu ritme pengembangan. 
+• Fokus pada Kualitas  - Dengan membatasi WIP, tim dapat berkonsentrasi pada 
+penyelesaian satu item dengan kualitas tinggi sebelum beralih ke item selanjutnya. 
+2.1.5. Keamanan Aplikasi 
+2.1.5.1 Autentikasi dan Otorisasi 
+Autentikasi pengguna pada sistem ini dilakukan secara implisit berdasarkan identitas 
+nomor WhatsApp pengirim pesan. Setiap pesan yang diterima oleh sistem melalui WhatsApp 
+bot mengandung metadata pengirim yang bersifat unik dan telah diverifikasi oleh platform 
+WhatsApp. Nomor WhatsApp tersebut digunakan sebagai identitas utama pengguna dalam 
+sistem. 
+Ketika pengguna pertama kali berinteraksi dengan bot, sistem akan melakukan proses 
+pencatatan otomatis (auto -registration) dengan membuat data pengguna baru di database 
+apabila nomor WhatsApp belum terdaftar. Pendekatan ini menghilangkan kebutuhan login 
+manual menggunakan username dan kata sandi, sehingga menurunkan friksi penggunaan dan 
+meningkatkan konsistensi pencatatan transaksi keuangan harian. 
+Otorisasi pada sistem diterapkan melalui pembatasan akses data berbasis identitas 
+pengguna. Setiap transaksi, laporan, dan hasil analisis selalu dikaitkan dengan satu pengguna 
+yang diidentifikasi melalui nomor WhatsApp. Sistem memastikan bahwa setiap permi ntaan 
+pemrosesan data hanya dapat mengakses data milik pengguna yang bersangkutan. 
+
+
+===== PAGE 29 =====
+ 
+22 
+Pendekatan ini memberikan isolasi data (data isolation) antar pengguna tanpa memerlukan 
+mekanisme Role-Based Access Control (RBAC), karena seluruh pengguna memiliki tingkat 
+akses yang sama dan tidak terdapat peran administrator dalam sistem. 
+ 
+2.1.5.2 Keamanan Data  
+Untuk menjaga kerahasiaan dan integritas  data, sistem menerapkan beberapa mekanisme 
+keamanan dasar, antara lain: 
+1. Validasi Data Masukan  
+ Seluruh data yang diproses dari hasil NLP dan OCR divalidasi sebelum disimpan ke 
+dalam database untuk mencegah data tidak valid atau berbahaya. 
+2. Enkripsi Data Sensitif  
+ Informasi transaksi yang bersifat sensitif dapat disimpan dalam bentuk terenkripsi 
+menggunakan algoritma kriptografi simetris guna melindungi data dari akses tidak sah. 
+3. Pengelolaan Rahasia Sistem  
+ API key, credential layanan eksternal (Google Gemini dan Google Cloud Vision), serta 
+kunci enkripsi disimpan dalam environment variables dan tidak disertakan secara 
+langsung di dalam kode sumber. 
+Pendekatan keamanan ini dinilai memadai untuk sistem pencatatan keuangan berbasis 
+chatbot yang berfokus pada kemudahan penggunaan, dengan tetap menjaga perlindungan dasar 
+terhadap data pribadi pengguna. 
+2.1.6 Chatbot 
+2.1.6.1 Pengertian Chatbot 
+Chatbot adalah sistem komputer yang dirancang untuk mensimulasikan percakapan 
+manusia melalui teks atau suara (Brandtzæg & Følstad, 2017).  
+ Chatbot modern menggunakan AI untuk: 
+• memahami maksud pengguna 
+• mengekstraksi informasi 
+• memberikan respons otomatis 
+• melakukan tindakan tertentu (misalnya mencatat transaksi) 
+ 
+2.1.6.2 Chatbot pada Platform WhatsApp 
+Chatbot pada penelitian ini dibangun dengan memanfaatkan platform WhatsApp sebagai 
+antarmuka utama interaksi pengguna. Integrasi WhatsApp dilakukan menggunakan library 
+
+
+===== PAGE 30 =====
+ 
+23 
+Baileys, yaitu library open -source berbasis Node.js yang mengimplementasikan WhatsApp 
+Web API melalui koneksi WebSocket. 
+Pendekatan ini memungkinkan sistem untuk menerima dan mengirim pesan WhatsApp 
+secara real-time tanpa menggunakan WhatsApp Business API resmi. Melalui Baileys, sistem 
+mampu menangani berbagai jenis pesan, termasuk pesan teks, gambar, dan dokumen, yang 
+sangat penting dalam konteks pencatatan keuangan berbasis percakapan dan pemrosesan bukti 
+transaksi berupa foto struk. 
+Setiap pesan yang diterima oleh chatbot akan diproses melalui event listener Baileys, 
+kemudian diteruskan ke modul pemrosesan AI untuk analisis bahasa alami atau ekstraksi teks 
+dari gambar. Hasil pemrosesan selanjutnya dikirimkan kembali kepada pengguna melalui kanal 
+WhatsApp yang sama. Dengan pendekatan ini, chatbot berperan sebagai antarmuka percakapan 
+sekaligus penghubung utama antara pengguna dan sistem backend. 
+2.1.7. Natural Language Processing (NLP) 
+2.1.7.1. Pengertian NLP 
+Natural Language Processing (NLP) merupakan cabang dari Artificial Intelligence yang 
+berfokus pada kemampuan mesin untuk memahami, menafsirkan, dan menghasilkan  bahasa 
+manusia dalam bentuk teks atau percakapan (Jurafsky & Martin, 2020). NLP memungkinkan 
+sistem komputer memproses bahasa alami yang tidak terstruktur menjadi informasi terstruktur 
+yang dapat digunakan untuk pengambilan keputusan. 
+ 
+2.1.7.2. Pendekatan Hybrid NLP 
+Pada penelitian ini, proses Natural Language Processing (NLP) menggunakan 
+pendekatan hybrid, yaitu kombinasi antara model AI berbasis Large Language Model (LLM) 
+dan metode rule-based. Google Gemini digunakan sebagai komponen utama untuk pemrosesan 
+bahasa alami yang bersifat kontekstual, sementara pendekatan rule-based dimanfaatkan untuk 
+kebutuhan yang bersifat tetap dan konsisten. 
+Google Gemini digunakan untuk melakukan beberapa tugas NLP utama yang meliputi: 
+1. Intent  
+Mengidentifikasi maksud pengguna, seperti pencatatan transaksi, permintaan laporan 
+keuangan, atau pertanyaan analisis keuangan. 
+2. Entity 
+Mengekstraksi informasi penting dari pesan pengguna, seperti nominal transaksi, 
+kategori pengeluaran, nama merchant, dan waktu transaksi. 
+ 
+
+
+===== PAGE 31 =====
+ 
+24 
+3. Context 
+Memahami variasi bahasa alami, termasuk bahasa informal, singkatan, dan struktur 
+kalimat tidak baku yang umum digunakan dalam percakapan WhatsApp. 
+4. Conversational 
+Memungkinkan pengguna mengajukan pertanyaan terkait kondisi keuangan yang 
+kemudian dijawab berdasarkan data transaksi pengguna. 
+Selain itu, sistem juga menggunakan pendekatan rule-based (seperti parser dan regular 
+expression) untuk fungsi command routing , pemrosesan query laporan terstruktur, validasi 
+input, serta mekanisme fallback ketika hasil dari model AI tidak memenuhi kriteria . 
+Pendekatan hybrid ini memberikan keseimbangan antara fleksibilitas dan kontrol. Model AI 
+memungkinkan pemahaman variasi input pengguna secara alami, sementara rule-based 
+memastikan keandalan pada fungsi yang bersifat kritis dan terstruktur. 
+2.1.8. Optical Character Recognition (OCR) 
+2.1.8.1. Pengertian OCR 
+OCR adalah teknologi yang mengubah gambar teks menjadi teks digital yang dapat diproses 
+komputer (Smith, 2007). OCR digunakan untuk mengekstraksi: 
+• total belanja 
+• tanggal transaksi 
+• nama toko 
+• jenis pembayaran 
+• item belanja 
+2.1.8.2. OCR dalam Sistem Keuangan 
+OCR sangat relevan untuk membaca: 
+• foto struk supermarket 
+• screenshot transaksi mobile banking 
+• bukti transfer 
+• invoice sederhana 
+Integrasi OCR + NLP memperkuat kemampuan sistem memahami berbagai bentuk bukti 
+transaksi. 
+
+
+===== PAGE 32 =====
+ 
+25 
+2.2. Perbandingan System Financial Tugas Sejenisnya  
+Memposisikan unik dari sistem yang akan dikembangkan penting untuk memberikan 
+perbandingan dengan aplikasi atau website sejenisnya yang sudah ada di pasaran. Berikut 
+perbandingan antara Rekafin, Bank Jago, dan sistem yang akan dikembangkan: 
+Aspek Lucfery (2023) WhatsApp Chatbot 
+for Financial 
+Services (2024) 
+Sistem yang akan 
+dikembangkan 
+Platform WhatsApp & 
+Telegram sebagai 
+interface chatbot 
+Aplikasi mobile 
+khusus sebagai 
+personal finance 
+assistant 
+WhatsApp sebagai 
+satu-satunya 
+interface pengguna 
+Tipe Chatbot / AI Chatbot finansial 
+berbasis text 
+message & AI/NLP 
+Asisten keuangan 
+kecerdasan dengan 
+modul prediksi dan 
+visualisasi 
+Chatbot di 
+WhatsApp dengan 
+NLP + OCR, 
+rekomendasi rule 
+based 
+Teknologi NLP  NLP untuk 
+mengubah pesan teks 
+menjadi perintah/ 
+transaksi 
+Tidak eksplisit NLP 
+percakapan; lebih 
+fokus OCR & 
+analitik keuangan 
+Hybrid NLP: Gemini 
+untuk ekstraksi 
+semantik, parser 
+deterministik untuk 
+routing/fallback 
+Teknologi OCR Tidak menonjolkan 
+OCR struk; fokus 
+teks chat 
+Ada modul OCR 
+untuk scan struk dan 
+ekstraksi jumlah, 
+vendor, dan dll 
+OCR untuk 
+membaca struk / 
+screenshot 
+pembayaran via 
+WhatsApp 
+Fitur budgeting & 
+tujuan 
+Membantu kontrol 
+angka keuangan, 
+namun budgeting 
+eksplisit tidak 
+dominan. 
+Budgeting 
+monitoring 
+pengeluaran, dan 
+prediksi anggaran 
+Budgeting kategori, 
+target tabungan, 
+insight pencapaian 
+tujuan finansial 
+ 
+Sistem Asisten Keuangan Berbasis WhatsApp yang dikembangkan dalam penelitian ini 
+mengambil posisi strategis yang membedakan dirinya dari solusi konvensional dengan 
+mengatasi hambatan fundamental adopsi aplikasi keuangan, yaitu tingginya beban input 
+manual yang mengakibatkan rendahnya retensi pengguna. Sistem ini memanfaatkan WhatsApp 
+sebagai antarmuka utama (112 juta pengguna aktif Indonesia) untuk menyelaraskan pencatatan 
+keuangan dengan pola perilaku pengguna yang sudah tertanam, sehingga mengurangi 
+hambatan psikologis dan meningkatkan konsistensi penggunaan. Integrasi sinergis antara 
+Natural Language Processing (NLP) untuk memproses pesan teks tidak terstruktur dan Optical 
+Character Recognition (OCR) untuk membaca gambar bukti transaksi memberikan fleksibilitas 
+
+
+===== PAGE 33 =====
+ 
+26 
+maksimal dan memastikan tidak ada transaksi yang terlewatkan, membedakannya dari sistem 
+sejenis yang hanya fokus pada satu format input. 
+Pencatatan transaksi otomatis dan real -time tanpa memerlukan konfirmasi tambahan 
+dari pengguna meminimalkan cognitive load dan friction, yang terbukti meningkatkan retensi 
+pengguna jangka panjang. Sistem menyediakan rekomendasi finansial berbasis aturan ya ng 
+transparan dan mudah diinterpretasi, serta fitur budgeting per kategori dan pelacakan target 
+tabungan yang terintegrasi dalam ekosistem WhatsApp untuk mendukung peningkatan literasi 
+keuangan pengguna. Dengan demikian, sistem ini tidak hanya menawarkan i novasi teknis 
+dalam integrasi AI di platform WhatsApp, tetapi juga kontribusi signifikan pada dimensi 
+behavioral dan sosial melalui pendekatan yang menghormati kebiasaan pengguna dan 
+meningkatkan adopsi jangka panjang. 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+
+===== PAGE 34 =====
+ 
+27 
+BAB III  
+METODE PENELITIAN 
+3.1. Kerangka Berpikir 
+Penelitian ini menggunakan kerangka berbasis pendekatan metode Kanban, untuk 
+mengelola pengembangan sistem Asisten keuangan berbasis WhatsApp secara efisien. 
+Berbeda dengan metode tradisional, Kanban menekan pada visualisasi tugas di papan 
+kerja ( Kanban board) dan pembatasan beban kerja (Work -in-progress) untuk 
+memastikan tiap fitur, mulai dari integrasi NLP dan OCR  dapat diselesaikan secara 
+konstan tanpa menunggu fase sebelumnya berakhir sepenuhnya. 
+ 
+ 
+Gambar 3.1 Alur Kerangka Kerja Kanban 
+ 
+a. Identifikasi dan persiapan (backlog) 
+Tahap ini adalah titik awal di mana seluruh kebutuhan sistem dikumpulk an dalam 
+bentuk antrean tugas (backlog). 
+• Identifikasi Masalah: Menganalisis kendala pencatatan keuangan manual dan 
+rendahnya literasi keuangan masyarakat Indonesia. 
+• Studi Literatur : Mengkaji dokumentasi Baileys (WhatsApp API) , teknik NLP 
+untuk ekstraksi teks, dan teknologi OCR untuk pemrosesan struk. 
+• Definisi Kebutuhan: Menyusun daftar fitur utama seperti pencatatan otomatis, 
+sistem penyimpanan, analisis keuangan, dan visualisasi keuangan. 
+ 
+b. Visualisasi Alur Kerja (Workflow Visualization) 
+Setiap tugas dari backlog dipindahkan ke dalam papan Kanban yang terdiri dari  
+beberapa kolom status untuk status untuk memantau kemajuan secara real-time. 
+
+
+
+===== PAGE 35 =====
+ 
+28 
+• To-Do: Daftar modul yang siap dikerjakan, termasuk Modul Chatbot. Modul AI 
+(NLP & OCR) dan Backend. 
+• In Progress:  Proses implementasi kode menggunakan Node.Js, Next.js 14, dan 
+Prisma ORM sesuai dengan spesifikasi teknologi yang ditentukan. 
+• Testing/Review: Tahap validasi instan untuk setiap fitur yang selesai 
+dikembangkan guna memastikan akurasi ekstraksi data teks dan gambar. 
+c. Pengelolaan Batasan kerja (Managing WIP Limits)  
+Untuk menjaga kualitas jumlah tugas yang dikerjakan secara bersamaan dibatasi. 
+• Pengembangan dilakukan pada fokus penyelesaian Modul NLP untuk mengenali 
+pesan teks seperti “Beli kopi 25k” sebelum beralih ke Modul OCR untuk proses 
+gambar. 
+• Hal ini memastikan bahwa integrasi dengan Baileys(WhatsApp API) tetap stabil 
+sebelum fitur tambahan dilaksanakan / diimplementasikan. 
+d. Aliran Berkelanjutan dan integrasi (Continous Flow) 
+Fitur yang telah lulus tahap Testing langsung dipindahkan ke status Done dan 
+diintegrasikan ke dalam sistem utama tanpa harus menunggu seluruh modul selesai. 
+• Data transaksi yang berhasil diekstrak oleh AI segera dihubungkan ke basis data 
+MySQL dan diintegrasikan kembali oleh Chatbot AI untuk dikirim kembali ke user. 
+• Proses Memungkinkan evaluasi performa sistem secara terus -menerus terhadap 
+komponen yang aktif 
+e. Evaluasi Hasil (Evolutionary Change) 
+Tahap akhir adalah melakukan tinjauan secara menyeluruh terhadap sistem yang sudah 
+diproses melalui Kanban Board. 
+• Evaluasi akurasi hasil dari ekstraksi entita s(nominal, kategori) serta kemudahan 
+interaksi pengguna dengan Chatbot WhatsApp 
+• Menyusun dokumentasi akhir dan rekomendasi untuk pengembangan di masa 
+mendatang berdasarkan hasil pengujian Black-Box. 
+
+
+===== PAGE 36 =====
+ 
+29 
+3.2 List Pertanyaan Interview 
+Pengujian sistem dilakukan menggunakan metode pengujian fungsional (functional testing) 
+untuk memastikan setiap fitur pada aplikasi berjalan sesuai dengan kebutuhan pengguna dan 
+tujuan sistem. Pengujian dilakukan dengan menguji berbagai skenario penggunaan pada setiap 
+modul utama aplikasi.  
+Total pengujian yang dilakukan mencakup  skenario pengujian fungsional yang terdiri dari 
+beberapa bagian utama, yaitu:  
+• onboarding pengguna  
+• pencatatan transaksi 
+• pembuatan laporan keuangan 
+• pengelolaan target keuangan (goal) 
+• pencatatan aset 
+• portfolio tracking  
+• sistem reminder 
+• dashboard admin 
+• serta integrasi chatbot WhatsApp 
+Setiap skenario pengujian dilakukan dengan memberikan input tertentu pada sistem, 
+kemudian mengevaluasi apakah output yang dihasilkan telah sesuai dengan fungsi yang 
+dirancang. Hasil pengujian digunakan untuk memastikan bahwa sistem dapat berjalan dengan 
+baik, stabil, dan memenuhi kebutuhan pengguna. 
+3.3.  Perancangan 
+3.3.1. Software Design Document 
+a. Deskripsi Software 
+Perangkat lunak yang dikembangkan merupakan sistem asisten 
+keuangan personal berbasis chatbot WhatsApp yang terintegrasi dengan 
+Artificial Intelligence, yaitu Natural Language Processing (NLP) dan 
+Optical Character Recognition (OCR). Sistem ini memungkinkan pengguna 
+mencatat transaksi pemasukan dan pengeluaran melalui pesan teks atau 
+gambar tanpa perlu menginstal aplikasi tambahan. 
+Melalui pemrosesan NLP dan OCR, sistem mengekstraksi informasi 
+transaksi dari pesan pengguna, menyimpannya ke dalam basis data, serta 
+menyajikan laporan dan analisis keuangan. Pendekatan ini bertujuan 
+mempermudah pencatatan keuangan, meningkatkan konsisten si pengguna, 
+dan membantu memahami kondisi keuangan pribadi. 
+b. Fungsi-Fungsi Software 
+
+
+===== PAGE 37 =====
+ 
+30 
+1. Penerimaan Pesan WhatsApp 
+Sistem menerima input dari pengguna melalui platform 
+WhatsApp dalam bentuk pesan teks dan  atau gambar. Integrasi 
+WhatsApp dilakukan menggunakan library Baileys, yang 
+mengimplementasikan WhatsApp Web API dan memungkinkan 
+komunikasi pesan secara real-time antara pengguna dan sistem 
+backend. 
+2. Pencatatan Transaksi Otomatis 
+Sistem mencatat transaksi pemasukan dan pengeluaran secara 
+otomatis berdasarkan pesan yang dikirimkan pengguna melalui 
+WhatsApp, tanpa memerlukan input manual melalui formulir atau 
+aplikasi tambahan. 
+3. Pemrosesan Bahasa Alami (NLP) 
+Modul NLP berbasis AI menggunakan Google Gemini untuk 
+memahami pesan teks pengguna yang tidak terstruktur. Modul ini 
+berfungsi untuk mengidentifikasi maksud pesan pengguna, 
+mengekstraksi informasi transaksi seperti nominal, jenis transaksi 
+(pemasukan atau pengeluaran), kategori, deskripsi, dan waktu 
+transaksi, serta m emahami variasi bahasa alami yang umum 
+digunakan dalam percakapan WhatsApp. 
+4. Pemrosesan Gambar dengan OCR 
+Modul OCR digunakan untuk mengekstraksi teks dari gambar, 
+seperti foto struk belanja atau bukti pembayaran digital. Sistem 
+memanfaatkan layanan OCR berbasis AI untuk membaca teks pada 
+gambar dan mengekstraksi informasi penting seperti total transaksi, 
+tanggal, dan nama merchant, yang selanjutnya diproses dan 
+divalidasi oleh modul NLP. 
+5. Penyimpanan Data Transaksi 
+Seluruh data transaksi yang telah diekstraksi diproses dan 
+disimpan secara terstruktur ke dalam basis data relasional. Data ini 
+digunakan sebagai dasar untuk pelaporan, analisis keuangan, dan 
+penyajian insight kepada pengguna. 
+6. Penyajian Laporan Keuangan 
+
+
+===== PAGE 38 =====
+ 
+31 
+Sistem menyajikan laporan keuangan kepada pengguna melalui 
+chatbot WhatsApp dalam bentuk ringkasan pemasukan, 
+pengeluaran, serta distribusi kategori transaksi dalam periode 
+tertentu. 
+7. Analisis dan Insight Keuangan 
+Sistem melakukan analisis keuangan berbasis AI terhadap data 
+transaksi pengguna untuk mengidentifikasi pola pengeluaran, tren 
+keuangan, serta kondisi kesehatan keuangan secara umum. 
+Berdasarkan hasil analisis tersebut, sistem memberikan insight dan 
+rekomendasi keuangan secara kontekstual melalui percakapan 
+WhatsApp. 
+8. Pengelolaan Target Keuangan 
+Sistem mendukung pencatatan dan pemantauan target keuangan 
+sederhana, seperti target tabungan atau batas pengeluaran, yang 
+dipantau berdasarkan data transaksi pengguna. 
+9. Keamanan dan Privasi Data 
+Sistem memastikan bahwa data pengguna diproses dan disimpan 
+dengan mekanisme keamanan yang memadai untuk menjaga 
+kerahasiaan dan privasi informasi keuangan pengguna. 
+c. Kebutuhan Teknologi 
+1. Platform dan API 
+• WhatsApp sebagai media komunikasi antara pengguna dan 
+chatbot. 
+• Baileys (WhatsApp Web API)  yang merupakan library 
+JavaScript (Node.js) digunakan untuk menghubungkan aplikasi 
+dengan WhatsApp melalui WhatsApp Web. 
+2. Backend dan Server 
+• Node.js sebagai runtime environment. 
+• Framework Next.js 14 (Server Components dan Route 
+Handlers) untuk pengembangan backend utama. 
+• Python FastAPI digunakan sebagai reporting service untuk 
+menghasilkan visualisasi grafik dan dokumen PDF laporan 
+keuangan. 
+
+
+===== PAGE 39 =====
+ 
+32 
+• Matplotlib digunakan untuk pembuatan grafik laporan keuangan 
+dalam format PNG maupun PDF. 
+3. Artificial Intelligence 
+• Natural Language Processing (NLP) berbasis ai-based dan 
+pattern matching untuk ekstraksi informasi transaksi dari 
+teks. 
+• Optical Character Recognition (OCR) untuk membaca teks 
+dari gambar struk atau bukti pembayaran. 
+4. Database 
+• MySQL sebagai sistem manajemen basis data relasional. 
+• Prisma ORM untuk pengelolaan dan akses data secara type-
+safe.    
+5. Keamanan Sistem 
+• Autentikasi pengguna berbasis identitas nomor WhatsApp. 
+• Isolasi data pengguna berdasarkan identitas pengirim pesan. 
+• Penyimpanan API key dan credential layanan eksternal 
+melalui environment variables. 
+3.3.2. Perancangan Sistem 
+3.3.2.1. System Architecture 
+ 
+Sistem ini dirancang dengan membagi fungsi-fungsi utamanya kedalam beberapa bagian 
+mandiri yang saling terintegrasi. Strategi pembagian ini bertujuan agar setiap komponen, mulai 
+dari unit penerima pesan hingga mesin pengolah data, dapat dikelola dan dikembangkan secara 
+lebih fleksib el tanpa saling bertindihan. Pusat dari seluruh arsite ktur ini adalah platform 
+WhatsApp yang berfungsi sebagai Interface tunggal bagi user. 
+
+
+
+===== PAGE 40 =====
+ 
+33 
+Dengan memusatkan interaksi pada aplikasi yang sering digunakan sehari-hari, sistem mampu 
+mengurangi beban inputan data manual yang sering kali jadi hambatan utama dalam mengelola 
+keuangan pribadi. 
+Alur kerja sistem dimulai pengguna mengirimkan pesan teks sederhana atau foto bukti 
+transaksi ke nomor WhatsApp yang telah terintegrasi dengan Baileys(WhatsApp API) atau 
+library Bailey  sebagai gerbang utama chat. Pada lapisan pemrosesan data, sistem 
+mengandalkan dua teknologi AI utama untuk ekstraksi informasi  secara otomastis. Modul 
+Natural Language Processing (NLP) yang ditenagai oleh Google  Gemini API bertugas 
+mengidentifikasi maksud pesan ( intent classification ) serta mengekstraksi entitas penting 
+seperti nominal transaksi, kategori, nama merchant dari percakapan. Secara paralel, modul 
+Optical Character Recognition  (OCR) menggunakan Google Cloud Vision API  untuk 
+membaca dan mengonversi teks dari gambar, seperti struk belanja atau tangkapan layar 
+pembelanjaan digital, menjadi data digital yang dapat diproses lebih lanjut. 
+Data yang telah berhasil diekstraksi dan divalidasi kemudian diteruskan ke backend 
+server berbasis Node.js untuk disimpan secara terstruktur ke dalam basis data MYSQL, 
+menggunakan Prisma ORM. Setelah data tersimpan, Google Gemini API melakukan analisis 
+keuangan lanjutan untuk menghasilkan insight pola pengeluaran, rekomendasi finansial 
+berbasis (ai-based), serta pemantauan target anggaran pengguna. Sebagai tahap akhir, seluruh 
+hasil pemrosesan berupa konfirmasi pencatatan, ringkasan laporan, hingga visualis asi grafik 
+yang dihasilkan layanan Python dikirimkan kembali secara real-time kepada pengguna melalui 
+chatbot WhatsApp, sehingga pengguna mendapatkan informasi keuangan yang komprehensif 
+tanpa perlu meninggalkan platform WhatsApp mereka. 
+
+
+===== PAGE 41 =====
+ 
+34 
+3.3.2.2. Entity Relationship Diagram (ERD) 
+ 
+Gambar 3.2 ERD Perencanaan Sistem 
+ 
+Entity Relationship Diagram (ERD) merupakan model visual yang digunakan untuk 
+menggambarkan struktur basis data pada suatu sistem. ERD menjelaskan hubungan antar 
+entitas, atribut, serta relasi yang terdapat dalam database sehingga proses perancangan sistem  
+dapat dilakukan secara terstruktur sebelum implementasi. Dengan menggunakan ERD, risiko 
+kesalahan desain basis data dapat diminimalkan karena hubungan data antar komponen sistem 
+telah divisualisasikan secara jelas.  
+Pada penelitian ini, ERD digunakan untuk menggambarkan struktur basis data sistem 
+manajemen keuangan pribadi berbasis chatbot WhatsApp. Sistem dirancang untuk membantu 
+pengguna dalam mencatat transaksi keuangan, mengelola target keuangan, memantau 
+portofolio investasi, serta memberikan analisis berbasis AI terhadap pesan pengguna. 
+Berdasarkan implementasi sistem terbaru, ERD terdiri dari beberapa entitas, atribut, dan relasi 
+antar entitas, diantaranya: 
+ 
+ 
+
+
+
+===== PAGE 42 =====
+ 
+35 
+1. Entitas User 
+Entitas User berfungsi sebagai pusat data utama pengguna dalam sistem. Semua 
+data finansial, transaksi, reminder, dan analisis terhubung dengan entitas ini.  Entitas 
+berikut memiliki sejumlah atribut dengan fungsinya masing-masing, yakni: 
+• id 
+Sebagai identitas unik pengguna yang digunakan untuk membedakan setiap 
+pengguna dalam database serta menjadi penghubung utama ke entitas lain. 
+• waNumber  
+Menyimpan nomor WhatsApp pengguna yang digunakan sebagai media 
+komunikasi utama sistem. 
+• name  
+Menyimpan nama pengguna untuk kebutuhan identifikasi dan personalisasi 
+sistem. 
+• currency  
+Menentukan mata uang utama yang digunakan pengguna dalam seluruh 
+aktivitas finansial. 
+• monthlyBudget 
+Menyimpan batas maksimal pengeluaran pengguna dalam satu bulan. 
+• registrationStatus 
+Menunjukkan status registrasi akun pengguna pada sistem. 
+• onboardingStatus 
+Menunjukkan status proses onboarding pengguna. 
+• onboardingStep 
+Menyimpan tahapan onboarding terakhir yang telah dilakukan pengguna. 
+• primaryGoal  
+Menyimpan tujuan finansial utama pengguna agar sistem dapat memberikan 
+rekomendasi yang sesuai. 
+• employmentType  
+Menyimpan informasi jenis pekerjaan pengguna untuk membantu analisis 
+kondisi finansial. 
+• incomeStability 
+Menunjukkan tingkat kestabilan pendapatan pengguna. 
+ 
+
+
+===== PAGE 43 =====
+ 
+36 
+• hasPassiveIncome 
+Menandakan apakah pengguna memiliki sumber pendapatan pasif tambahan. 
+• salaryDate 
+Menyimpan tanggal penerimaan gaji pengguna untuk kebutuhan pengaturan 
+cashflow dan reminder. 
+• goalExecutionMode 
+Menentukan strategi atau metode sistem dalam membantu pengguna mencapai 
+tujuan finansial. 
+• priorityGoalType  
+Menentukan prioritas utama tujuan finansial pengguna. 
+• budgetMode 
+Menentukan metode pengelolaan anggaran yang digunakan pengguna. 
+• hasAssets 
+Menunjukkan apakah pengguna memiliki aset yang dicatat dalam sistem. 
+• analysisReady 
+Menandakan bahwa data pengguna sudah cukup untuk dilakukan analisis AI. 
+• onboardingCompletedAt 
+Menyimpan waktu ketika pengguna menyelesaikan seluruh proses onboarding. 
+• createdAt 
+Menyimpan waktu pertama kali data pengguna dibuat. 
+• updatedAt 
+Menyimpan waktu terakhir data pengguna diperbarui. 
+2. Entitas Transaction 
+Entitas Transaction berfungsi untuk mencatat seluruh aktivitas keuangan 
+pengguna, memiliki atribut sebagai berikut: 
+• id 
+Sebagai identitas unik setiap transaksi agar setiap data transaksi dapat 
+dibedakan. 
+• userId 
+Menghubungkan transaksi dengan pengguna tertentu. 
+• type 
+Menentukan jenis transaksi seperti pemasukan atau pengeluaran. 
+• amount  
+
+
+===== PAGE 44 =====
+ 
+37 
+Menyimpan nominal uang dari transaksi yang dilakukan. 
+• category 
+Mengelompokkan transaksi berdasarkan kategori tertentu agar mudah 
+dianalisis. 
+• detailTag 
+Menyimpan label detail tambahan untuk memperjelas jenis transaksi. 
+• merchant 
+Menyimpan nama toko, layanan, atau pihak yang terlibat dalam transaksi. 
+• note 
+Menyimpan catatan tambahan terkait transaksi. 
+• occurredAt 
+Menyimpan waktu sebenarnya transaksi terjadi. 
+• source 
+Menentukan asal data transaksi, seperti input manual atau hasil AI parsing. 
+• rawText 
+Menyimpan data mentah transaksi sebelum diproses sistem. 
+• createdAt 
+Menyimpan waktu data transaksi dicatat ke sistem. 
+3. Entitas MessageLog 
+Entitas MessageLog berfungsi menyimpan riwayat komunikasi pengguna dengan 
+sistem. Entitas ini memiliki atribut sebagai berikut: 
+• id 
+Sebagai identitas unik setiap pesan dalam sistem. 
+• userId 
+Menghubungkan pesan dengan pengguna terkait. 
+• messageType 
+Menentukan jenis pesan yang dikirim seperti teks, gambar, audio, atau 
+dokumen. 
+• contentOrCaption 
+Menyimpan isi pesan atau caption dari media yang dikirim. 
+• mediaUrlOrLocalPath 
+Menyimpan lokasi file media baik dalam bentuk URL maupun path lokal. 
+ 
+
+
+===== PAGE 45 =====
+ 
+38 
+• sentAt 
+Menyimpan waktu pengiriman atau penerimaan pesan. 
+4. Entitas AIAnalysisLog 
+Entitas AIAnalysisLog berfungsi menyimpan hasil analisis AI terhadap pesan 
+pengguna, entitas berikut memiliki atribut yang diantaranya: 
+• id 
+Sebagai identitas unik hasil analisis AI. 
+• userId 
+Menghubungkan hasil analisis dengan pengguna terkait. 
+• messageId 
+Menghubungkan hasil analisis dengan pesan yang dianalisis. 
+• analysisType 
+Menentukan jenis analisis AI yang dilakukan sistem. 
+• payloadJson 
+Menyimpan hasil analisis dalam format JSON agar data lebih fleksibel dan 
+terstruktur. 
+• createdAt 
+Menyimpan waktu hasil analisis dibuat. 
+5. Entitas IntentObservation 
+Entitas IntentObservation berfungsi menyimpan hasil observasi intent atau maksud 
+pengguna dari pesan yang dikirim . Berikut beberapa atribut yang terdapat dalam 
+entitas IntentObservation: 
+• id 
+Sebagai identitas unik observasi intent. 
+• userId 
+Menghubungkan observasi intent dengan pengguna. 
+• messageId 
+Menghubungkan observasi dengan pesan yang dianalisis. 
+• rawText 
+Menyimpan teks asli pengguna sebelum diproses. 
+• effectiveText 
+Menyimpan teks yang telah dibersihkan atau diproses sistem. 
+• commandKind 
+
+
+===== PAGE 46 =====
+ 
+39 
+Menentukan jenis perintah yang terdeteksi dari pesan pengguna. 
+• topModule 
+Menentukan modul utama yang digunakan untuk menangani intent. 
+• moduleOrderJson 
+Menyimpan urutan prioritas modul pemrosesan intent. 
+• resolutionKind  
+Menentukan metode penyelesaian intent yang digunakan sistem. 
+• resolutionSource 
+Menunjukkan sumber hasil interpretasi intent. 
+• semanticNormalizedText 
+Menyimpan hasil normalisasi semantik agar lebih mudah dipahami AI. 
+• handledBy 
+Menunjukkan modul atau sistem yang menangani intent tersebut. 
+• fallbackStage  
+Menentukan tahap fallback ketika intent tidak dapat dikenali secara optimal. 
+• ambiguityFlag 
+Menandakan apakah intent memiliki makna ambigu atau tidak jelas. 
+• createdAt 
+Menyimpan waktu observasi intent dibuat. 
+6. Entitas ExpensePlan 
+Entitas ExpensePlan berfungsi menyimpan rencana atau estimasi pengeluaran 
+bulanan pengguna. Entitas berikut memiliki sejumlah atribut, diantaranya: 
+• id 
+Sebagai identitas unik rencana pengeluaran. 
+• userId 
+Menghubungkan rencana pengeluaran dengan pengguna. 
+• source 
+Menentukan sumber data rencana pengeluaran. 
+• totalMonthlyExpense 
+Menyimpan total estimasi pengeluaran dalam satu bulan. 
+• isActive 
+Menentukan apakah rencana pengeluaran masih aktif digunakan. 
+ 
+
+
+===== PAGE 47 =====
+ 
+40 
+• createdAt 
+Menyimpan waktu data dibuat. 
+• updatedAt 
+Menyimpan waktu terakhir data diperbarui. 
+7. Entitas ExpensePlanIntem 
+Entitas ExpensePlanItem berfungsi menyimpan rincian kategori pengeluaran dari 
+suatu rencana pengeluaran. Terdapat beberapa fungsi atribut, diantaranya: 
+• id 
+Sebagai identitas unik setiap item pengeluaran. 
+• expensePlanId  
+Menghubungkan item dengan rencana pengeluaran tertentu. 
+• categoryKey  
+Menentukan kategori pengeluaran yang direncanakan. 
+• amount  
+Menyimpan nominal anggaran pada kategori tersebut. 
+• createdAt  
+Menyimpan waktu data dibuat. 
+• updatedAt  
+Menyimpan waktu terakhir data diperbarui. 
+8. Entitas FinancialGoal 
+Entitas FinancialGoal berfungsi menyimpan target atau tujuan finansial pengguna. 
+Entitas berikut memiliki sejumlah atribut, yakni: 
+• id  
+Sebagai identitas unik tujuan finansial. 
+• userId  
+Menghubungkan tujuan finansial dengan pengguna. 
+• goalType  
+Menentukan jenis tujuan finansial yang ingin dicapai. 
+• goalName  
+Menyimpan nama atau judul tujuan finansial. 
+• targetAmount  
+Menyimpan jumlah dana yang ingin dicapai. 
+ 
+
+
+===== PAGE 48 =====
+ 
+41 
+• targetAge  
+Menentukan target usia saat tujuan ingin dicapai. 
+• targetMonth  
+Menentukan target waktu pencapaian dalam bulan tertentu. 
+• calculationType  
+Menentukan metode perhitungan estimasi pencapaian tujuan. 
+• status  
+Menunjukkan status perkembangan tujuan finansial. 
+• priorityOrder  
+Menentukan tingkat prioritas tujuan dibanding tujuan lainnya. 
+• estimatedMonthsToGoal  
+Menyimpan estimasi jumlah bulan yang diperlukan untuk mencapai target. 
+• createdAt  
+Menyimpan waktu tujuan dibuat. 
+• updatedAt  
+Menyimpan waktu terakhir data tujuan diperbarui. 
+9. Entitas GoalContribution 
+Entitas GoalContribution berfungsi mencatat kontribusi dana terhadap target 
+finansial. Entitas berikut memiliki sejumlah atribut, yakni: 
+• id 
+Digunakan sebagai identitas unik setiap data kontribusi agar sistem dapat 
+membedakan satu kontribusi dengan kontribusi lainnya. 
+• userId 
+Digunakan untuk menghubungkan data kontribusi dengan pengguna yang 
+melakukan kontribusi tersebut. 
+• goalId 
+Digunakan untuk menghubungkan kontribusi dengan target finansial tertentu 
+yang ingin dicapai pengguna. 
+• amount 
+Menyimpan nominal atau jumlah dana yang dikontribusikan pengguna ke 
+tujuan finansial. 
+ 
+ 
+
+
+===== PAGE 49 =====
+ 
+42 
+• note 
+Digunakan untuk menyimpan informasi tambahan atau catatan terkait 
+kontribusi yang dilakukan. 
+• occurredAt 
+Menyimpan waktu sebenarnya ketika kontribusi dilakukan oleh pengguna. 
+• createdAt 
+Menyimpan waktu saat data kontribusi pertama kali dibuat di sistem. 
+10. Entitas OnboardingSession 
+Entitas OnboardingSession berfungsi menyimpan proses onboarding pengguna , 
+yang diantaranya terdapat sejumlah atribut: 
+• id 
+Digunakan sebagai identitas unik setiap sesi onboarding pengguna. 
+• userId 
+Digunakan untuk menghubungkan sesi onboarding dengan pengguna tertentu. 
+• stepKey 
+Menyimpan informasi tahapan onboarding yang sedang atau telah dijalankan 
+pengguna. 
+• questionKey 
+Menyimpan identitas pertanyaan onboarding yang diberikan sistem kepada 
+pengguna. 
+• rawAnswerJson 
+Menyimpan jawaban asli pengguna sebelum diproses oleh sistem. 
+• normalizedAnswerJson 
+Menyimpan jawaban pengguna yang telah diproses dan dinormalisasi agar 
+lebih mudah dianalisis. 
+• isCompleted 
+Menunjukkan status apakah sesi onboarding telah selesai atau masih 
+berlangsung. 
+• createdAt 
+Menyimpan waktu saat sesi onboarding dibuat. 
+• updatedAt 
+Menyimpan waktu terakhir data onboarding diperbarui. 
+ 
+
+
+===== PAGE 50 =====
+ 
+43 
+11. Entitas SavingsGoal 
+Entitas SavingsGoal berfungsi menyimpan target tabungan pengguna , dengan 
+atribut yakni: 
+• id 
+Digunakan sebagai identitas unik setiap target tabungan. 
+• userId 
+Digunakan untuk menghubungkan target tabungan dengan pengguna tertentu. 
+• targetAmount 
+Menyimpan jumlah target tabungan yang ingin dicapai pengguna. 
+• currentProgress 
+Menyimpan jumlah progres tabungan yang telah berhasil dikumpulkan 
+pengguna. 
+• createdAt 
+Menyimpan waktu saat data target tabungan dibuat. 
+• updatedAt 
+Menyimpan waktu terakhir data target tabungan diperbarui. 
+12. Entitas ReminderPreference 
+Entitas ReminderPreference berfungsi mengatur preferensi reminder pengguna , 
+dengan atribut sebagai berikut: 
+• budgetEnabled 
+Menentukan apakah reminder terkait pengelolaan anggaran diaktifkan atau 
+tidak. 
+• weeklyEnabled 
+Menentukan apakah reminder mingguan aktif. 
+• weeklyReviewEnabled 
+Menentukan apakah fitur review keuangan mingguan diaktifkan. 
+• recurringEnabled 
+Menentukan apakah reminder berkala aktif. 
+• cashflowEnabled 
+Menentukan apakah reminder terkait arus kas diaktifkan. 
+• goalEnabled 
+Menentukan apakah reminder terkait tujuan finansial diaktifkan. 
+• monthlyClosingEnabled 
+
+
+===== PAGE 51 =====
+ 
+44 
+Menentukan apakah reminder penutupan laporan bulanan diaktifkan. 
+• quietHoursStart 
+Menyimpan waktu mulai periode diam ketika sistem tidak mengirim reminder. 
+• quietHoursEnd 
+Menyimpan waktu berakhirnya periode diam reminder. 
+• minIntervalHours 
+Menentukan jarak minimum waktu antar reminder agar pengguna tidak 
+menerima notifikasi terlalu sering. 
+• maxPerDay 
+Menentukan jumlah maksimal reminder yang dapat dikirim sistem dalam satu 
+hari. 
+• snoozedUntil 
+Menyimpan waktu penundaan reminder hingga waktu tertentu. 
+13. Entitas FinancialProfile 
+Entitas FinancialProfile berfungsi menyimpan ringkasan kondisi finansial 
+pengguna. Entitas ini memiliki sejumlah atribut, yakni: 
+• activeIncomeMonthly 
+Menyimpan jumlah pendapatan aktif bulanan pengguna. 
+• passiveIncomeMonthly 
+Menyimpan jumlah pendapatan pasif bulanan pengguna. 
+• estimatedMonthlyIncome 
+Menyimpan estimasi total pendapatan bulanan berdasarkan analisis sistem. 
+• monthlyIncomeTotal 
+Menyimpan total keseluruhan pemasukan bulanan pengguna. 
+• monthlyExpenseTotal 
+Menyimpan total keseluruhan pengeluaran bulanan pengguna. 
+• potentialMonthlySaving 
+Menyimpan estimasi potensi tabungan bulanan pengguna. 
+• savingRate 
+Menyimpan persentase kemampuan menabung pengguna berdasarkan total 
+pendapatan. 
+• emergencyFundTarget 
+Menyimpan target dana darurat pengguna. 
+
+
+===== PAGE 52 =====
+ 
+45 
+• annualExpense 
+Menyimpan estimasi total pengeluaran pengguna dalam satu tahun. 
+14. Entitas ReminderEvent 
+Entitas ReminderEvent berfungsi mencatat seluruh aktivitas reminder atau 
+notifikasi yang dikirim sistem kepada pengguna. Data pada entitas ini digunakan untuk 
+memantau histori reminder, memastikan reminder terkirim dengan benar, dan 
+membantu proses monitoring sistem notifikasi. Entitas ini memiliki sejumlah atribut, 
+diantaranya: 
+• reminderType 
+Menyimpan jenis reminder yang dikirim sistem untuk membedakan kategori 
+notifikasi, seperti reminder budget, cashflow, atau tujuan finansial. 
+• marker 
+Digunakan sebagai penanda khusus atau identitas internal reminder agar sistem 
+dapat melacak reminder tertentu dengan lebih mudah. 
+• messageText 
+Menyimpan isi pesan reminder yang dikirim kepada pengguna sebagai bentuk 
+notifikasi atau pengingat otomatis. 
+• sentAt 
+Menyimpan waktu ketika reminder berhasil dikirim oleh sistem untuk 
+kebutuhan histori dan monitoring pengiriman reminder. 
+15. Entitas ReminderTemplate 
+Entitas ReminderTemplate berfungsi menyimpan template atau format pesan 
+reminder otomatis yang digunakan sistem. Entitas ini membantu sistem mengirim 
+reminder secara konsisten, terstruktur, dan dapat disesuaikan dengan jenis notifikasi 
+yang diperlukan pengguna. Entitas berikut memiliki sejumlah atribut, yakni: 
+• templateKey 
+Menyimpan kode unik template yang digunakan sistem untuk membedakan 
+setiap jenis template reminder. 
+• reminderType 
+Menentukan kategori atau jenis reminder yang menggunakan template 
+tersebut, seperti reminder budget atau target finansial. 
+• title 
+
+
+===== PAGE 53 =====
+ 
+46 
+Menyimpan judul atau nama template reminder agar lebih mudah dikenali dan 
+dikelola oleh sistem. 
+• marker 
+Digunakan sebagai penanda internal untuk membantu identifikasi dan 
+pengelompokan template reminder tertentu. 
+• messageText 
+Menyimpan isi utama pesan reminder yang akan dikirim kepada pengguna 
+secara otomatis. 
+• entitiesJson 
+Menyimpan data variabel dinamis dalam format JSON yang digunakan untuk 
+menyesuaikan isi pesan reminder sesuai kondisi pengguna. 
+• isActive 
+Menunjukkan status apakah template reminder masih aktif digunakan atau 
+sudah dinonaktifkan oleh sistem. 
+• createdAt 
+Menyimpan waktu ketika template reminder pertama kali dibuat di sistem. 
+• updatedAt 
+Menyimpan waktu terakhir template reminder diperbarui atau dimodifikasi. 
+16. Entitas OutboundMessage 
+Entitas OutboundMessage berfungsi menyimpan seluruh data pesan keluar yang 
+dikirim sistem kepada pengguna melalui WhatsApp. Entitas ini digunakan untuk 
+memantau proses pengiriman pesan, mencatat histori komunikasi, serta membantu 
+proses monitoring apabila terjadi kegagalan pengiriman.  Entitas berikut memiliki 
+sejumlah atribut, yakni: 
+• waNumber 
+Menyimpan nomor WhatsApp tujuan pengiriman pesan agar sistem dapat 
+mengirim pesan ke pengguna yang sesuai. 
+• messageText 
+Menyimpan isi pesan yang dikirim sistem, baik berupa notifikasi, reminder, 
+maupun informasi lainnya. 
+• status 
+Menunjukkan kondisi pengiriman pesan, seperti berhasil, gagal, atau masih 
+dalam proses pengiriman. 
+
+
+===== PAGE 54 =====
+ 
+47 
+• errorMessage 
+Menyimpan detail kesalahan yang terjadi apabila proses pengiriman pesan 
+mengalami kegagalan. 
+• sentAt 
+Menyimpan waktu saat pesan dikirim atau diproses oleh sistem pengiriman 
+pesan. 
+• createdAt 
+Menyimpan waktu ketika data pesan pertama kali dibuat dan dicatat dalam 
+database. 
+• updatedAt 
+Menyimpan waktu terakhir data pesan diperbarui, misalnya ketika status 
+pengiriman berubah. 
+17. Entitas Aset 
+Entitas Asset berfungsi menyimpan data aset non -investasi yang dimiliki 
+pengguna, seperti kendaraan, properti, emas, atau barang berharga lainnya. Data pada 
+entitas ini membantu sistem menghitung total kekayaan dan kondisi finansial 
+pengguna. Entitas aset memiliki sejumlah atribut, yakni: 
+• assetType 
+Menyimpan kategori aset untuk mengelompokkan jenis kepemilikan 
+pengguna, seperti properti, kendaraan, atau logam mulia. 
+• assetName 
+Menyimpan nama atau identitas aset agar pengguna dapat membedakan setiap 
+aset yang dimiliki. 
+• quantity 
+Menyimpan jumlah kepemilikan aset yang dimiliki pengguna. 
+• unit 
+Menentukan satuan pengukuran aset sesuai jenis asetnya, sehingga data dapat 
+dihitung secara konsisten. 
+• unitPrice 
+Menyimpan nilai harga per unit aset yang digunakan sebagai dasar perhitungan 
+nilai aset. 
+ 
+ 
+
+
+===== PAGE 55 =====
+ 
+48 
+• estimatedValue 
+Menyimpan estimasi total nilai aset berdasarkan jumlah kepemilikan dan harga 
+aset saat ini. 
+• notes 
+Menyimpan informasi tambahan terkait kondisi, detail, atau keterangan khusus 
+mengenai aset pengguna. 
+18. Entitas PortfolioAsset 
+Entitas PortfolioAsset berfungsi menyimpan data aset investasi yang dimiliki 
+pengguna, seperti saham, reksa dana, cryptocurrency, atau instrumen investasi lainnya. 
+Entitas ini digunakan untuk memantau nilai portofolio dan perkembangan investasi 
+pengguna. Entitas berikut memiliki sejumlah atribut, diantaranya: 
+• assetType 
+Menentukan jenis instrumen investasi yang dimiliki pengguna untuk 
+mengelompokkan aset berdasarkan kategorinya. 
+• symbol 
+Menyimpan kode atau simbol resmi aset investasi yang digunakan sebagai 
+identitas unik di pasar investasi. 
+• displayName 
+Menyimpan nama tampilan aset investasi agar lebih mudah dikenali dan 
+dipahami oleh pengguna. 
+• quantity 
+Menyimpan jumlah unit atau kepemilikan investasi yang dimiliki pengguna. 
+• unit 
+Menentukan satuan kepemilikan investasi sesuai jenis aset, sehingga 
+perhitungan investasi dapat dilakukan secara konsisten. 
+• averageBuyPrice 
+Menyimpan rata -rata harga beli aset investasi untuk membantu perhitungan 
+keuntungan atau kerugian investasi. 
+• currency 
+Menentukan mata uang yang digunakan pada aset investasi agar nilai investasi 
+dapat dihitung dan ditampilkan dengan tepat. 
+ 
+ 
+
+
+===== PAGE 56 =====
+ 
+49 
+19. Entitas PortfolioTrade 
+Entitas PortfolioTrade berfungsi mencatat seluruh aktivitas transaksi investasi 
+pengguna, baik pembelian maupun penjualan aset investasi. Data pada entitas ini 
+digunakan untuk memantau histori transaksi, menghitung keuntungan atau kerugian 
+investasi, serta  menganalisis performa portofolio pengguna.  Entitas PortfolioTrade 
+memiliki sejumlah atribut, yakni: 
+• side 
+Menentukan jenis transaksi investasi yang dilakukan pengguna, yaitu 
+pembelian (buy) atau penjualan (sell) aset investasi. 
+• symbol 
+Menyimpan kode atau simbol resmi aset investasi yang diperdagangkan agar 
+sistem dapat mengidentifikasi aset secara spesifik. 
+• displayName 
+Menyimpan nama tampilan aset investasi agar lebih mudah dikenali oleh 
+pengguna pada riwayat transaksi. 
+• quantity 
+Menyimpan jumlah unit investasi yang dibeli atau dijual dalam satu transaksi. 
+• pricePerUnit 
+Menyimpan harga per unit aset investasi pada saat transaksi dilakukan sebagai 
+dasar perhitungan nilai transaksi. 
+• totalAmount 
+Menyimpan total nilai transaksi investasi yang diperoleh dari jumlah unit 
+dikalikan harga per unit. 
+• realizedPnL 
+Menyimpan nilai keuntungan atau kerugian yang telah terealisasi setelah 
+transaksi penjualan aset dilakukan. 
+• currency 
+Menentukan mata uang yang digunakan dalam transaksi investasi agar nilai 
+transaksi dapat dihitung secara akurat. 
+• occurredAt 
+Menyimpan waktu terjadinya transaksi investasi untuk kebutuhan histori dan 
+analisis aktivitas investasi pengguna. 
+ 
+
+
+===== PAGE 57 =====
+ 
+50 
+20. Entitas SystemHeartBeat 
+Entitas SystemHeartbeat berfungsi memonitor kondisi dan kesehatan layanan 
+sistem secara berkala. Entitas ini membantu sistem mendeteksi apakah suatu layanan 
+masih berjalan normal, mengalami gangguan, atau tidak aktif.  Entitas ini memiliki 
+sejumlah atribut, yakni: 
+• serviceName 
+Menyimpan nama layanan, server, atau komponen sistem yang dipantau agar 
+sistem dapat mengidentifikasi sumber layanan secara spesifik. 
+• lastSeenAt 
+Menyimpan waktu terakhir layanan terdeteksi aktif atau berhasil mengirim 
+status ke sistem monitoring sebagai indikator kondisi layanan masih berjalan 
+dengan baik. 
+21. Relationship 
+Relationship pada ERD menunjukkan hubungan antar entitas dalam database. 
+Relationship ini digunakan untuk menggambarkan bagaimana data saling terhubung 
+dan berinteraksi di dalam sistem. 
+• One-to-many (1:N) 
+Relationship One -to-Many (1:N) merupakan hubungan dimana satu data 
+pada suatu entitas dapat memiliki banyak data terkait pada entitas lain, 
+sedangkan data pada entitas kedua hanya terhubung dengan satu data utama. 
+Relationship ini biasanya digunakan untuk menyimpan data yang bersifat 
+aktivitas, histori, atau data berulang dalam sistem. Pada ERD ini, terdapat 
+beberapa relasi antar entitas yang menggunakan tipe relationship One-to-Many 
+(1:N), yaitu: 
+a. User — Transaction (1:N) 
+Relasi ini menunjukkan bahwa satu pengguna dapat memiliki banyak 
+data transaksi, sedangkan setiap transaksi hanya dimiliki oleh satu 
+pengguna. Relationship ini digunakan untuk menyimpan dan mengelola 
+seluruh riwayat pemasukan maupun pengeluaran pengguna. 
+b. User — MessageLog (1:N) 
+Relasi ini menunjukkan bahwa satu pengguna dapat memiliki banyak 
+riwayat pesan dalam sistem. Relationship ini digunakan untuk mencatat 
+seluruh interaksi pengguna dengan chatbot atau sistem AI. 
+
+
+===== PAGE 58 =====
+ 
+51 
+c. MessageLog — AIAnalysisLog (1:N) 
+Relasi ini menunjukkan bahwa satu pesan dapat dianalisis beberapa kali 
+oleh AI dengan jenis analisis yang berbeda. Relationship ini membantu 
+sistem menyimpan hasil analisis AI secara terstruktur. 
+d. MessageLog — IntentObservation (1:N) 
+Relasi ini menunjukkan bahwa satu pesan dapat menghasilkan beberapa 
+observasi intent. Relationship ini membantu sistem memahami maksud 
+atau kebutuhan pengguna berdasarkan pesan yang dikirim. 
+e. User — ExpensePlan (1:N) 
+Relasi ini menunjukkan bahwa satu pengguna dapat memiliki beberapa 
+rencana pengeluaran. Relationship ini digunakan untuk membantu 
+pengguna mengatur anggaran dan perencanaan keuangan. 
+f. ExpensePlan — ExpensePlanItem (1:N) 
+Relasi ini menunjukkan bahwa satu rencana pengeluaran dapat 
+memiliki banyak item pengeluaran. Relationship ini digunakan untuk 
+mengelompokkan detail pengeluaran berdasarkan kategori tertentu. 
+g. User — FinancialGoal (1:N) 
+Relasi ini menunjukkan bahwa satu pengguna dapat memiliki banyak 
+tujuan finansial. Relationship ini membantu pengguna mengelola 
+berbagai target keuangan secara bersamaan. 
+h. FinancialGoal — GoalContribution (1:N) 
+Relasi ini menunjukkan bahwa satu tujuan finansial dapat menerima 
+banyak kontribusi dana. Relationship ini digunakan untuk memantau 
+progres pencapaian target finansial pengguna. 
+i. User — OnboardingSession (1:N) 
+Relasi ini menunjukkan bahwa satu pengguna dapat memiliki beberapa 
+sesi onboarding. Relationship ini digunakan untuk menyimpan progres 
+onboarding pengguna dalam sistem. 
+j. User — ReminderEvent (1:N) 
+Relasi ini menunjukkan bahwa satu pengguna dapat menerima banyak 
+reminder dari sistem. Relationship ini digunakan untuk menyimpan 
+histori reminder yang telah dikirim. 
+k. User — OutboundMessage (1:N) 
+
+
+===== PAGE 59 =====
+ 
+52 
+Relasi ini menunjukkan bahwa satu pengguna dapat menerima banyak 
+pesan keluar dari sistem. Relationship ini digunakan untuk mencatat 
+seluruh aktivitas pengiriman pesan otomatis. 
+l. User — Asset (1:N) 
+Relasi ini menunjukkan bahwa satu pengguna dapat memiliki banyak 
+aset non-investasi. Relationship ini digunakan untuk menghitung total 
+kekayaan pengguna. 
+m. User — PortfolioAsset (1:N) 
+Relasi ini menunjukkan bahwa satu pengguna dapat memiliki banyak 
+aset investasi. Relationship ini digunakan untuk mengelola portofolio 
+investasi pengguna. 
+n. User — PortfolioTrade (1:N) 
+Relasi ini menunjukkan bahwa satu pengguna dapat memiliki banyak 
+transaksi investasi. Relationship ini digunakan untuk menyimpan 
+histori aktivitas jual beli investasi. 
+o. ReminderTemplate — ReminderEvent (1:N) 
+Relasi ini menunjukkan bahwa satu template reminder dapat digunakan 
+untuk banyak reminder event. Relationship ini membantu sistem 
+mengotomatisasi pengiriman reminder dengan format yang konsisten. 
+p. PortfolioAsset — PortfolioTrade (1:N) 
+Relasi ini menunjukkan bahwa satu aset investasi dapat memiliki 
+banyak transaksi investasi. Relationship ini digunakan untuk melacak 
+histori transaksi pada setiap aset investasi pengguna. 
+• One-to-One (1:1) 
+Relationship One -to-One (1:1) merupakan hubungan dimana satu data 
+pada suatu entitas hanya berhubungan dengan satu data pada entitas lain. 
+Relationship ini digunakan untuk menyimpan data yang bersifat khusus, 
+unik, dan hanya dimiliki oleh satu pengguna ata u satu entitas tertentu. Pada 
+ERD ini, terdapat beberapa relasi antar entitas yang menggunakan tipe 
+relationship One-to-One (1:1), yaitu: 
+a. User — SavingsGoal (1:1) 
+Relasi ini menunjukkan bahwa satu pengguna memiliki satu target 
+tabungan utama. Relationship ini digunakan untuk memantau fokus 
+target tabungan pengguna. 
+
+
+===== PAGE 60 =====
+ 
+53 
+b. User — ReminderPreference (1:1) 
+Relasi ini menunjukkan bahwa setiap pengguna memiliki satu 
+konfigurasi reminder yang bersifat personal. Relationship ini digunakan 
+untuk mengatur preferensi notifikasi pengguna. 
+c. User — FinancialProfile (1:1) 
+Relasi ini menunjukkan bahwa setiap pengguna memiliki satu profil 
+finansial. Relationship ini digunakan untuk menyimpan ringkasan 
+kondisi keuangan pengguna berdasarkan hasil analisis sistem. 
+ 
+  
+
+
+===== PAGE 61 =====
+ 
+54 
+BAB IV 
+HASIL DAN PEMBAHASAN 
+4.1 Pengembangan Fitur Aplikasi 
+a. Pencatatan Transaksi melalui Pesan 
+Fitur memungkinkan pengguna untuk mencatat transaksi keuangan secara 
+langsung melalui pesan WhatsApp menggunakan bahasa natural. Sistem 
+memanfaatkan teknologi Natural Language Processing (NLP) untuk 
+mengenali entitas penting seperti nominal, jenis transaksi (pemasukan atau 
+pengeluaran), serta kategori.  
+b. Pencatatan Transaksi dari Gambar (OCR) 
+Fitur memungkinkan pengguna mengirimkan gambar seperti struk belanja 
+atau bukti pembayaran. Sistem menggunakan teknologi Optical Character 
+Recognition (OCR) untuk mengekstraksi teks dari gambar, kemudian 
+memprosesnya lebih lanjut menggunakan NLP untuk mengidentifikasi 
+informasi transaksi seperti nominal, tanggal, dan merchant (pihak penjual). 
+c. Pengelolaan Perubahan Data Transaksi melalui Chat 
+Pengguna dapat melakukan perubahan atau penghapusan data transaksi 
+melalui perintah berbasis teks. Sistem akan memproses instruksi tersebut 
+menggunakan NLP dan melakukan klarifikasi apabila terdapat ambiguitas, 
+sehingga meminimalkan kesalahan dalam modifikasi data. 
+d. Kategorisasi Transaksi Otomatis 
+Setiap transaksi akan secara otomatis diklasifikasikan ke dalam kategori 
+tertentu berdasarkan hasil analisis NLP dan aturan yang telah ditentukan. 
+Selain itu, sistem juga dapat menambahkan tag internal (penanda khusus) 
+untuk memperkaya analisis data keuangan pengguna. 
+e. Penyajian Laporan Keuangan 
+Sistem menghasilkan laporan keuangan secara periodik (harian, mingguan, 
+dan bulanan). Laporan mencakup ringkasan transaksi, distribusi kategori 
+pengeluaran, serta analisis perbandingan antar periode. Output laporan dapat 
+dikirim melalui WhatsApp dalam bent uk ringkasan teks, gambar grafik, 
+maupun file PDF sesuai jenis laporan yang dihasilkan. 
+f. Pemantauan dan Pengelolaan Anggaran 
+Pengguna dapat menetapkan batas anggaran untuk kategori tertentu. Sistem 
+akan memantau penggunaan anggaran secara real-time (waktu nyata) dan 
+memberikan peringatan ketika penggunaan mendekati atau melebihi batas yang 
+telah ditentukan. 
+g. Sistem Pengingat dan Notifikasi Otomatis 
+Sistem menyediakan notifikasi otomatis seperti pengingat pengeluaran, 
+peringatan anggaran, serta notifikasi terkait aktivitas keuangan lainnya. 
+Pengguna juga dapat menyesuaikan preferensi notifikasi sesuai kebutuhan. 
+h. Pengelolaan Target Keuangan 
+Fitur ini memungkinkan pengguna menetapkan berbagai tujuan keuangan, 
+seperti menabung untuk kebutuhan tertentu. Sistem mendukung pengelolaan 
+multi-target dan memantau perkembangan masing -masing target secara 
+berkelanjutan. 
+ 
+
+
+===== PAGE 62 =====
+ 
+55 
+i. Pemantauan Perkembangan Tabungan 
+Sistem secara otomatis melacak kontribusi tabungan pengguna terhadap 
+target yang telah ditetapkan. Selain itu, sistem juga menghitung estimasi waktu 
+pencapaian target, serta memberikan informasi status progres secara berkala. 
+j. Asisten Keuangan 
+Fitur ini memberikan rekomendasi dan wawasan keuangan berdasarkan data 
+historis pengguna. Analisis dilakukan tidak hanya berdasarkan statistik 
+sederhana, tetapi juga mempertimbangkan pola perilaku pengguna untuk 
+menghasilkan saran yang lebih relevan. 
+k. Analisis Pola Pengeluaran 
+Sistem menganalisis pola pengeluaran pengguna untuk mengidentifikasi 
+kebiasaan, seperti transaksi berulang, potensi kebocoran keuangan, serta 
+perbedaan pola pengeluaran antara periode waktu tertentu. 
+l. Manajemen Portofolio Investasi 
+Pengguna dapat mencatat dan memantau aset investasi yang dimiliki, 
+termasuk nilai, komposisi, dan distribusi. Sistem memberikan gambaran 
+sederhana mengenai diversifikasi portofolio serta rekomendasi dasar untuk 
+pengelolaan aset. 
+m. Pembaruan Data Harga Pasar 
+Sistem menyediakan informasi harga terkini untuk berbagai instrumen 
+investasi seperti saham, kripto, dan emas melalui integrasi API eksternal. Data 
+ini digunakan untuk menghitung valuasi portofolio secara real-time. 
+n. Personalisasi Berita Keuangan Harian 
+Fitur menyajikan berita yang disesuaikan dengan aset yang dimiliki 
+pengguna. Memberikan penjelasan singkat mengenai potensi dampak berita 
+tersebut terhadap portofolio pengguna. 
+o. Rekomendasi Alokasi Keuangan 
+Sistem memberikan saran terkait pembagian keuangan pengguna, termasuk 
+alokasi pengeluaran, tabungan, dan investasi. Rekomendasi didasarkan pada 
+kondisi keuangan dan tujuan yang telah ditetapkan. 
+p. Evaluasi Pencapaian Kebebasan Finansial 
+Fitur membantu pengguna dalam memantau progres menuju kebebasan 
+finansial. Sistem melakukan analisis terhadap pendapatan, pengeluaran, dan 
+aset untuk memberikan gambaran tingkat kemandirian finansial pengguna. 
+q. Proyeksi Perkembangan Keuangan 
+Sistem melakukan simulasi kondisi keuangan di masa depan berdasarkan 
+data historis dan asumsi tertentu. Hasil simulasi mencakup estimasi 
+pertumbuhan aset, pencapaian target, serta perbandingan berbagai skenario 
+keuangan. 
+4.2 Hasil Pengembangan Aplikasi 
+4.2.1 Komponen Arsitektur Sistem 
+Pada penelitian ini, arsitektur sistem dibagi menjadi tiga kelompok utama, 
+yaitu frontend (antarmuka), backend (server), dan database (basis data ). 
+Pembagian dilakukan agar peran setiap komponen dapat dijelaskan secara 
+terstruktur dan memudahkan pemahaman terhadap alur kerja sistem secara 
+keseluruhan. 
+
+
+===== PAGE 63 =====
+ 
+56 
+ 
+4.2.1.1 Frontend 
+Frontend merupakan bagian sistem yang berinteraksi 
+langsung dengan pengguna maupun administrator. Pada sistem 
+ini, frontend terdiri dari WhatsApp sebagai media interaksi utama 
+pengguna dan Admin Web sebagai antarmuka pengelolaan 
+sistem untuk administrator. 
+a. WhatsApp 
+WhatsApp merupakan media utama yang digunakan 
+pengguna dalam berinteraksi dengan sistem. Pengguna 
+memanfaatkan platform ini untuk menyampaikan berbagai 
+kebutuhan seperti pencatatan transaksi, permintaan 
+informasi, maupun input lainnya dalam bentuk pesan teks 
+atau gambar. Pemilihan WhatsApp didasarkan oleh 
+kemudahan akses dan familiaritas pengguna, sehingga tidak 
+diperlukan aplikasi tambahan untuk menggunakan sistem. 
+b. Admin Web 
+Admin Web adalah antarmuka berbasis web yang 
+diperuntukkan bagi administrator sistem. Komponen ini 
+digunakan untuk keperluan monitoring dan pengelolaan 
+sistem, seperti melihat data pengguna, transaksi, status 
+langganan, serta kondisi operasional sistem secara umum. 
+Admin Web berfungsi sebagai pusat kontrol administratif 
+tanpa terlibat dalam proses penggunaan sistem oleh 
+pengguna akhir. 
+4.2.1.2 Backend 
+Backend merupakan bagian inti sistem yang menangani 
+logika bisnis, pemrosesan data, integrasi antarkomponen, dan 
+pelaksanaan layanan utama. Pada penelitian ini, backend terdiri 
+atas API Backend, Bot Service, Reporting Service, Modul NLP, 
+dan Modul OCR. 
+a. API Backend 
+API Backend merupakan pusat pemrosesan utama pada 
+sistem, menangani permintaan dari sistem lain. Komponen 
+berperan dalam memproses logika bisnis, seperti validasi 
+input, pengelolaan transaksi keuangan, pengecekan status 
+langganan, pengaturan pengingat serta menjadi penghubung 
+utama antara frontend dan database. 
+b. Bot Service 
+Bot Service merupakan komponen yang berfungsi sebagai 
+penghubung antara platform komunikasi WhatsApp dan 
+sistem backend. Komponen ini menangani aspek integrasi 
+dengan WhatsApp, termasuk pengelolaan sesi komunikasi, 
+autentikasi perangkat, serta pengiriman dan penerimaan 
+pesan atau media. 
+ 
+
+
+===== PAGE 64 =====
+ 
+57 
+ 
+ 
+c. Reporting Service 
+Reporting Service adalah layanan yang bertugas 
+menghasilkan laporan dalam bentuk visual seperti grafik dan 
+dokumen.  
+d. Natural Language Processing (NLP) 
+Modul NLP berfungsi dalam memproses dan memahami  
+input berbentuk teks dari pengguna. Modul digunakan untuk 
+mengidentifikasi maksud pesan serta mengekstraksi 
+informasi penting seperti nominal transaksi, kategori, atau 
+konteks lainnya dari bahasa alami yang digunakan pengguna. 
+e. Optical Character Recognition (OCR) 
+Modul OCR berfungsi untuk mengekstrak teks dari input 
+berbentuk gambar, seperti struk atau bukti transaksi. Hasil 
+ekstraksi kemudian digunakan sebagai dasar untuk 
+pemrosesan data lebih lanjut oleh sistem. 
+4.2.1.3 Database 
+a. MySQL  
+MySQL digunakan sebagai basis data untuk menyimpan 
+seluruh data sistem secara terstruktur. Data yang disimpan 
+mencakup informasi pengguna, transaksi, riwayat aktivitas, 
+status langganan, serta data pendukung lainnya.  
+b. Prisma ORM 
+Prisma ORM merupakan data access layer yang digunakan 
+untuk memfasilitasi interaksi antara backend dan MySQL. 
+Komponen ini memungkinkan pengelolaan data melalui 
+pendekatan object-relational mapping. 
+4.2.2 Alur Sistem Data 
+4.2.2.1 Input Data 
+• Pengguna memasukkan data melalui aplikasi WhatsApp 
+dalam bentuk pesan teks atau gambar. 
+• Data tersebut diterima melalui platform WhatsApp sebagai 
+media komunikasi utama. 
+• Selanjutnya, data diteruskan ke Bot Service untuk 
+dihubungkan dengan sistem backend. 
+4.2.2.2 Pemrosesan Data 
+• Bot Service mengirimkan data yang diterima ke API Backend 
+untuk dilakukan pemrosesan lebih lanjut. 
+• API Backend melakukan validasi terhadap data agar sesuai 
+dengan format dan kebutuhan sistem. 
+• Sistem kemudian mengidentifikasi jenis data yang diterima, 
+yaitu teks atau gambar. 
+• Jika data berupa teks, sistem memanfaatkan Modul NLP 
+untuk memahami isi pesan dan mengekstrak informasi yang 
+diperlukan. 
+
+
+===== PAGE 65 =====
+ 
+58 
+• Jika data berupa gambar, sistem memanfaatkan Modul OCR 
+untuk mengenali teks yang terdapat pada gambar. 
+• Hasil pemrosesan dari NLP atau OCR dikembalikan ke API 
+Backend untuk diolah menjadi data yang terstruktur sesuai 
+kebutuhan sistem. 
+4.2.2.3 Penyimpanan Data 
+• Setelah proses NLP atau OCR selesai dilakukan, sistem 
+mengubah hasil ekstraksi menjadi data transaksi yang 
+terstruktur sesuai format yang digunakan pada basis data. 
+• API Backend kemudian menyimpan data tersebut ke dalam 
+database MySQL menggunakan Prisma ORM sebagai media 
+akses dan manajemen data. 
+• Informasi pengguna disimpan pada entitas User, sedangkan 
+data transaksi pemasukan, pengeluaran, dan tabungan 
+disimpan pada entitas Transaction. 
+• Riwayat pesan dan aktivitas komunikasi pengguna melalui 
+WhatsApp disimpan pada entitas MessageLog untuk 
+kebutuhan pelacakan sistem dan observability. 
+• Hasil analisis AI dan proses parsing disimpan pada entitas 
+AIAnalysisLog untuk mendukung monitoring dan evaluasi 
+performa sistem. 
+• Data tambahan seperti target keuangan, kontribusi goal, asset 
+tracking, portfolio, budgeting kategori, dan reminder 
+disimpan pada tabel atau entitas terpisah agar setiap fitur 
+memiliki struktur data yang konsisten dan mudah dikelola. 
+4.2.2.4 Penyajian Output 
+• Setelah data tersimpan dan diproses oleh Analytics & 
+Reporting Engine, sistem menghasilkan output sesuai 
+kebutuhan pengguna. 
+• Output sistem dikirim kembali kepada pengguna melalui 
+WhatsApp dalam bentuk pesan teks, gambar grafik, maupun 
+dokumen PDF sesuai jenis laporan yang diminta. 
+• Untuk pencatatan transaksi, sistem memberikan konfirmasi 
+otomatis berupa ringkasan transaksi yang berhasil disimpan. 
+• Untuk laporan harian dan mingguan, sistem dapat 
+menampilkan ringkasan pemasukan, pengeluaran, dan 
+distribusi kategori dalam bentuk teks maupun grafik. 
+• Untuk laporan bulanan penuh, sistem dapat menghasilkan 
+dokumen PDF yang berisi rekap transaksi, analisis keuangan, 
+dan visualisasi laporan secara lebih lengkap. 
+• Pada sisi admin, data pengguna, transaksi, reminder a, dan 
+monitoring sistem disajikan melalui dashboard web untuk 
+membantu proses observasi dan pengelolaan sistem. 
+
+
+===== PAGE 66 =====
+ 
+59 
+ 
+ 
+Gambar 4.2.2 Alur Pemrosesan Data 
+ 
+4.3 Pengujian Aplikasi 
+4.3.1 Metode Pengujian 
+Usability testing dilakukan untuk mengevaluasi kemudahan penggunaan 
+AI Finance Assistant dalam menjalankan fitur utama, seperti onboarding 
+pengguna, pencatatan transaksi melalui WhatsApp, pengiriman struk untuk 
+OCR, pembuatan laporan keuangan, pengaturan b udget, target tabungan, 
+serta pemantauan data melalui dashboard web. Pengujian ini berfokus pada 
+kejelasan instruksi bot, kemudahan input menggunakan bahasa alami, 
+ketepatan respons sistem, dan keterbacaan informasi pada dashboard. 
+4.3.2 Hasil Pengujian 
+Hasil pengujian usability disajikan dalam bentuk tabel yang memuat 
+skenario pengujian, langkah yang dilakukan, hasil yang diharapkan, serta 
+
+
+
+===== PAGE 67 =====
+ 
+60 
+hasil aktual dari penggunaan aplikasi. Tabel tersebut digunakan sebagai 
+bukti bahwa fitur-fitur utama telah diuji berdasarkan alur penggunaan 
+nyata, sehingga dapat menunjukkan tingkat kemudahan penggunaan, 
+konsistensi respons sistem, serta aspek yang perlu diperbaiki untuk 
+meningkatkan pengalaman pengguna. 
+Tabel 4.3 Hasil Pengujian Aplikasi 
+ 
+4.3.3 Analisis Hasil Pengujian 
+ID Tes Kategori Skenario Langkah/Data Hasil yang 
+Diharapkan Status 
+TC-001 
+Inisialisasi 
+Sistem dan 
+Manajemen 
+Sesi 
+Inisialisasi awal 
+tanpa sesi 
+Eksekusi startup 
+dengan direktori 
+autentikasi kosong 
+Kode QR muncul di 
+terminal tanpa 
+kegagalan sistem Berhasil 
+TC-002 
+Inisialisasi 
+Sistem dan 
+Manajemen 
+Sesi 
+Pemindaian Kode 
+QR berhasil 
+Pemindaian QR 
+melalui fitur Tautan 
+Perangkat 
+WhatsApp 
+Koneksi terbuka, 
+sistem pemantauan 
+detak jantung aktif Berhasil 
+TC-003 
+Inisialisasi 
+Sistem dan 
+Manajemen 
+Sesi 
+Penggunaan 
+kembali sesi lama 
+Menjalankan ulang 
+bot setelah login 
+berhasil 
+Sistem masuk 
+otomatis tanpa perlu 
+pemindaian QR ulang Berhasil 
+TC-004 
+Inisialisasi 
+Sistem dan 
+Manajemen 
+Sesi 
+Pemutusan 
+koneksi transien 
+Simulasi kegagalan 
+koneksi sementara 
+Sistem melakukan 
+rekoneksi otomatis 
+setelah penundaan Berhasil 
+TC-006 
+Inisialisasi 
+Sistem dan 
+Manajemen 
+Sesi 
+Pembaruan 
+kredensial 
+tersimpan 
+Pemicuan 
+pembaruan 
+kredensial Baileys 
+Berkas status 
+autentikasi diperbarui 
+secara otomatis Berhasil 
+TC-007 
+Protokol 
+Pemrosesan 
+Komunikasi 
+Inbound 
+Pesan teks 
+personal diproses 
+Pengiriman pesan 
+teks pribadi untuk 
+pendaftaran 
+Sistem meneruskan 
+permintaan ke API 
+inbound via POST Berhasil 
+TC-008 
+Protokol 
+Pemrosesan 
+Komunikasi 
+Inbound 
+Pengabaian pesan 
+grup 
+Pengiriman pesan 
+pada grup yang 
+menyertakan bot 
+Tidak ada pengiriman 
+data ke API inbound Berhasil 
+TC-009 
+Protokol 
+Pemrosesan 
+Komunikasi 
+Inbound 
+Pengabaian pesan 
+internal 
+Penerimaan pesan 
+dengan identitas 
+pengirim bot sendiri 
+Pesan tidak diproses 
+ulang untuk 
+menghindari loop Berhasil 
+
+
+===== PAGE 68 =====
+ 
+61 
+TC-010 
+Protokol 
+Pemrosesan 
+Komunikasi 
+Inbound 
+Pesan tanpa 
+identitas JID 
+Simulasi pesan tanpa 
+identitas remoteJid 
+Fungsi kembali ke 
+status awal tanpa 
+kesalahan sistem Berhasil 
+TC-011 
+Protokol 
+Pemrosesan 
+Komunikasi 
+Inbound 
+Pesan non-teks 
+atau citra 
+Pengiriman stiker, 
+audio, atau kontak 
+Pesan tidak diteruskan 
+ke lapisan API Berhasil 
+TC-012 
+Protokol 
+Pemrosesan 
+Komunikasi 
+Inbound 
+Pesan teks polos 
+konvensional 
+Input data transaksi 
+dalam format teks 
+Payload tipe TEXT 
+diterima dengan 
+konten yang sesuai Berhasil 
+TC-013 
+Protokol 
+Pemrosesan 
+Komunikasi 
+Inbound 
+Pesan teks 
+dengan kutipan 
+Pengiriman pesan 
+balasan (quoted text) 
+Teks berhasil 
+diekstraksi dari 
+metadata pesan 
+tambahan 
+Berhasil 
+TC-021 
+Resolusi 
+Identitas dan 
+Pemetaan 
+Identifier 
+Logis 
+Pemetaan LID ke 
+nomor telepon 
+Pengiriman teks 
+berisi nomor telepon 
+dalam format LID 
+Pemetaan LID ke JID 
+telepon berhasil 
+disimpan Berhasil 
+TC-022 
+Resolusi 
+Identitas dan 
+Pemetaan 
+Identifier 
+Logis 
+Metadata 
+partisipan nomor 
+Simulasi partisipan 
+dengan format JID 
+standar 
+Data telepon 
+cadangan berhasil 
+disimpan dalam 
+sistem 
+Berhasil 
+TC-023 
+Resolusi 
+Identitas dan 
+Pemetaan 
+Identifier 
+Logis 
+Kegagalan 
+resolusi nomor 
+Simulasi resolusi 
+yang menghasilkan 
+data kosong 
+Pesan diblokir dan 
+tidak diteruskan ke 
+lapisan API Berhasil 
+TC-024 
+Resolusi 
+Identitas dan 
+Pemetaan 
+Identifier 
+Logis 
+Verifikasi 
+registrasi 
+WhatsApp 
+Pengecekan status 
+pendaftaran nomor 
+HP 
+Payload menyertakan 
+status registrasi yang 
+tervalidasi Berhasil 
+TC-025 
+Validasi 
+Skema API 
+Otentikasi API 
+Inbound 
+POST 
+/api/bot/inbound 
+dengan body valid 
+Permintaan diproses 
+sesuai skema tanpa 
+token eksternal 
+Berhasil 
+TC-026 
+Validasi 
+Skema API 
+Penanganan body 
+permintaan 
+kosong 
+POST dengan body 
+kosong {} 
+Sistem merespons 
+dengan kode HTTP 
+400 
+Berhasil 
+
+
+===== PAGE 69 =====
+ 
+62 
+TC-027 
+Validasi 
+Skema API 
+Validasi panjang 
+nomor telepon 
+POST dengan 
+waNumber minimal 
+Sistem merespons 
+dengan kode HTTP 
+400 
+Berhasil 
+TC-028 
+Validasi 
+Skema API 
+Validasi tipe 
+pesan 
+POST dengan 
+messageType yang 
+tidak didukung 
+Sistem merespons 
+dengan kode HTTP 
+400 
+Berhasil 
+TC-029 
+Validasi 
+Skema API 
+Pesan teks tanpa 
+konten 
+POST tipe TEXT 
+tanpa isi teks 
+Sistem merespons 
+dengan kode HTTP 
+400 
+Berhasil 
+TC-030 
+Validasi 
+Skema API 
+Citra tanpa data 
+base64 
+POST tipe IMAGE 
+tanpa data base64 
+Sistem merespons 
+dengan kode HTTP 
+400 
+Berhasil 
+TC-031 
+Validasi 
+Skema API 
+Format stempel 
+waktu ISO 
+POST dengan 
+stempel waktu ISO 
+valid 
+Log pesan 
+menggunakan waktu 
+input yang sesuai 
+Berhasil 
+TC-032 
+Validasi 
+Skema API 
+Penanganan 
+stempel waktu 
+tidak valid 
+POST dengan sentAt 
+tidak valid 
+Sistem menggunakan 
+waktu cadangan 
+(fallback) yang aman 
+Berhasil 
+TC-033 
+Manajemen 
+Pengguna dan 
+Logika Bisnis 
+API 
+Pembuatan profil 
+pengguna baru 
+Pengiriman teks dari 
+nomor telepon baru 
+User dibuat dengan 
+status PENDING dan 
+NOT_STARTED Berhasil 
+TC-034 
+Manajemen 
+Pengguna dan 
+Logika Bisnis 
+API 
+Pencegahan 
+duplikasi 
+pengguna 
+Pengiriman pesan 
+berulang dari nomor 
+yang sama 
+Sistem tidak membuat 
+entri pengguna 
+duplikat Berhasil 
+TC-035 
+Manajemen 
+Pengguna dan 
+Logika Bisnis 
+API 
+Normalisasi 
+nomor dengan 
+awalan + 
+Pengiriman nomor 
+format +628... 
+Lookup dan 
+penyimpanan nomor 
+tetap konsisten Berhasil 
+TC-036 
+Manajemen 
+Pengguna dan 
+Logika Bisnis 
+API 
+Normalisasi 
+nomor dengan 
+spasi 
+Pengiriman nomor 
+dengan karakter 
+spasi 
+Normalisasi mengarah 
+pada entitas pengguna 
+yang sama Berhasil 
+TC-037 
+Manajemen 
+Pengguna dan 
+Logika Bisnis 
+API 
+Pemrosesan 
+payload waLid 
+POST teks dengan 
+data waLid 
+User dan pesan 
+diproses tanpa 
+mengubah nomor 
+valid 
+Berhasil 
+TC-038 
+Manajemen 
+Pengguna dan 
+Logika Bisnis 
+API 
+Pencatatan log 
+teks inbound 
+Input transaksi 
+"makan 50000" 
+MessageLog tipe 
+TEXT tercatat dengan 
+konten sesuai Berhasil 
+
+
+===== PAGE 70 =====
+ 
+63 
+TC-039 
+Manajemen 
+Pengguna dan 
+Logika Bisnis 
+API 
+Pencatatan log 
+citra inbound 
+Pengiriman citra 
+tanpa keterangan 
+MessageLog tipe 
+IMAGE tercatat 
+dengan konten 
+fallback 
+Berhasil 
+TC-040 
+Manajemen 
+Pengguna dan 
+Logika Bisnis 
+API 
+Pencatatan log 
+analisis AI 
+Simulasi ekstraksi 
+AI berhasil 
+Log analisis intent 
+dan ekstraksi 
+tersimpan di database Berhasil 
+TC-041 
+Manajemen 
+Pengguna dan 
+Logika Bisnis 
+API 
+Pencatatan pesan 
+keluar (outbound) 
+Handler memberikan 
+respons teks 
+Entitas 
+OutboundMessage 
+dibuat untuk 
+pengguna terkait 
+Berhasil 
+TC-043 
+Pembatasan 
+Laju 
+Permintaan 
+Pelampauan batas 
+per nomor 
+Pengiriman 
+permintaan berulang 
+secara masif 
+Sistem merespons 
+dengan kode HTTP 
+429 
+Berhasil 
+TC-044 
+Pembatasan 
+Laju 
+Permintaan 
+Isolasi kuota 
+antar nomor 
+Nomor A overload, 
+nomor B kirim 
+normal 
+Permintaan nomor B 
+tetap diterima dan 
+diproses 
+Berhasil 
+TC-045 
+Pembatasan 
+Laju 
+Permintaan 
+Pemulihan 
+jendela waktu 
+Menunggu 
+berakhirnya durasi 
+pembatasan 
+Permintaan nomor A 
+diterima kembali oleh 
+sistem 
+Berhasil 
+TC-051 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Kueri status tanpa 
+identitas 
+GET 
+/api/onboarding/curr
+ent tanpa parameter 
+Sistem merespons 
+dengan kode HTTP 
+400 
+Berhasil 
+TC-052 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Kueri dengan 
+nomor telepon 
+valid 
+GET dengan nomor 
+telepon yang sudah 
+ada 
+Sistem 
+mengembalikan status 
+onboarding pengguna 
+Berhasil 
+TC-053 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Kueri dengan ID 
+Pengguna valid 
+GET dengan UUID 
+pengguna yang valid 
+Sistem 
+mengembalikan state 
+onboarding pengguna 
+Berhasil 
+TC-054 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Jawaban 
+onboarding tidak 
+valid 
+POST 
+/api/onboarding/ans
+wer dengan body 
+kosong 
+Sistem merespons 
+dengan kode HTTP 
+400 Berhasil 
+TC-057 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Respon 
+pendaftaran tidak 
+valid 
+Input jawaban selain 
+"register" pada tahap 
+awal 
+Step tetap atau 
+muncul instruksi 
+pendaftaran ulang 
+Berhasil 
+TC-058 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Pemilihan target 
+dana darurat 
+Input jawaban "dana 
+darurat" 
+Target dana darurat 
+tercatat dalam sistem Berhasil 
+TC-059 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Pemilihan target 
+rumah 
+Input jawaban 
+"rumah" 
+Target rumah berhasil 
+didaftarkan Berhasil 
+
+
+===== PAGE 71 =====
+ 
+64 
+TC-060 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Pemilihan target 
+kendaraan 
+Input jawaban 
+"kendaraan" 
+Target kendaraan 
+berhasil dicatat Berhasil 
+TC-061 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Pemilihan target 
+liburan 
+Input jawaban 
+"liburan" 
+Target liburan 
+berhasil disimpan Berhasil 
+TC-063 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Tanpa pemilihan 
+target 
+Memilih opsi "tidak 
+ada" pada sasaran 
+Alur berlanjut ke 
+konfigurasi anggaran Berhasil 
+TC-064 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Pemilihan target 
+berganda 
+Memilih dana 
+darurat dan rumah 
+sekaligus 
+Kedua target dibuat 
+dan diurutkan secara 
+sistematis 
+Berhasil 
+TC-066 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Nama target 
+kustom 
+Input nama target 
+"modal nikah" 
+Nama target kustom 
+berhasil disimpan 
+dalam database 
+Berhasil 
+TC-068 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Nominal target 
+angka murni 
+Input nominal 
+"10000000" 
+Nominal target 
+tersimpan sebagai 
+10.000.000 
+Berhasil 
+TC-069 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Nominal target 
+singkatan 
+Input nominal "10 
+juta" 
+Nominal dikonversi 
+dan disimpan sebagai 
+10.000.000 
+Berhasil 
+TC-071 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Target waktu 
+bulan dan tahun 
+Input "Desember 
+2027" 
+Bulan dan tahun 
+target berhasil 
+disimpan 
+Berhasil 
+TC-073 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Target waktu 
+masa lalu 
+Input tahun yang 
+sudah lewat 
+Sistem menolak input 
+atau meminta 
+klarifikasi 
+Berhasil 
+TC-074 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Mode anggaran 
+manual 
+Memilih opsi 
+"manual" 
+Alur berlanjut ke 
+rincian pengeluaran 
+manual 
+Berhasil 
+TC-075 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Mode anggaran 
+dipandu 
+Memilih opsi 
+"dipandu" 
+Alur berlanjut ke 
+kategori pangan 
+(food) 
+Berhasil 
+TC-077 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Input mode 
+anggaran tidak 
+valid 
+Input jawaban di 
+luar opsi tersedia 
+Sistem mengulang 
+permintaan pilihan 
+mode anggaran 
+Berhasil 
+TC-078 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Status pekerjaan 
+karyawan 
+Memilih opsi 
+"karyawan" 
+Alur berlanjut ke 
+perhitungan 
+pendapatan aktif 
+Berhasil 
+TC-079 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Status pekerjaan 
+mahasiswa 
+Memilih opsi 
+"mahasiswa" 
+Sistem menanyakan 
+kepemilikan 
+pendapatan aktif 
+Berhasil 
+
+
+===== PAGE 72 =====
+ 
+65 
+TC-080 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Status pekerjaan 
+freelancer 
+Memilih opsi 
+"freelancer" 
+Alur berlanjut sesuai 
+logika estimasi 
+pendapatan 
+Berhasil 
+TC-081 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Status pekerjaan 
+pengusaha 
+Memilih opsi 
+"usaha" 
+Tipe pekerjaan 
+berhasil disimpan Berhasil 
+TC-082 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Status pekerjaan 
+campuran 
+Memilih opsi 
+"karyawan + usaha" 
+Tipe pekerjaan 
+campuran diproses 
+secara array 
+Berhasil 
+TC-083 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Mahasiswa 
+dengan 
+pendapatan 
+Menjawab "ya" pada 
+pertanyaan 
+pendapatan 
+Alur berlanjut ke 
+nominal pendapatan 
+aktif 
+Berhasil 
+TC-084 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Mahasiswa tanpa 
+pendapatan 
+Menjawab "tidak" 
+pada pertanyaan 
+pendapatan 
+Alur berlanjut ke 
+estimasi pendapatan 
+bulanan 
+Berhasil 
+TC-085 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Jumlah sumber 
+pendapatan 
+tunggal 
+Input angka "1" Alur berlanjut ke 
+nominal pendapatan 
+aktif 
+Berhasil 
+TC-086 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Jumlah sumber 
+pendapatan ganda 
+Input angka "3" Sistem siap menerima 
+rincian multi-
+pendapatan 
+Berhasil 
+TC-088 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Nominal 
+pendapatan 
+format rupiah 
+Input "Rp5.000.000" Pendapatan aktif 
+tercatat sebesar 
+5.000.000 
+Berhasil 
+TC-089 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Nominal 
+pendapatan 
+format teks 
+Input "5 juta" Pendapatan aktif 
+tercatat sebesar 
+5.000.000 
+Berhasil 
+TC-091 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Tanggal 
+penggajian awal 
+bulan 
+Input tanggal "1" salaryDate disimpan 
+sebagai 1 Berhasil 
+TC-092 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Tanggal 
+penggajian akhir 
+bulan 
+Input tanggal "31" salaryDate disimpan 
+sebagai 31 Berhasil 
+TC-095 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Siklus gaji 
+berbeda 
+Konfirmasi siklus 
+gaji berbeda 
+Sistem meminta 
+tanggal gajian untuk 
+sumber berikutnya 
+Berhasil 
+TC-096 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Pendapatan pasif Jawaban "ya", 
+nominal "500000" 
+Data pendapatan pasif 
+berhasil disimpan Berhasil 
+TC-097 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Tanpa pendapatan 
+pasif 
+Jawaban "tidak" Alur berlanjut ke 
+rincian pengeluaran Berhasil 
+
+
+===== PAGE 73 =====
+ 
+66 
+TC-098 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Estimasi 
+pendapatan 
+bulanan 
+Input nominal "2 
+juta" 
+Estimasi pendapatan 
+bulanan berhasil 
+disimpan 
+Berhasil 
+TC-099 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Breakdown 
+pengeluaran 
+manual 
+Input rincian pangan 
+dan transportasi 
+Rencana pengeluaran 
+manual berhasil 
+dibuat 
+Berhasil 
+TC-101 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Pengeluaran 
+pangan (dipandu) 
+Input nominal "1.5 
+juta" 
+Item pengeluaran 
+pangan berhasil 
+disimpan 
+Berhasil 
+TC-102 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Pengeluaran 
+transportasi 
+(dipandu) 
+Input nominal "500 
+ribu" 
+Item pengeluaran 
+transportasi berhasil 
+disimpan 
+Berhasil 
+TC-103 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Pengeluaran 
+tagihan (dipandu) 
+Input nominal 
+"800000" 
+Item pengeluaran 
+tagihan berhasil 
+disimpan 
+Berhasil 
+TC-104 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Pengeluaran 
+hiburan (dipandu) 
+Input nominal 
+"300000" 
+Item pengeluaran 
+hiburan berhasil 
+disimpan 
+Berhasil 
+TC-109 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Strategi 
+pengeluaran (data 
+ada) 
+Memilih opsi 
+"memiliki data" 
+Sistem meminta input 
+total pengeluaran Berhasil 
+TC-110 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Tanpa 
+kepemilikan aset 
+Jawaban "tidak ada" 
+pada pilihan aset 
+Alur berlanjut ke 
+tahap 
+analisis/penyelesaian 
+Berhasil 
+TC-111 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Aset tabungan Input nama bank dan 
+saldo 
+Entitas aset 
+SAVINGS berhasil 
+dibuat 
+Berhasil 
+TC-112 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Aset emas fisik Input merek, berat, 
+dan karat 
+Entitas aset GOLD 
+(fisik) berhasil dibuat Berhasil 
+TC-113 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Aset emas digital Input platform dan 
+berat gram 
+Entitas aset GOLD 
+(digital) berhasil 
+dibuat 
+Berhasil 
+TC-114 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Aset saham Input simbol bursa 
+dan jumlah lot 
+Entitas aset STOCK 
+berhasil dibuat Berhasil 
+TC-115 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Aset kripto Input simbol dan 
+kuantitas 
+Entitas aset CRYPTO 
+berhasil dibuat Berhasil 
+TC-117 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Aset properti Input nama dan 
+estimasi nilai 
+properti 
+Entitas aset 
+PROPERTY berhasil 
+dibuat 
+Berhasil 
+
+
+===== PAGE 74 =====
+ 
+67 
+TC-120 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Penambahan aset 
+berlanjut 
+Jawaban "ya" pada 
+tambah aset 
+Sistem kembali ke 
+menu pemilihan tipe 
+aset 
+Berhasil 
+TC-121 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Finalisasi 
+penambahan aset 
+Jawaban "tidak" 
+pada tambah aset 
+Alur berlanjut ke 
+tahap penyelesaian Berhasil 
+TC-123 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Generasi analisis 
+data lengkap 
+GET 
+/api/onboarding/anal
+ysis 
+Mengembalikan teks 
+analisis dan data 
+visual 
+Berhasil 
+TC-124 
+Manajemen 
+Alur Kerja 
+Onboarding 
+Generasi analisis 
+data parsial 
+Kondisi pendapatan 
+ada, pengeluaran 
+kosong 
+Mengembalikan teks 
+analisis dengan pesan 
+cadangan wajar 
+Berhasil 
+TC-125 
+Pendaftaran 
+Pengguna dan 
+Kontrol Akses 
+Penyelesaian 
+proses 
+onboarding 
+POST 
+/api/onboarding/com
+plete 
+Status registrasi dan 
+onboarding menjadi 
+COMPLETED 
+Berhasil 
+TC-126 
+Pendaftaran 
+Pengguna dan 
+Kontrol Akses 
+Penyelesaian 
+tanpa identitas 
+POST 
+/api/onboarding/com
+plete body kosong 
+Sistem merespons 
+dengan kode HTTP 
+400 
+Berhasil 
+TC-127 
+Pendaftaran 
+Pengguna dan 
+Kontrol Akses 
+Aktivasi fungsi 
+paska-onboarding 
+Pengiriman transaksi 
+setelah status selesai 
+Transaksi diproses 
+tanpa perlu aktivasi 
+tambahan 
+Berhasil 
+TC-128 
+Antarmuka 
+Layanan 
+Publik dan 
+Visualisasi 
+Data 
+Lookup tanpa 
+nomor telepon 
+GET 
+/api/public/customer
+/lookup tanpa param 
+Sistem merespons 
+dengan kode HTTP 
+400 Berhasil 
+TC-129 
+Antarmuka 
+Layanan 
+Publik dan 
+Visualisasi 
+Data 
+Lookup nomor 
+tidak terdaftar 
+GET dengan nomor 
+telepon baru 
+exists=false, status 
+bernilai null 
+Berhasil 
+TC-130 
+Antarmuka 
+Layanan 
+Publik dan 
+Visualisasi 
+Data 
+Lookup nomor 
+terdaftar 
+GET dengan nomor 
+pengguna aktif 
+exists=true, status 
+registrasi 
+dikembalikan dengan 
+benar 
+Berhasil 
+TC-131 
+Antarmuka 
+Layanan 
+Publik dan 
+Visualisasi 
+Data 
+Dashboard tanpa 
+identitas 
+GET 
+/api/public/user/dash
+board tanpa param 
+Sistem merespons 
+dengan kode HTTP 
+400 Berhasil 
+
+
+===== PAGE 75 =====
+ 
+68 
+TC-132 
+Antarmuka 
+Layanan 
+Publik dan 
+Visualisasi 
+Data 
+Dashboard 
+pengguna lengkap 
+GET dengan 
+identitas pengguna 
+valid 
+Mengembalikan 
+profil, laporan, target, 
+dan aset lengkap Berhasil 
+TC-133 
+Antarmuka 
+Layanan 
+Publik dan 
+Visualisasi 
+Data 
+Laporan periode 
+harian 
+GET dengan 
+period=daily 
+Mengembalikan 
+ringkasan laporan 
+harian Berhasil 
+TC-134 
+Antarmuka 
+Layanan 
+Publik dan 
+Visualisasi 
+Data 
+Laporan periode 
+mingguan 
+GET dengan 
+period=weekly 
+Mengembalikan 
+ringkasan laporan 
+mingguan Berhasil 
+TC-135 
+Antarmuka 
+Layanan 
+Publik dan 
+Visualisasi 
+Data 
+Laporan periode 
+bulanan 
+GET dengan 
+period=monthly 
+Mengembalikan 
+ringkasan laporan 
+bulanan Berhasil 
+TC-137 
+Antarmuka 
+Layanan 
+Publik dan 
+Visualisasi 
+Data 
+User tanpa profil 
+finansial 
+Akses dashboard 
+pertama kali 
+API membangun 
+profil awal dan 
+mengembalikan data Berhasil 
+TC-138 
+Antarmuka 
+Layanan 
+Publik dan 
+Visualisasi 
+Data 
+Profil publik 
+tanpa identitas 
+GET 
+/api/public/user/profi
+le tanpa param 
+Sistem merespons 
+dengan kode HTTP 
+400 Berhasil 
+TC-139 
+Antarmuka 
+Layanan 
+Publik dan 
+Visualisasi 
+Data 
+Profil publik 
+valid 
+GET dengan 
+identitas pengguna 
+existing 
+Mengembalikan data 
+profil fundamental 
+pengguna Berhasil 
+TC-140 
+Antarmuka 
+Layanan 
+Publik dan 
+Visualisasi 
+Data 
+Pembaruan profil 
+tanpa perubahan 
+PATCH profil tanpa 
+suplai data baru 
+Sistem merespons 
+dengan kode HTTP 
+400 Berhasil 
+TC-141 
+Antarmuka 
+Layanan 
+Publik dan 
+Pembaruan nama 
+pengguna 
+PATCH 
+name="Budi" 
+Nama pengguna 
+berhasil diperbarui 
+dalam database 
+Berhasil 
+
+
+===== PAGE 76 =====
+ 
+69 
+Visualisasi 
+Data 
+TC-142 
+Antarmuka 
+Layanan 
+Publik dan 
+Visualisasi 
+Data 
+Pembaruan nama 
+terlalu pendek 
+PATCH name="A" Sistem merespons 
+dengan kode HTTP 
+400 Berhasil 
+TC-143 
+Antarmuka 
+Layanan 
+Publik dan 
+Visualisasi 
+Data 
+Pembaruan mata 
+uang 
+PATCH 
+currency="IDR" 
+Preferensi mata uang 
+berhasil diperbarui 
+Berhasil 
+TC-144 
+Antarmuka 
+Layanan 
+Publik dan 
+Visualisasi 
+Data 
+Pembaruan 
+tanggal gajian 
+PATCH 
+salaryDate=25 
+Tanggal penggajian 
+berhasil diperbarui 
+Berhasil 
+TC-145 
+Antarmuka 
+Layanan 
+Publik dan 
+Visualisasi 
+Data 
+Tanggal gajian 
+tidak valid 
+PATCH 
+salaryDate=40 
+Sistem merespons 
+dengan kode HTTP 
+400 Berhasil 
+TC-146 
+Pemrosesan 
+Transaksi dan 
+Mutasi Data 
+Pengeluaran dasar Chat "makan siang 
+45000" 
+Transaksi EXPENSE 
+tercatat di kategori 
+pangan 
+Berhasil 
+TC-147 
+Pemrosesan 
+Transaksi dan 
+Mutasi Data 
+Pendapatan dasar Chat "gaji 5000000" Transaksi INCOME 
+tercatat sebesar 
+5.000.000 
+Berhasil 
+TC-148 
+Pemrosesan 
+Transaksi dan 
+Mutasi Data 
+Tabungan dasar Chat "nabung 
+1000000" 
+Transaksi SAVING 
+tercatat sesuai intent Berhasil 
+TC-149 
+Pemrosesan 
+Transaksi dan 
+Mutasi Data 
+Nominal format 
+"rb" 
+Chat "kopi 25rb" Nominal berhasil 
+diparsing sebagai 
+25.000 
+Berhasil 
+TC-150 
+Pemrosesan 
+Transaksi dan 
+Mutasi Data 
+Nominal format 
+"juta" 
+Chat "bonus 2 juta" Nominal berhasil 
+diparsing sebagai 
+2.000.000 
+Berhasil 
+TC-151 
+Pemrosesan 
+Transaksi dan 
+Mutasi Data 
+Nominal desimal 
+koma 
+Chat "beli laptop 7,5 
+juta" 
+Nominal berhasil 
+diparsing sebagai 
+7.500.000 
+Berhasil 
+TC-152 
+Pemrosesan 
+Transaksi dan 
+Mutasi Data 
+Nominal format 
+Rp dengan titik 
+Chat "belanja 
+Rp1.250.000" 
+Nominal berhasil 
+diparsing sebagai 
+1.250.000 
+Berhasil 
+
+
+===== PAGE 77 =====
+ 
+70 
+TC-153 
+Pemrosesan 
+Transaksi dan 
+Mutasi Data 
+Kategori paksaan 
+(forced) 
+Chat "bayar listrik 
+300rb kategori bills" 
+Transaksi mengikuti 
+kategori yang 
+disebutkan eksplisit 
+Berhasil 
+TC-155 
+Pemrosesan 
+Transaksi dan 
+Mutasi Data 
+Deteksi label 
+detail 
+Chat "gofood ayam 
+45000" 
+detailTag tersimpan 
+sesuai aturan 
+pencocokan 
+Berhasil 
+TC-156 
+Pemrosesan 
+Transaksi dan 
+Mutasi Data 
+Tanggal hari ini 
+(default) 
+Chat transaksi tanpa 
+tanggal 
+Field occurredAt diisi 
+tanggal hari ini Berhasil 
+TC-157 
+Pemrosesan 
+Transaksi dan 
+Mutasi Data 
+Tanggal eksplisit Chat "kemarin 
+makan 30000" 
+Field occurredAt diisi 
+tanggal H-1 Berhasil 
+TC-158 
+Pemrosesan 
+Transaksi dan 
+Mutasi Data 
+Input tanpa 
+nominal 
+Chat "makan siang 
+enak" 
+Transaksi tidak 
+disimpan, sistem 
+meminta klarifikasi 
+Berhasil 
+TC-159 
+Pemrosesan 
+Transaksi dan 
+Mutasi Data 
+Chat finansial 
+ambigu 
+Chat opini 
+pengeluaran 
+Tidak ada input 
+transaksi, sistem 
+merespons secara 
+natural 
+Berhasil 
+TC-160 
+Pemrosesan 
+Transaksi dan 
+Mutasi Data 
+Kegagalan 
+ekstraktor AI 
+Simulasi error pada 
+layanan Gemini 
+Sistem beralih ke 
+parser cadangan atau 
+pesan aman 
+Berhasil 
+TC-162 
+Pemrosesan 
+Transaksi dan 
+Mutasi Data 
+Penghapusan 
+kategori spesifik 
+Chat "hapus makan 
+45000 tadi" 
+Transaksi yang sesuai 
+berhasil dihapus Berhasil 
+TC-163 
+Pemrosesan 
+Transaksi dan 
+Mutasi Data 
+Perubahan 
+nominal transaksi 
+Chat "ubah makan 
+tadi jadi 50000" 
+Nominal pada 
+transaksi target 
+berhasil diperbarui 
+Berhasil 
+TC-164 
+Pemrosesan 
+Transaksi dan 
+Mutasi Data 
+Perubahan 
+kategori transaksi 
+Chat "ganti kategori 
+kopi tadi jadi 
+hiburan" 
+Kategori transaksi 
+target berhasil diubah Berhasil 
+TC-165 
+Pemrosesan 
+Transaksi dan 
+Mutasi Data 
+Kandidat tidak 
+ditemukan 
+Chat hapus transaksi 
+yang tidak ada 
+Sistem merespons 
+bahwa transaksi tidak 
+ditemukan 
+Berhasil 
+TC-168 
+Pemrosesan 
+Transaksi dan 
+Mutasi Data 
+Hasil OCR 
+kosong 
+Simulasi hasil 
+Vision API kosong 
+Transaksi tidak 
+dibuat, sistem 
+meminta foto ulang 
+Berhasil 
+TC-169 
+Pemrosesan 
+Transaksi dan 
+Mutasi Data 
+Kesalahan sistem 
+OCR 
+Simulasi Vision API 
+mengalami error 
+Sistem mengirim 
+pesan fallback 
+kegagalan OCR 
+Berhasil 
+TC-170 
+Pemrosesan 
+Transaksi dan 
+Mutasi Data 
+Kesalahan 
+normalisasi AI 
+Simulasi kegagalan 
+normalizer AI 
+Sistem mencegah 
+penyimpanan data 
+parsial yang rusak 
+Berhasil 
+
+
+===== PAGE 78 =====
+ 
+71 
+TC-171 
+Sistem 
+Pelaporan dan 
+Analisis 
+Keuangan 
+Payload laporan 
+tidak valid 
+POST /api/report 
+body kosong 
+Sistem merespons 
+dengan kode HTTP 
+400 Berhasil 
+TC-172 
+Sistem 
+Pelaporan dan 
+Analisis 
+Keuangan 
+Laporan harian 
+kosong 
+POST laporan untuk 
+user tanpa transaksi 
+Ringkasan 
+menampilkan nilai 
+nol/status kosong Berhasil 
+TC-173 
+Sistem 
+Pelaporan dan 
+Analisis 
+Keuangan 
+Laporan 
+mingguan berdata 
+POST laporan 
+mingguan 
+Akumulasi 
+pendapatan/pengeluar
+an kategori benar Berhasil 
+TC-174 
+Sistem 
+Pelaporan dan 
+Analisis 
+Keuangan 
+Laporan bulanan 
+berdata 
+POST laporan 
+bulanan 
+Breakdown bulanan 
+akurat sesuai data 
+database Berhasil 
+TC-176 
+Sistem 
+Pelaporan dan 
+Analisis 
+Keuangan 
+Kegagalan 
+layanan grafik 
+Simulasi error pada 
+service chart 
+Respons HTTP 200 
+tetap dikirim tanpa 
+data gambar Berhasil 
+TC-177 
+Sistem 
+Pelaporan dan 
+Analisis 
+Keuangan 
+Perintah laporan 
+harian (/daily) 
+Chat "/daily report" Sistem memberikan 
+ringkasan harian Berhasil 
+TC-178 
+Sistem 
+Pelaporan dan 
+Analisis 
+Keuangan 
+Perintah laporan 
+mingguan 
+(/weekly) 
+Chat "/weekly 
+report" 
+Sistem memberikan 
+ringkasan mingguan Berhasil 
+TC-179 
+Sistem 
+Pelaporan dan 
+Analisis 
+Keuangan 
+Perintah laporan 
+bulanan 
+(/monthly) 
+Chat "/monthly 
+report" 
+Sistem memberikan 
+ringkasan bulanan Berhasil 
+TC-180 
+Sistem 
+Pelaporan dan 
+Analisis 
+Keuangan 
+Perintah laporan 
+spesifik 
+Chat "/report daily" Periode harian 
+berhasil diparsing Berhasil 
+TC-181 
+Sistem 
+Pelaporan dan 
+Analisis 
+Keuangan 
+Laporan harian 
+bahasa natural 
+Chat "laporan hari 
+ini" 
+Periode harian 
+berhasil diparsing 
+secara natural Berhasil 
+TC-182 
+Sistem 
+Pelaporan dan 
+Analisis 
+Keuangan 
+Laporan 
+mingguan bahasa 
+natural 
+Chat "ringkasan 
+minggu ini" 
+Periode mingguan 
+berhasil diparsing 
+secara natural Berhasil 
+
+
+===== PAGE 79 =====
+ 
+72 
+TC-183 
+Sistem 
+Pelaporan dan 
+Analisis 
+Keuangan 
+Laporan bulanan 
+(default) 
+Chat "laporan 
+keuangan" 
+Periode bulanan 
+digunakan sebagai 
+default Berhasil 
+TC-185 
+Sistem 
+Pelaporan dan 
+Analisis 
+Keuangan 
+Analisis 
+pengeluaran 
+terbesar 
+Chat "pengeluaran 
+terbesar bulan ini 
+apa" 
+Mengembalikan data 
+kategori/item teratas Berhasil 
+TC-187 
+Analisis 
+Kesehatan 
+Finansial dan 
+Proyeksi 
+Perintah skor 
+kesehatan 
+Chat "skor kesehatan 
+keuangan" 
+Mengembalikan skor 
+kesehatan finansial 
+pengguna Berhasil 
+TC-188 
+Analisis 
+Kesehatan 
+Finansial dan 
+Proyeksi 
+Penutupan buku 
+bulanan 
+Chat "tutup buku 
+bulan ini" 
+Mengembalikan 
+ringkasan penutupan 
+buku Berhasil 
+TC-191 
+Manajemen 
+Perencanaan 
+Keuangan dan 
+Investasi 
+Alur anggaran via 
+perintah slash 
+Chat "/budget set" Bot memulai alur 
+permintaan kategori 
+dan nominal Berhasil 
+TC-192 
+Manajemen 
+Perencanaan 
+Keuangan dan 
+Investasi 
+Anggaran bahasa 
+natural 
+Chat "budget makan 
+2 juta per bulan" 
+Anggaran kategori 
+pangan berhasil 
+disimpan Berhasil 
+TC-193 
+Manajemen 
+Perencanaan 
+Keuangan dan 
+Investasi 
+Pembaruan 
+anggaran (upsert) 
+Pengaturan anggaran 
+kategori sama 
+berulang 
+Data diperbarui tanpa 
+duplikasi pada baris 
+database Berhasil 
+TC-195 
+Manajemen 
+Perencanaan 
+Keuangan dan 
+Investasi 
+Alur target via 
+perintah slash 
+Chat "/set goal" Bot memulai alur 
+pengaturan target 
+finansial Berhasil 
+TC-197 
+Manajemen 
+Perencanaan 
+Keuangan dan 
+Investasi 
+Target rumah 
+bahasa natural 
+Chat "mau nabung 
+50 juta buat rumah" 
+Entitas FinancialGoal 
+HOUSE berhasil 
+dibuat Berhasil 
+TC-198 
+Manajemen 
+Perencanaan 
+Keuangan dan 
+Investasi 
+Formula dana 
+darurat 
+Chat target dana 
+darurat tanpa 
+nominal 
+Formula perhitungan 
+otomatis berhasil 
+dibuat Berhasil 
+TC-199 
+Manajemen 
+Perencanaan 
+Keuangan dan 
+Investasi 
+Status seluruh 
+target 
+Chat "/goal status" Mengembalikan status 
+semua target aktif 
+pengguna Berhasil 
+
+
+===== PAGE 80 =====
+ 
+73 
+TC-200 
+Manajemen 
+Perencanaan 
+Keuangan dan 
+Investasi 
+Status target 
+spesifik 
+Chat "status target 
+rumah" 
+Mengembalikan 
+rincian target rumah Berhasil 
+TC-201 
+Manajemen 
+Perencanaan 
+Keuangan dan 
+Investasi 
+Kontribusi 
+terhadap target 
+Chat "nabung 1 juta 
+untuk rumah" 
+Kontribusi dicatat dan 
+progres target 
+diperbarui Berhasil 
+TC-203 
+Manajemen 
+Perencanaan 
+Keuangan dan 
+Investasi 
+Rekomendasi 
+prioritas target 
+Chat kueri realisme 
+target 
+Mengembalikan 
+rekomendasi urutan 
+prioritas Berhasil 
+TC-204 
+Manajemen 
+Perencanaan 
+Keuangan dan 
+Investasi 
+Fokus pada target 
+tertentu 
+Chat fokus target 
+dalam durasi tertentu 
+Rencana fokus target 
+berhasil disusun Berhasil 
+TC-205 
+Manajemen 
+Perencanaan 
+Keuangan dan 
+Investasi 
+Rasio pembagian 
+(split) 
+Chat "split goal 
+70:30" 
+Alokasi pembagian 
+target berhasil 
+diterapkan Berhasil 
+TC-206 
+Manajemen 
+Perencanaan 
+Keuangan dan 
+Investasi 
+Proyeksi 
+pertumbuhan 
+pengeluaran 
+Chat kenaikan biaya 
+per tahun 
+Perhitungan 
+pertumbuhan biaya 
+berhasil disimulasikan Berhasil 
+TC-207 
+Layanan API 
+Aset dan 
+Target 
+Finansial 
+API Aset tanpa 
+identitas 
+GET /api/assets 
+tanpa parameter 
+Sistem merespons 
+dengan kode HTTP 
+400 Berhasil 
+TC-208 
+Layanan API 
+Aset dan 
+Target 
+Finansial 
+Kueri API Aset 
+valid 
+GET /api/assets 
+dengan identitas user 
+Mengembalikan 
+daftar seluruh aset 
+pengguna Berhasil 
+TC-209 
+Layanan API 
+Aset dan 
+Target 
+Finansial 
+Pembuatan aset 
+tabungan via API 
+POST aset 
+SAVINGS valid 
+Aset dibuat dan profil 
+finansial dihitung 
+ulang Berhasil 
+TC-210 
+Layanan API 
+Aset dan 
+Target 
+Finansial 
+API Aset body 
+tidak valid 
+POST tanpa field 
+assetName 
+Sistem merespons 
+dengan kode HTTP 
+400 Berhasil 
+TC-211 
+Layanan API 
+Aset dan 
+Target 
+Finansial 
+API Target tanpa 
+identitas 
+GET /api/goals 
+tanpa parameter 
+Sistem merespons 
+dengan kode HTTP 
+400 Berhasil 
+
+
+===== PAGE 81 =====
+ 
+74 
+TC-212 
+Layanan API 
+Aset dan 
+Target 
+Finansial 
+Kueri API Target 
+valid 
+GET /api/goals 
+dengan identitas user 
+Mengembalikan 
+daftar target yang 
+didukung Berhasil 
+TC-213 
+Layanan API 
+Aset dan 
+Target 
+Finansial 
+Pembuatan target 
+manual via API 
+POST HOUSE 
+dengan 
+targetAmount 
+Target dibuat dengan 
+status ACTIVE Berhasil 
+TC-214 
+Layanan API 
+Aset dan 
+Target 
+Finansial 
+Target dana 
+darurat tanpa 
+nominal 
+POST 
+EMERGENCY_FU
+ND tanpa amount 
+Target dibuat dengan 
+status formula 
+tertunda Berhasil 
+TC-215 
+Layanan API 
+Aset dan 
+Target 
+Finansial 
+Tipe target API 
+tidak valid 
+POST dengan enum 
+yang tidak didukung 
+Sistem merespons 
+dengan kode HTTP 
+400 Berhasil 
+TC-216 
+Layanan API 
+Aset dan 
+Target 
+Finansial 
+API Prioritas 
+body tidak valid 
+POST 
+/api/goals/priorities 
+body kosong 
+Sistem merespons 
+dengan kode HTTP 
+400 Berhasil 
+TC-217 
+Layanan API 
+Aset dan 
+Target 
+Finansial 
+Sinkronisasi 
+prioritas target 
+POST array urutan 
+target 
+Urutan prioritas 
+berhasil disimpan 
+secara urut Berhasil 
+TC-218 
+Manajemen 
+Perencanaan 
+Keuangan dan 
+Investasi 
+Penambahan aset 
+saham 
+Chat rincian beli 
+saham 
+PortfolioAsset 
+STOCK dan trade 
+BUY berhasil dibuat Berhasil 
+TC-219 
+Manajemen 
+Perencanaan 
+Keuangan dan 
+Investasi 
+Penambahan aset 
+emas fisik 
+Chat rincian beli 
+emas 
+Entitas PortfolioAsset 
+GOLD berhasil dibuat Berhasil 
+TC-220 
+Manajemen 
+Perencanaan 
+Keuangan dan 
+Investasi 
+Penambahan aset 
+kripto 
+Chat rincian beli 
+kripto 
+Entitas PortfolioAsset 
+CRYPTO berhasil 
+dibuat Berhasil 
+TC-225 
+Manajemen 
+Perencanaan 
+Keuangan dan 
+Investasi 
+Analisis risiko 
+portofolio 
+Chat kueri risiko 
+portofolio 
+Mengembalikan 
+analisis profil risiko 
+aset Berhasil 
+TC-226 
+Manajemen 
+Perencanaan 
+Keuangan dan 
+Investasi 
+Simbol aset tidak 
+valid 
+Input penambahan 
+saham simbol salah 
+Sistem meminta 
+simbol valid atau 
+memberi saran Berhasil 
+
+
+===== PAGE 82 =====
+ 
+75 
+TC-228 
+Integrasi Data 
+Pasar dan 
+Informasi 
+Keuangan 
+Kueri harga 
+kripto 
+Chat "harga BTC 
+sekarang" 
+Mengembalikan 
+kuotasi harga kripto 
+terkini Berhasil 
+TC-229 
+Integrasi Data 
+Pasar dan 
+Informasi 
+Keuangan 
+Kueri harga emas Chat "harga emas 
+hari ini" 
+Mengembalikan 
+kuotasi harga emas 
+terkini Berhasil 
+TC-230 
+Integrasi Data 
+Pasar dan 
+Informasi 
+Keuangan 
+Kegagalan 
+penyedia data 
+utama 
+Simulasi error pada 
+provider pertama 
+Sistem menggunakan 
+provider cadangan 
+(fallback) Berhasil 
+TC-231 
+Integrasi Data 
+Pasar dan 
+Informasi 
+Keuangan 
+Seluruh penyedia 
+data gagal 
+Simulasi semua 
+provider error 
+Mengembalikan pesan 
+layanan pasar tidak 
+tersedia Berhasil 
+TC-232 
+Integrasi Data 
+Pasar dan 
+Informasi 
+Keuangan 
+Ringkasan berita 
+ekonomi 
+Chat "berita 
+ekonomi hari ini" 
+Mengembalikan 
+digest berita ekonomi 
+terkini Berhasil 
+TC-234 
+Integrasi Data 
+Pasar dan 
+Informasi 
+Keuangan 
+Penyedia berita 
+kosong 
+Simulasi ketiadaan 
+artikel berita 
+Mengembalikan status 
+berita kosong yang 
+aman Berhasil 
+TC-235 
+Sistem 
+Notifikasi dan 
+Pengingat 
+Otomatis 
+Penonaktifan 
+pengingat 
+anggaran 
+Chat "matikan 
+reminder budget" 
+Status budgetEnabled 
+menjadi false Berhasil 
+TC-236 
+Sistem 
+Notifikasi dan 
+Pengingat 
+Otomatis 
+Aktivasi 
+pengingat 
+anggaran 
+Chat "nyalakan 
+reminder budget" 
+Status budgetEnabled 
+menjadi true Berhasil 
+TC-238 
+Sistem 
+Notifikasi dan 
+Pengingat 
+Otomatis 
+Penundaan 
+pengingat 
+(snooze) 
+Chat tunda 
+pengingat sampai 
+besok 
+Field snoozedUntil 
+diperbarui secara tepat Berhasil 
+TC-239 
+Sistem 
+Notifikasi dan 
+Pengingat 
+Otomatis 
+Batas maksimal 
+pengingat harian 
+Chat maksimal 2 
+pengingat sehari 
+Parameter maxPerDay 
+disimpan sebagai 2 Berhasil 
+TC-240 
+Monitoring 
+Infrastruktur 
+dan 
+Komunikasi 
+Dispatch 
+pengingat tanpa 
+token 
+POST 
+/api/bot/reminders/ru
+n tanpa token 
+Sistem merespons 
+dengan kode HTTP 
+401 Berhasil 
+
+
+===== PAGE 83 =====
+ 
+76 
+TC-241 
+Monitoring 
+Infrastruktur 
+dan 
+Komunikasi 
+Dispatch 
+pengingat dengan 
+token 
+POST dengan x-bot-
+token valid 
+Mengembalikan status 
+ok:true dan hasil 
+pemindaian Berhasil 
+TC-242 
+Monitoring 
+Infrastruktur 
+dan 
+Komunikasi 
+Target pengguna 
+tervalidasi saja 
+Eksekusi sweep 
+pada user pending + 
+complete 
+Pengingat hanya 
+dibuat untuk 
+pengguna 
+COMPLETED 
+Berhasil 
+TC-243 
+Monitoring 
+Infrastruktur 
+dan 
+Komunikasi 
+Indikator 
+mendekati 
+anggaran 
+Pengeluaran 
+mendekati ambang 
+batas 
+Entitas pengingat 
+(outbound) berhasil 
+dibuat Berhasil 
+TC-244 
+Monitoring 
+Infrastruktur 
+dan 
+Komunikasi 
+Indikator 
+melampaui 
+anggaran 
+Pengeluaran 
+melebihi batas 
+anggaran 
+Alert peringatan 
+pengeluaran berlebih 
+berhasil dibuat Berhasil 
+TC-245 
+Monitoring 
+Infrastruktur 
+dan 
+Komunikasi 
+Lonjakan 
+pengeluaran 
+mingguan 
+Deteksi kenaikan 
+biaya signifikan 
+Alert lonjakan 
+mingguan berhasil 
+dibuat Berhasil 
+TC-246 
+Monitoring 
+Infrastruktur 
+dan 
+Komunikasi 
+Target tercapai Progres target >= 
+100% 
+Alert pencapaian 
+target berhasil dibuat Berhasil 
+TC-247 
+Monitoring 
+Infrastruktur 
+dan 
+Komunikasi 
+Jam tenang 
+(Quiet Hours) 
+aktif 
+Eksekusi sweep 
+dalam jam tenang 
+Pengingat ditahan dan 
+tidak dikirim ke 
+pengguna Berhasil 
+TC-248 
+Monitoring 
+Infrastruktur 
+dan 
+Komunikasi 
+Pengguna dalam 
+status tunda 
+snoozedUntil masih 
+di masa depan 
+Pengingat tidak dibuat 
+untuk pengguna 
+tersebut Berhasil 
+TC-249 
+Monitoring 
+Infrastruktur 
+dan 
+Komunikasi 
+Limit harian 
+tercapai 
+ReminderEvent 
+harian >= max 
+Sistem tidak membuat 
+pengingat baru hari 
+ini Berhasil 
+TC-250 
+Monitoring 
+Infrastruktur 
+dan 
+Komunikasi 
+Pencegahan 
+pengingat 
+duplikat 
+Marker identik 
+ditemukan 
+Sistem tidak membuat 
+pengingat ganda Berhasil 
+TC-252 
+Monitoring 
+Infrastruktur 
+dan 
+Komunikasi 
+Batas default 
+pengambilan 
+outbound 
+GET 
+/api/bot/outbound 
+tanpa limit 
+Maksimal 5 pesan 
+diklaim secara 
+otomatis Berhasil 
+
+
+===== PAGE 84 =====
+ 
+77 
+TC-253 
+Monitoring 
+Infrastruktur 
+dan 
+Komunikasi 
+Batas maksimal 
+pengambilan 
+outbound 
+GET dengan 
+limit=20 
+Maksimal 20 pesan 
+berhasil diklaim Berhasil 
+TC-254 
+Monitoring 
+Infrastruktur 
+dan 
+Komunikasi 
+Input batas terlalu 
+besar 
+GET dengan 
+limit=100 
+Sistem merespons 
+dengan kode HTTP 
+400 Berhasil 
+TC-255 
+Monitoring 
+Infrastruktur 
+dan 
+Komunikasi 
+Klaim status 
+PENDING 
+Terdapat 3 pesan 
+PENDING 
+3 pesan dikirim dan 
+status berubah ke 
+PROCESSING Berhasil 
+TC-256 
+Monitoring 
+Infrastruktur 
+dan 
+Komunikasi 
+Filter klaim status 
+SENT 
+Terdapat pesan 
+SENT dan 
+PENDING 
+Hanya pesan 
+PENDING yang 
+dikembalikan oleh 
+API 
+Berhasil 
+TC-257 
+Monitoring 
+Infrastruktur 
+dan 
+Komunikasi 
+ACK tanpa token POST 
+/api/bot/outbound/ac
+k tanpa token 
+Sistem merespons 
+dengan kode HTTP 
+401 Berhasil 
+TC-258 
+Monitoring 
+Infrastruktur 
+dan 
+Komunikasi 
+Konfirmasi 
+pengiriman 
+berhasil 
+POST status SENT Status menjadi SENT 
+dan sentAt terisi data 
+waktu Berhasil 
+TC-259 
+Monitoring 
+Infrastruktur 
+dan 
+Komunikasi 
+Konfirmasi 
+pengiriman gagal 
+POST status 
+FAILED dengan 
+pesan error 
+Status menjadi 
+FAILED dan pesan 
+error tersimpan Berhasil 
+TC-260 
+Monitoring 
+Infrastruktur 
+dan 
+Komunikasi 
+Status konfirmasi 
+tidak valid 
+POST status DONE Sistem merespons 
+dengan kode HTTP 
+400 Berhasil 
+TC-261 
+Monitoring 
+Infrastruktur 
+dan 
+Komunikasi 
+Detak jantung bot 
+(heartbeat) 
+POST 
+/api/bot/heartbeat 
+dengan token 
+Status heartbeat bot 
+diperbarui di database Berhasil 
+TC-263 
+Monitoring 
+Infrastruktur 
+dan 
+Komunikasi 
+Status kesehatan 
+publik 
+GET /api/health Mengembalikan status 
+layanan sistem (ok) Berhasil 
+TC-264 
+Antarmuka 
+Administrasi 
+dan 
+Login 
+administrator 
+valid 
+Kata sandi admin 
+benar 
+Sesi/cookie 
+administrator berhasil 
+dibuat 
+Berhasil 
+
+
+===== PAGE 85 =====
+ 
+78 
+Pengelolaan 
+Berbasis Web 
+TC-265 
+Antarmuka 
+Administrasi 
+dan 
+Pengelolaan 
+Berbasis Web 
+Login 
+administrator 
+tidak valid 
+Kata sandi admin 
+salah 
+Permintaan login 
+ditolak 
+Berhasil 
+TC-266 
+Antarmuka 
+Administrasi 
+dan 
+Pengelolaan 
+Berbasis Web 
+Keluar sesi 
+(Logout) 
+Akses rute logout Sesi/cookie 
+dibersihkan secara 
+aman Berhasil 
+TC-267 
+Antarmuka 
+Administrasi 
+dan 
+Pengelolaan 
+Berbasis Web 
+Akses API tanpa 
+otorisasi 
+Panggilan API tanpa 
+sesi admin 
+Sistem merespons 
+dengan kode HTTP 
+401 Berhasil 
+TC-268 
+Antarmuka 
+Administrasi 
+dan 
+Pengelolaan 
+Berbasis Web 
+Daftar pengguna 
+(Admin) 
+Akses dengan 
+otorisasi admin 
+Mengembalikan 
+daftar user tanpa field 
+usang Berhasil 
+TC-269 
+Antarmuka 
+Administrasi 
+dan 
+Pengelolaan 
+Berbasis Web 
+Filter status 
+pengguna 
+Kueri status 
+onboarding/registras
+i 
+Hasil pencarian sesuai 
+dengan filter yang 
+diberikan Berhasil 
+TC-270 
+Antarmuka 
+Administrasi 
+dan 
+Pengelolaan 
+Berbasis Web 
+Penghapusan 
+pengguna oleh 
+admin 
+DELETE pada user 
+yang ada 
+User dan data terkait 
+terhapus secara 
+cascade Berhasil 
+TC-271 
+Antarmuka 
+Administrasi 
+dan 
+Pengelolaan 
+Berbasis Web 
+Detail pengguna 
+oleh admin 
+GET 
+/api/admin/users/{id
+} 
+Mengembalikan 
+rincian aset, target, 
+dan transaksi Berhasil 
+TC-272 
+Antarmuka 
+Administrasi 
+dan 
+Pengelolaan 
+Berbasis Web 
+Detail pengguna 
+tidak ditemukan 
+GET dengan ID 
+yang tidak ada 
+Sistem merespons 
+dengan kode HTTP 
+404 Berhasil 
+
+
+===== PAGE 86 =====
+ 
+79 
+TC-273 
+Antarmuka 
+Administrasi 
+dan 
+Pengelolaan 
+Berbasis Web 
+Daftar transaksi 
+(Admin) 
+GET 
+/api/admin/transactio
+ns 
+Mengembalikan 
+daftar transaksi 
+terbaru global Berhasil 
+TC-274 
+Antarmuka 
+Administrasi 
+dan 
+Pengelolaan 
+Berbasis Web 
+Filter transaksi 
+per user 
+Kueri berdasarkan 
+userId 
+Hanya menampilkan 
+transaksi milik user 
+tersebut Berhasil 
+TC-275 
+Antarmuka 
+Administrasi 
+dan 
+Pengelolaan 
+Berbasis Web 
+Filter tipe 
+transaksi 
+Kueri 
+INCOME/EXPENS
+E 
+Hasil sesuai dengan 
+tipe yang dipilih 
+Berhasil 
+TC-277 
+Antarmuka 
+Administrasi 
+dan 
+Pengelolaan 
+Berbasis Web 
+Ringkasan 
+dashboard admin 
+GET 
+/api/admin/dashboar
+d 
+Mengembalikan 
+metrik user, transaksi, 
+dan aktivitas Berhasil 
+TC-278 
+Antarmuka 
+Administrasi 
+dan 
+Pengelolaan 
+Berbasis Web 
+Halaman 
+kesehatan sistem 
+GET 
+/api/admin/health 
+Mengembalikan status 
+heartbeat sistem 
+Berhasil 
+TC-279 
+Antarmuka 
+Administrasi 
+dan 
+Pengelolaan 
+Berbasis Web 
+Observabilitas 
+sistem 
+GET 
+/api/admin/observabi
+lity 
+Mengembalikan 
+ringkasan intent dan 
+analisis AI Berhasil 
+TC-280 
+Antarmuka 
+Administrasi 
+dan 
+Pengelolaan 
+Berbasis Web 
+Daftar template 
+pengingat 
+GET 
+/api/admin/reminder
+s 
+Mengembalikan 
+daftar konfigurasi 
+pengingat Berhasil 
+TC-281 
+Antarmuka 
+Administrasi 
+dan 
+Pengelolaan 
+Berbasis Web 
+Pembuatan 
+template 
+pengingat 
+POST template baru 
+yang valid 
+Template pengingat 
+berhasil dibuat 
+Berhasil 
+TC-282 
+Antarmuka 
+Administrasi 
+dan 
+Pembaruan 
+template 
+pengingat 
+PATCH pada 
+isActive atau pesan 
+Perubahan template 
+berhasil disimpan Berhasil 
+
+
+===== PAGE 87 =====
+ 
+80 
+Pengelolaan 
+Berbasis Web 
+TC-284 
+Antarmuka 
+Administrasi 
+dan 
+Pengelolaan 
+Berbasis Web 
+Pengalihan rute 
+root (/) 
+Akses halaman 
+utama web 
+Pengalihan ke 
+dashboard atau login 
+sesuai status Berhasil 
+TC-285 
+Antarmuka 
+Administrasi 
+dan 
+Pengelolaan 
+Berbasis Web 
+Render halaman 
+login 
+Akses rute /login Form login admin 
+ditampilkan dengan 
+benar Berhasil 
+TC-286 
+Antarmuka 
+Administrasi 
+dan 
+Pengelolaan 
+Berbasis Web 
+Render halaman 
+dashboard 
+Login sukses dan 
+akses /dashboard 
+Metrik dan kartu data 
+ditampilkan 
+Berhasil 
+TC-287 
+Antarmuka 
+Administrasi 
+dan 
+Pengelolaan 
+Berbasis Web 
+Render halaman 
+pengguna 
+Akses rute /users Tabel pengguna 
+ditampilkan dengan 
+data akurat Berhasil 
+TC-288 
+Antarmuka 
+Administrasi 
+dan 
+Pengelolaan 
+Berbasis Web 
+Render rincian 
+pengguna 
+Akses rute 
+/users/{id} 
+Seluruh rincian profil 
+pengguna ditampilkan 
+Berhasil 
+TC-289 
+Antarmuka 
+Administrasi 
+dan 
+Pengelolaan 
+Berbasis Web 
+Render halaman 
+pengingat 
+Akses rute 
+/reminders 
+Halaman pengelolaan 
+template pengingat 
+tampil Berhasil 
+TC-290 
+Antarmuka 
+Administrasi 
+dan 
+Pengelolaan 
+Berbasis Web 
+Render halaman 
+kesehatan 
+Akses rute /health Status kesehatan API 
+dan bot ditampilkan 
+secara visual Berhasil 
+TC-291 
+Keamanan dan 
+Ketahanan 
+Sistem 
+Ketidakcocokan 
+token bot 
+Penggunaan token 
+salah pada outbound 
+Sistem merespons 
+dengan kode HTTP 
+401 
+Berhasil 
+TC-292 
+Keamanan dan 
+Ketahanan 
+Sistem 
+Ketidakcocokan 
+token admin 
+Penggunaan token 
+admin yang salah 
+Sistem merespons 
+dengan kode HTTP 
+401 
+Berhasil 
+
+
+===== PAGE 88 =====
+ 
+81 
+TC-293 
+Keamanan dan 
+Ketahanan 
+Sistem 
+JSON tidak valid 
+pada inbound 
+Pengiriman body 
+bukan format JSON 
+Sistem menangani 
+error tanpa crash 
+(400/500) 
+Berhasil 
+TC-294 
+Keamanan dan 
+Ketahanan 
+Sistem 
+Input teks 
+berukuran besar 
+Pengiriman teks 
+sangat panjang 
+Sistem tetap stabil, 
+terkena limitasi 
+panjang wajar 
+Berhasil 
+TC-295 
+Keamanan dan 
+Ketahanan 
+Sistem 
+Mitigasi XSS 
+pada nama 
+PATCH nama berisi 
+tag skrip 
+Skrip tidak dieksekusi 
+saat ditampilkan 
+(sanitized) 
+Berhasil 
+TC-296 
+Keamanan dan 
+Ketahanan 
+Sistem 
+Mitigasi SQL 
+Injection 
+Chat berisi perintah 
+manipulasi SQL 
+Diproses sebagai teks 
+literal, database aman Berhasil 
+TC-297 
+Integritas Data Penghapusan 
+pengguna 
+berantai 
+Hapus user dengan 
+relasi data 
+Seluruh rekaman 
+terkait terhapus sesuai 
+relasi Prisma 
+Berhasil 
+TC-298 
+Integritas Data Keunikan 
+anggaran 
+Pengaturan anggaran 
+kategori sama 
+Tidak tercipta 
+duplikasi baris userId, 
+category 
+Berhasil 
+TC-299 
+Integritas Data Keunikan aset 
+portofolio 
+Tambah aset simbol 
+sama dua kali 
+Kuantitas dan harga 
+rata-rata diperbarui 
+secara logis 
+Berhasil 
+TC-302 
+Keamanan dan 
+Ketahanan 
+Sistem 
+Kegagalan 
+ekstraksi AI 
+Gemini 
+Simulasi gangguan 
+jaringan Gemini 
+Sistem memberikan 
+respons cadangan 
+tanpa data rusak 
+Berhasil 
+TC-303 
+Keamanan dan 
+Ketahanan 
+Sistem 
+Output JSON AI 
+tidak valid 
+Simulasi respons AI 
+format rusak 
+Penanganan error 
+parser mengamankan 
+sistem 
+Berhasil 
+TC-304 
+Keamanan dan 
+Ketahanan 
+Sistem 
+Percakapan 
+umum finansial 
+Chat pertanyaan 
+keuangan umum 
+Sistem memberikan 
+respons natural yang 
+relevan 
+Berhasil 
+TC-305 
+Keamanan dan 
+Ketahanan 
+Sistem 
+Perintah ekspor 
+data privasi 
+Chat "export data 
+saya" 
+Sistem mengarahkan 
+ke rute privasi yang 
+sesuai 
+Berhasil 
+TC-306 
+Keamanan dan 
+Ketahanan 
+Sistem 
+Format bullet 
+pada balasan 
+Generasi daftar pada 
+balasan bot 
+Gaya emoji dan poin-
+poin tetap terjaga 
+integritasnya 
+Berhasil 
+TC-307 
+Keamanan dan 
+Ketahanan 
+Sistem 
+Preservasi 
+penanda awal 
+Pesan outbound 
+dengan marker 
+identitas 
+Marker tidak 
+terdistorsi selama 
+proses pengiriman 
+Berhasil 
+TC-308 
+Keamanan dan 
+Ketahanan 
+Sistem 
+Pencegahan 
+balasan kosong 
+Handler 
+mengembalikan 
+spasi kosong 
+Bot tidak membuat 
+entitas outbound yang 
+hampa 
+Berhasil 
+
+
+===== PAGE 89 =====
+ 
+82 
+TC-311 
+Infrastruktur 
+serta Build 
+Pemeriksaan tipe 
+API 
+Eksekusi pnpm 
+typecheck pada 
+modul API 
+Proses selesai dengan 
+kode keluar 0 Berhasil 
+TC-312 
+Infrastruktur 
+serta Build 
+Pemeriksaan tipe 
+Admin Web 
+Eksekusi pnpm 
+typecheck pada 
+modul Admin 
+Proses selesai dengan 
+kode keluar 0 Berhasil 
+TC-313 
+Infrastruktur 
+serta Build 
+Pemeriksaan tipe 
+Bot 
+Eksekusi pnpm 
+typecheck pada 
+modul Bot 
+Proses selesai dengan 
+kode keluar 0 Berhasil 
+TC-314 
+Infrastruktur 
+serta Build 
+Pemeriksaan tipe 
+Shared 
+Eksekusi pnpm 
+typecheck pada 
+modul Shared 
+Proses selesai dengan 
+kode keluar 0 Berhasil 
+TC-315 
+Infrastruktur 
+serta Build 
+Rangkaian 
+pengujian API 
+Eksekusi 
+unit/integration test 
+pada API 
+Seluruh pengujian 
+lulus (pass) Berhasil 
+TC-316 Infrastruktur 
+serta Build 
+Generasi Client 
+Prisma 
+Eksekusi prisma 
+generate 
+Client berhasil dibuat 
+tanpa model usang Berhasil 
+TC-317 
+Infrastruktur 
+serta Build 
+Migrasi database 
+baru 
+Eksekusi migrasi 
+pada database 
+kosong 
+Seluruh skema tabel 
+berhasil dibuat Berhasil 
+TC-318 
+Infrastruktur 
+serta Build 
+Migrasi database 
+eksisting 
+Eksekusi migrasi 
+pada DB dengan 
+tabel lama 
+Tabel legacy dihapus 
+secara aman sesuai 
+skema baru 
+Berhasil 
+TC-319 
+Infrastruktur 
+serta Build 
+Pembersihan rute 
+regresi 
+Akses endpoint yang 
+telah dihapus 
+Sistem 
+mengembalikan kode 
+HTTP 404 
+Berhasil 
+TC-320 
+Infrastruktur 
+serta Build 
+Validasi variabel 
+lingkungan usang 
+Start API tanpa env 
+lama 
+Validasi sistem tidak 
+lagi meminta env 
+yang usang 
+Berhasil 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+
+===== PAGE 90 =====
+ 
+83 
+BAB V 
+KESIMPULAN DAN SARAN 
+5.1. Kesimpulan 
+Berdasarkan hasil pengembangan, implementasi, dan pengujian sistem asisten keuangan 
+pribadi berbasis WhatsApp yang telah dilakukan, dapat ditarik kesimpulan sebagai berikut: 
+1. Integrasi Teknologi untuk Mengurangi Friksi: Sistem telah berhasil dikembangkan 
+sebagai solusi yang mampu mengurangi friksi input manual dalam pencatatan 
+keuangan dengan memanfaatkan platform WhatsApp yang sudah menjadi bagian dari 
+kebiasaan harian pengguna. Pengguna kini dapat mencatat transaksi hanya melalui 
+pesan teks natural maupun gambar struk. 
+2. Keberhasilan Implementasi AI (NLP dan OCR): Pemanfaatan Google Gemini 
+API terbukti efektif dalam melakukan klasifikasi intent dan ekstraksi entitas transaksi 
+(nominal, kategori, merchant) dari bahasa alami yang tidak terstruktur. Selain itu, 
+integrasi Google Cloud Vision API untuk fitur OCR memungkinkan sistem 
+membaca bukti fisik transaksi secara otomatis, yang kemudian divalidasi kembali 
+oleh AI untuk menjamin keakuratan data. 
+3. Arsitektur Sistem yang Modular dan Handal: Penggunaan arsitektur monorepo 
+dengan teknologi TypeScript (Next.js) dan Python (FastAPI) memungkinkan 
+pemisahan tanggung jawab yang jelas antara pemrosesan chat, administrasi sistem, 
+dan visualisasi laporan. Hal ini mendukung pengembangan sistem yang lebih 
+terstruktur dan mudah dipelihara di masa depan. 
+4. Fitur Pengelolaan Keuangan yang Komprehensif: Sistem tidak hanya berfungsi 
+sebagai alat pencatat, tetapi telah mencakup ekosistem pengelolaan keuangan yang 
+luas, meliputi fitur budgeting kategori, pelacakan target keuangan (savings goal), 
+pengelolaan aset investasi (emas, saham, kripto), hingga fitur pengingat (reminder) 
+otomatis untuk menjaga kesehatan finansial pengguna. 
+5. Kualitas dan Keandalan Sistem: Berdasarkan pengujian otomatis menggunakan 
+Vitest, sistem telah memenuhi standar keandalan yang tinggi dengan total 287 test 
+case yang mencakup seluruh domain fitur utama. Adanya fitur observability (seperti 
+Intent Observation dan System Heartbeat) memastikan kualitas routing chat dan 
+kesehatan sistem dapat dipantau secara langsung oleh administrator. 
+5.2. Saran 
+Meskipun sistem telah berfungsi dengan baik secara keseluruhan, terdapat beberapa saran 
+untuk pengembangan lebih lanjut guna meningkatkan performa dan pengalaman pengguna: 
+
+
+===== PAGE 91 =====
+ 
+84 
+1. Peningkatan Skalabilitas Infrastruktur: Mengingat mekanisme rate limiting dan 
+sebagian besar cache saat ini masih bersifat in-memory, disarankan untuk 
+mengimplementasikan solusi penyimpanan eksternal seperti Redis agar sistem dapat 
+mendukung skala pengguna yang lebih besar secara horizontal dengan lebih stabil. 
+2. Pengembangan Antarmuka Pengguna (User Dashboard): Saat ini, fungsionalitas 
+visual utama masih berfokus pada panel admin. Pengembangan antarmuka web 
+khusus untuk pengguna akhir (customer) dapat memberikan fleksibilitas tambahan 
+bagi mereka yang ingin melihat analisis data keuangan secara lebih mendalam melalui 
+layar yang lebih besar selain WhatsApp. 
+3. Optimalisasi Akurasi AI dan OCR: Untuk menangani variasi input pengguna yang 
+semakin kompleks dan kualitas gambar struk yang beragam, diperlukan optimasi 
+berkelanjutan pada prompting AI serta penanganan fallback yang lebih canggih agar 
+tingkat kegagalan ekstraksi data dapat ditekan serendah mungkin. 
+4. Sinkronisasi Dokumentasi Internal: Disarankan untuk melakukan pembaruan 
+berkala pada dokumentasi teknis dan file README di dalam repositori agar tetap 
+selaras dengan perubahan struktur folder dan dependensi sistem terbaru, guna 
+memudahkan kolaborasi pengembang di masa mendatang. 
+  
+
+
+===== PAGE 92 =====
+ 
+85 
+Bibliography 
+Otoritas Jasa Keuangan (OJK). (2024, October 17). Survei Nasional Literasi dan Inklusi 
+Keuangan (SNLIK) 2024. Diambil kembali dari Otoritas Jasa Keuangan: 
+https://ojk.go.id/id/berita-dan-kegiatan/publikasi/Pages/Survei-Nasional-Literasi-dan-
+Inklusi-Keuangan-(SNLIK)-2024.aspx 
+Riyanto, A. D. (2024, Februari 21). Hootsuite (We are Social): Data Digital Indonesia 2024. 
+Diambil kembali dari andi.link: https://andi.link/hootsuite-we-are-social-data-digital-
+indonesia-2024/ 
+World Population Review. (t.thn.). WhatsApp Users by Country 2025. Dipetik December 
+2025, dari World Population Review: https://worldpopulationreview.com/country-
+rankings/whatsapp-users-by-country 
+Jurafsky, D., & Martin, J. H. (2025, August 24). Speech and Language Processing. Diambil 
+kembali dari standford.edu: https://web.stanford.edu/~jurafsky/slp3/ 
+Ahamed, A. A., & Shahif, A. (2025, April 4). AI-Powered Personal Finance Assistant For 
+Intelligent Expense Tracking And Budget Optimization. Diambil kembali dari 
+IJSART: https://ijsart.com/public/storage/paper/pdf/IJSARTV11I4103337.pdf 
+Martin, J. H., & Jurafsky, D. (2026, January 26). Speech and Language Processing (3rd ed. 
+draft). (Stanford University) Dipetik January 2026, dari Stanford University 
+(web.stanford.edu): https://web.stanford.edu/~jurafsky/slp3/ed3book_jan26.pdf 
+Microsoft. (2026). The TypeScript Handbook. Diambil kembali dari TypeScript: 
+https://www.typescriptlang.org/docs/handbook/ 
+Tailwind Labs. (t.thn.). Tailwind CSS Documentation. (T. Labs, Produser, & Tailwind Labs) 
+Dipetik March 2026, dari Tailwind CSS: 
+https://tailwindcss.com/docs/installation/using-vite?utm_source=chatgpt.com 
+Prisma. (t.thn.). Prisma ORM Documentation. (Prisma) Dipetik February 2026, dari Prisma: 
+https://www.prisma.io/docs 
+Vercel. (t.thn.). Next.js Documentation (App Router). Dipetik February 2026, dari Next.js: 
+https://nextjs.org/docs 
+Meta. (t.thn.). WhatsApp Cloud API Documentation. Dipetik March 2026, dari Meta for 
+Developers: https://developers.facebook.com/documentation/business-
+messaging/whatsapp/about-the-platform 
+McKinney, W. (2022). Python for Data Analysis. Sebastopol, CA: O’Reilly Media. 
+ 

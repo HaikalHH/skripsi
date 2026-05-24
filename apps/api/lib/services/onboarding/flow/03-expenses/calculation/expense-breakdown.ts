@@ -16,14 +16,6 @@ export const EMPTY_EXPENSE_BREAKDOWN: ExpenseBreakdown = {
   others: 0
 };
 
-export const EXPENSE_CATEGORY_TO_BUDGET: Record<keyof ExpenseBreakdown, string> = {
-  food: "Food & Drink",
-  transport: "Transport",
-  bills: "Bills",
-  entertainment: "Entertainment",
-  others: "Others"
-};
-
 const ONBOARDING_EXPENSE_BUCKET_LABELS: Record<keyof ExpenseBreakdown, string> = {
   food: "Makan & kebutuhan harian",
   transport: "Transport",

@@ -1,4 +1,4 @@
-import { BudgetMode, FinancialGoalType, OnboardingStep } from "@prisma/client";
+import { FinancialGoalType, OnboardingStep } from "@prisma/client";
 import { describe, expect, it } from "vitest";
 import { formatPromptForChat } from "@/lib/services/onboarding/flow/shared/questions/chat-format";
 import { getPromptForStep } from "@/lib/services/onboarding/flow/get-prompt-for-step";
@@ -184,6 +184,16 @@ describe("onboarding flow service", () => {
     expect(text.toLowerCase()).toContain("contoh kalau mau");
   });
 
+  it("only offers manual or guided budget setup choices", () => {
+    const prompt = getPromptForStep(OnboardingStep.ASK_BUDGET_MODE, baseContext);
+    const text = formatPromptForChat(prompt);
+
+    expect(text).toContain("1. Saya sudah punya gambaran pengeluaran");
+    expect(text).toContain("2. Saya belum punya, tolong bantu susun");
+    expect(text).not.toContain("3.");
+    expect(text).not.toContain("Lihat dari catatan transaksi saya bulan ini");
+  });
+
   it("asks active income frequency as choices instead of numeric examples", () => {
     const prompt = getPromptForStep("ASK_ACTIVE_INCOME_COUNT" as OnboardingStep, baseContext);
     const text = formatPromptForChat(prompt);
@@ -266,17 +276,16 @@ describe("onboarding flow service", () => {
   });
 
   it("holds expense-dependent questions until after goals, assets, and income", () => {
-    const autoContext: OnboardingPromptContext = {
+    const expenseDependentContext: OnboardingPromptContext = {
       ...baseContext,
-      budgetMode: BudgetMode.AUTO_FROM_TRANSACTIONS,
       hasExpenseDependentGoal: true
     };
 
     expect(
-      getNextOnboardingStep(OnboardingStep.ASK_ASSET_ADD_MORE, autoContext, false)
+      getNextOnboardingStep(OnboardingStep.ASK_ASSET_ADD_MORE, expenseDependentContext, false)
     ).toBe(OnboardingStep.SHOW_ANALYSIS);
     expect(
-      getNextOnboardingStep(OnboardingStep.ASK_HAS_PASSIVE_INCOME, autoContext, false)
+      getNextOnboardingStep(OnboardingStep.ASK_HAS_PASSIVE_INCOME, expenseDependentContext, false)
     ).toBe(OnboardingStep.ASK_GOAL_EXPENSE_STRATEGY);
   });
 

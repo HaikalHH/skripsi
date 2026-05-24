@@ -158,7 +158,9 @@ import {
   getNumericAnswerMidpoint,
   isNumericRangeAnswer,
   isMoneyRangeAnswer,
-  parseManualExpenseBreakdown,
+  isManualExpenseBreakdownTooGeneric,
+  parseManualExpenseBreakdownDetails,
+  type ManualExpenseBreakdownDetail,
   parseMonthYearInput,
   parseMoneyInput,
   parseMoneyInputPreservingRange,
@@ -205,6 +207,9 @@ export type OnboardingState = {
 type RuntimeContext = OnboardingPromptContext & {
   user: User;
   sessions: OnboardingSession[];
+  activeIncomeMonthly: number | null;
+  passiveIncomeMonthly: number | null;
+  estimatedMonthlyIncome: number | null;
   monthlyExpenseTotal: number | null;
   potentialMonthlySaving: number | null;
   emergencyFundTargetAmount: number | null;
@@ -309,6 +314,51 @@ const buildMessageWithPromptReply = (
     preserveReplyTextBubbles: promptReplyTexts.length > 1
   });
 };
+
+const isManualExpenseHelpRequest = (rawAnswer: unknown) => {
+  if (typeof rawAnswer !== "string") return false;
+  const normalized = normalizeText(rawAnswer).toLowerCase();
+  return (
+    normalized.includes("tolong bantu susun") ||
+    normalized.includes("bantu susun") ||
+    normalized.includes("belum punya") ||
+    normalized.includes("belum ada rincian") ||
+    normalized.includes("bantu hitung") ||
+    normalized.includes("bantu rapihin")
+  );
+};
+
+const buildManualExpenseTooGenericReply = (
+  prompt: OnboardingPrompt,
+  rawAnswer: string
+) => {
+  const total = parseMoneyInput(rawAnswer);
+  return buildMessageWithPromptReply(prompt, [
+    [
+      total
+        ? `Jawaban ini baru kebaca sebagai total pengeluaran sekitar ${formatMoney(total)}/bulan.`
+        : "Jawaban ini belum cukup kebaca sebagai rincian pengeluaran bulanan.",
+      "Saya masih perlu pembagian per kategori supaya budget dan targetnya lebih akurat.",
+      "",
+      "Coba tulis kategori + nominalnya, misalnya:",
+      "Makan 1,5jt, transport 500rb, tagihan 700rb",
+      "",
+      "Kalau Boss belum punya rinciannya, balas:",
+      "`Saya belum punya, tolong bantu susun`"
+    ].join("\n")
+  ]);
+};
+
+const buildManualExpenseAddMorePromptReply = (
+  prompt: OnboardingPrompt,
+  context: RuntimeContext
+) =>
+  buildReplyResult(
+    [
+      "Siap Boss, kirim kategori pengeluaran tambahan dan nominalnya ya. Contoh: `Keluarga: 500rb` atau `Cicilan motor: 1,2jt`."
+    ],
+    createState({ user: context.user, prompt })
+  );
 
 const isTimelineRequest = (value: string) => {
   const normalized = normalizeText(value).toLowerCase();
@@ -1041,6 +1091,9 @@ const buildRuntimeContext = async (userId: string, existingUser?: User): Promise
     activeIncomePaydayCount: activeIncomeState.activeIncomePaydays.length,
     activeIncomeLatestPayday: activeIncomeState.activeIncomeLatestPayday,
     activeIncomeCycleStartDay: activeIncomeState.activeIncomeCycleStartDay,
+    activeIncomeMonthly,
+    passiveIncomeMonthly,
+    estimatedMonthlyIncome,
     monthlyIncomeTotal,
     monthlyExpenseTotal,
     potentialMonthlySaving,
@@ -1743,8 +1796,6 @@ const describeBudgetModeChoice = (value: string) => {
       return "kamu sudah punya gambaran pengeluaran";
     case BudgetMode.GUIDED_PLAN:
       return "kamu mau dibantu susun dulu";
-    case BudgetMode.AUTO_FROM_TRANSACTIONS:
-      return "kamu mau mulai dari analisis transaksi bulan ini";
     default:
       return `cara mulai lihat pengeluarannya lewat ${findOptionLabel(
         BUDGET_MODE_OPTIONS,
@@ -1832,7 +1883,7 @@ const describeStoredAnswer = (
       return describeBudgetModeChoice(normalizedAnswer as string);
     case OnboardingStep.ASK_MANUAL_EXPENSE_BREAKDOWN:
       return `gambaran pengeluaran bulanan sekitar ${formatMoney(
-        parseManualBreakdownTotal(normalizedAnswer as ExpenseBreakdown) ?? 0
+        parseManualBreakdownTotal(getManualExpenseDisplayBreakdown(normalizedAnswer)) ?? 0
       )}`;
     case OnboardingStep.ASK_GUIDED_EXPENSE_FOOD:
       return `pengeluaran makan dan minumnya sekitar ${formatMoney(normalizedAnswer as number)} per bulan`;
@@ -2286,6 +2337,719 @@ const buildGoalTargetConfirmationReplyTexts = (
   );
 };
 
+const EXPENSE_BREAKDOWN_CONFIRMATION_LABELS: Record<keyof ExpenseBreakdown, string> = {
+  food: "Makan",
+  transport: "Transport",
+  bills: "Tagihan",
+  entertainment: "Hiburan",
+  others: "Lainnya"
+};
+
+type ManualExpenseMergeDecision = "merge" | "split";
+
+type ManualExpenseConfirmationAnswer = {
+  kind: "manual_expense_breakdown";
+  details: ManualExpenseBreakdownDetail[];
+  mergeDecisions: Partial<Record<keyof ExpenseBreakdown, ManualExpenseMergeDecision>>;
+  mergePromptBucket: keyof ExpenseBreakdown | null;
+  reviewReady: boolean;
+};
+
+type ManualExpenseMergeCandidate = {
+  bucket: keyof ExpenseBreakdown;
+  label: string;
+  details: ManualExpenseBreakdownDetail[];
+  total: number;
+  firstIndex: number;
+};
+
+const isManualExpenseConfirmationAnswer = (
+  value: SessionAnswerValue
+): value is ManualExpenseConfirmationAnswer =>
+  Boolean(
+    value &&
+      typeof value === "object" &&
+      !Array.isArray(value) &&
+      (value as Record<string, unknown>).kind === "manual_expense_breakdown" &&
+      Array.isArray((value as Record<string, unknown>).details)
+  );
+
+const buildExpenseBreakdownFromDetails = (
+  details: ManualExpenseBreakdownDetail[]
+): ExpenseBreakdown => {
+  const breakdown: ExpenseBreakdown = {
+    food: 0,
+    transport: 0,
+    bills: 0,
+    entertainment: 0,
+    others: 0
+  };
+
+  for (const detail of details) {
+    breakdown[detail.bucket] += detail.amount;
+  }
+
+  return breakdown;
+};
+
+const buildManualExpenseConfirmationAnswer = (
+  details: ManualExpenseBreakdownDetail[],
+  previous?: ManualExpenseConfirmationAnswer
+): ManualExpenseConfirmationAnswer => ({
+  kind: "manual_expense_breakdown",
+  details,
+  mergeDecisions: previous?.mergeDecisions ?? {},
+  mergePromptBucket: previous?.mergePromptBucket ?? null,
+  reviewReady: previous?.reviewReady ?? false
+});
+
+const getManualExpenseDisplayBreakdown = (answer: SessionAnswerValue): ExpenseBreakdown =>
+  isManualExpenseConfirmationAnswer(answer)
+    ? buildExpenseBreakdownFromDetails(answer.details)
+    : (answer as ExpenseBreakdown);
+
+const mergeManualExpenseAnswers = (
+  left: ManualExpenseConfirmationAnswer,
+  right: ManualExpenseConfirmationAnswer
+): ManualExpenseConfirmationAnswer =>
+  buildManualExpenseConfirmationAnswer([...left.details, ...right.details]);
+
+const getManualExpenseMergeCandidates = (
+  answer: ManualExpenseConfirmationAnswer
+): ManualExpenseMergeCandidate[] => {
+  const groups = new Map<keyof ExpenseBreakdown, ManualExpenseMergeCandidate>();
+
+  answer.details.forEach((detail, index) => {
+    if (detail.bucket === "others") return;
+    const existing = groups.get(detail.bucket);
+    if (existing) {
+      existing.details.push(detail);
+      existing.total += detail.amount;
+      return;
+    }
+    groups.set(detail.bucket, {
+      bucket: detail.bucket,
+      label: EXPENSE_BREAKDOWN_CONFIRMATION_LABELS[detail.bucket],
+      details: [detail],
+      total: detail.amount,
+      firstIndex: index
+    });
+  });
+
+  return Array.from(groups.values())
+    .filter((group) => {
+      if (group.details.length <= 1) return false;
+      const uniqueLabels = new Set(group.details.map((detail) => normalizeText(detail.label).toLowerCase()));
+      return uniqueLabels.size > 1;
+    })
+    .sort((left, right) => left.firstIndex - right.firstIndex);
+};
+
+const getNextManualExpenseMergeCandidate = (
+  answer: ManualExpenseConfirmationAnswer
+) =>
+  getManualExpenseMergeCandidates(answer).find(
+    (candidate) => !answer.mergeDecisions[candidate.bucket]
+  ) ?? null;
+
+const buildManualExpenseMergeQuestionText = (candidate: ManualExpenseMergeCandidate) =>
+  [
+    `Saya lihat beberapa pengeluaran ini sama-sama bisa masuk kategori ${candidate.label}:`,
+    "",
+    ...candidate.details.map((detail) => `- ${detail.label}: ${formatMoney(detail.amount)}`),
+    "",
+    `Mau saya gabung jadi ${candidate.label} ${formatMoney(candidate.total)}, atau tetap dipisah sebagai kategori masing-masing?`,
+    "",
+    "Balas `gabung` atau `pisah` ya Boss."
+  ].join("\n");
+
+const parseManualExpenseMergeDecision = (
+  rawAnswer: unknown
+): ManualExpenseMergeDecision | null => {
+  if (typeof rawAnswer !== "string") return null;
+  const normalized = normalizeText(rawAnswer).toLowerCase();
+  if (!normalized) return null;
+
+  if (
+    [
+      "gabung",
+      "digabung",
+      "gabung aja",
+      "gabungin",
+      "satuin",
+      "satukan",
+      "jadi satu",
+      "jadiin satu",
+      "merge"
+    ].some((phrase) => normalized.includes(phrase)) ||
+    parseBooleanAnswer(rawAnswer) === true
+  ) {
+    return "merge";
+  }
+
+  if (
+    [
+      "pisah",
+      "dipisah",
+      "pisahin",
+      "tetap pisah",
+      "masing masing",
+      "masing-masing",
+      "jangan gabung",
+      "jangan digabung",
+      "separate"
+    ].some((phrase) => normalized.includes(phrase)) ||
+    parseBooleanAnswer(rawAnswer) === false
+  ) {
+    return "split";
+  }
+
+  return null;
+};
+
+const buildFinalManualExpensePlanInput = (answer: SessionAnswerValue) => {
+  if (!isManualExpenseConfirmationAnswer(answer)) {
+    return {
+      breakdown: answer as ExpenseBreakdown,
+      customExpenseItems: undefined
+    };
+  }
+
+  const breakdown = buildExpenseBreakdownFromDetails(answer.details);
+  const customExpenseItems: Array<{ label: string; amount: number }> = [];
+  const candidates = getManualExpenseMergeCandidates(answer);
+
+  for (const candidate of candidates) {
+    if (answer.mergeDecisions[candidate.bucket] !== "split") continue;
+    breakdown[candidate.bucket] = Math.max(0, breakdown[candidate.bucket] - candidate.total);
+    breakdown.others += candidate.total;
+    customExpenseItems.push(
+      ...candidate.details.map((detail) => ({
+        label: detail.label,
+        amount: detail.amount
+      }))
+    );
+  }
+
+  return {
+    breakdown,
+    customExpenseItems: customExpenseItems.length ? customExpenseItems : undefined
+  };
+};
+
+const buildManualExpenseAddMoreQuestionText = () =>
+  [
+    "Siap, saya catat dulu.",
+    "",
+    "Masih ada kategori pengeluaran lain yang belum ditulis?",
+    "Balas `ada` kalau mau tambah lagi, atau `sudah` kalau sudah lengkap."
+  ].join("\n");
+
+const buildManualExpenseBreakdownLines = (
+  breakdown: ExpenseBreakdown,
+  customExpenseItems?: Array<{ label: string; amount: number }>
+) => {
+  const lines: string[] = [];
+  for (const key of Object.keys(EXPENSE_BREAKDOWN_CONFIRMATION_LABELS) as Array<
+    keyof ExpenseBreakdown
+  >) {
+    const customTotal =
+      key === "others"
+        ? (customExpenseItems ?? []).reduce((sum, item) => sum + item.amount, 0)
+        : 0;
+    const amount = Math.max(0, (breakdown[key] ?? 0) - customTotal);
+    if (amount <= 0) continue;
+    lines.push(`${EXPENSE_BREAKDOWN_CONFIRMATION_LABELS[key]}: ${formatMoney(amount)}`);
+  }
+
+  for (const item of customExpenseItems ?? []) {
+    lines.push(`${item.label}: ${formatMoney(item.amount)}`);
+  }
+
+  return lines;
+};
+
+const buildManualExpenseFinalReviewReplyTexts = (answer: SessionAnswerValue) => {
+  const planInput = buildFinalManualExpensePlanInput(answer);
+  const total = parseManualBreakdownTotal(planInput.breakdown) ?? 0;
+  return [
+    [
+      "📝 Saya rapihin pengeluaran bulanan Boss:",
+      "",
+      ...buildManualExpenseBreakdownLines(
+        planInput.breakdown,
+        planInput.customExpenseItems
+      ),
+      "",
+      `Total: ${formatMoney(total)}`,
+      "",
+      "Kalau ini sudah pas, saya lanjut.",
+      "Kalau masih ada yang mau ditambah, balas `ada` ya Boss."
+    ].join("\n")
+  ];
+};
+
+type ExpenseBudgetSource = "manual" | "guided";
+type ExpenseBudgetIncomeType = "active" | "passive";
+type ExpenseBudgetDeficitStage =
+  | "ask_income_more"
+  | "ask_income_type"
+  | "ask_active_income_amount"
+  | "ask_passive_income_amount"
+  | "ask_adjust_expense"
+  | "ask_expense_category"
+  | "ask_expense_amount"
+  | "ask_change_or_save_deficit"
+  | "confirm_deficit_save"
+  | "confirm_save";
+
+type ExpenseBudgetDeficitReviewAnswer = {
+  kind: "expense_budget_deficit_review";
+  source: ExpenseBudgetSource;
+  originalAnswer: SessionAnswerValue;
+  breakdown: ExpenseBreakdown;
+  customExpenseItems: Array<{ label: string; amount: number }>;
+  additionalActiveIncome: number;
+  additionalPassiveIncome: number;
+  pendingIncomeTypes: ExpenseBudgetIncomeType[];
+  stage: ExpenseBudgetDeficitStage;
+  editingItemId: string | null;
+  deficitSaveApproved: boolean;
+};
+
+type ExpenseBudgetPlanInput = {
+  breakdown: ExpenseBreakdown;
+  customExpenseItems?: Array<{ label: string; amount: number }>;
+};
+
+type ExpenseBudgetEditableItem = {
+  id: string;
+  label: string;
+  amount: number;
+  type: "bucket" | "custom" | "others";
+  key?: keyof ExpenseBreakdown;
+  customIndex?: number;
+};
+
+const isExpenseBudgetDeficitReviewAnswer = (
+  value: SessionAnswerValue
+): value is ExpenseBudgetDeficitReviewAnswer =>
+  Boolean(
+    value &&
+      typeof value === "object" &&
+      !Array.isArray(value) &&
+      (value as Record<string, unknown>).kind === "expense_budget_deficit_review"
+  );
+
+const cloneExpenseBreakdown = (breakdown: ExpenseBreakdown): ExpenseBreakdown => ({
+  food: breakdown.food ?? 0,
+  transport: breakdown.transport ?? 0,
+  bills: breakdown.bills ?? 0,
+  entertainment: breakdown.entertainment ?? 0,
+  others: breakdown.others ?? 0
+});
+
+const getExpenseBudgetTotal = (plan: ExpenseBudgetPlanInput) =>
+  parseManualBreakdownTotal(plan.breakdown) ?? 0;
+
+const getExpenseBudgetIncomeTotal = (
+  context: RuntimeContext,
+  review?: ExpenseBudgetDeficitReviewAnswer
+) =>
+  Math.max(0, context.monthlyIncomeTotal ?? 0) +
+  (review?.additionalActiveIncome ?? 0) +
+  (review?.additionalPassiveIncome ?? 0);
+
+const getExpenseBudgetDeficitAmount = (
+  context: RuntimeContext,
+  plan: ExpenseBudgetPlanInput,
+  review?: ExpenseBudgetDeficitReviewAnswer
+) => Math.max(0, getExpenseBudgetTotal(plan) - getExpenseBudgetIncomeTotal(context, review));
+
+const buildGuidedExpensePlanInput = (
+  context: RuntimeContext,
+  normalizedAnswer: SessionAnswerValue
+): ExpenseBudgetPlanInput | null => {
+  const sessions = context.sessions.filter((item) => item.isCompleted === true);
+  const guidedOtherExpenseState = getGuidedOtherExpenseState(sessions);
+  const breakdown: ExpenseBreakdown = {
+    food:
+      getSessionNormalizedValue<number>(
+        latestSessionForQuestion(sessions, OnboardingQuestionKey.GUIDED_EXPENSE_FOOD)
+      ) ?? 0,
+    transport:
+      getSessionNormalizedValue<number>(
+        latestSessionForQuestion(sessions, OnboardingQuestionKey.GUIDED_EXPENSE_TRANSPORT)
+      ) ?? 0,
+    bills:
+      getSessionNormalizedValue<number>(
+        latestSessionForQuestion(sessions, OnboardingQuestionKey.GUIDED_EXPENSE_BILLS)
+      ) ?? 0,
+    entertainment:
+      getSessionNormalizedValue<number>(
+        latestSessionForQuestion(sessions, OnboardingQuestionKey.GUIDED_EXPENSE_ENTERTAINMENT)
+      ) ?? 0,
+    others: guidedOtherExpenseState.total
+  };
+  let customExpenseItems = guidedOtherExpenseState.items;
+
+  if (typeof normalizedAnswer === "number") {
+    breakdown.others = normalizedAnswer;
+    customExpenseItems = [];
+    return { breakdown };
+  }
+
+  if (!isGuidedOtherExpenseAnswer(normalizedAnswer)) {
+    return null;
+  }
+
+  if (normalizedAnswer.kind === "presence" && normalizedAnswer.hasOtherExpense === false) {
+    return {
+      breakdown: { ...breakdown, others: 0 }
+    };
+  }
+
+  if (normalizedAnswer.kind === "add_more" && normalizedAnswer.addMore === false) {
+    return {
+      breakdown,
+      ...(customExpenseItems.length ? { customExpenseItems } : {})
+    };
+  }
+
+  if (normalizedAnswer.kind === "category_amount") {
+    const nextCustomItems = [
+      ...customExpenseItems,
+      {
+        label: normalizedAnswer.label,
+        amount: normalizedAnswer.amount
+      }
+    ];
+    return {
+      breakdown: {
+        ...breakdown,
+        others: nextCustomItems.reduce((sum, item) => sum + item.amount, 0)
+      },
+      customExpenseItems: nextCustomItems
+    };
+  }
+
+  return null;
+};
+
+const getExpenseBudgetPlanForCurrentStep = (
+  context: RuntimeContext,
+  normalizedAnswer: SessionAnswerValue
+): ExpenseBudgetPlanInput | null => {
+  if (isExpenseBudgetDeficitReviewAnswer(normalizedAnswer)) {
+    return {
+      breakdown: cloneExpenseBreakdown(normalizedAnswer.breakdown),
+      ...(normalizedAnswer.customExpenseItems.length
+        ? { customExpenseItems: normalizedAnswer.customExpenseItems }
+        : {})
+    };
+  }
+
+  if (context.user.onboardingStep === OnboardingStep.ASK_MANUAL_EXPENSE_BREAKDOWN) {
+    return buildFinalManualExpensePlanInput(normalizedAnswer);
+  }
+
+  if (context.user.onboardingStep === OnboardingStep.ASK_GUIDED_EXPENSE_OTHERS) {
+    return buildGuidedExpensePlanInput(context, normalizedAnswer);
+  }
+
+  return null;
+};
+
+const getExpenseBudgetSourceForCurrentStep = (
+  step: OnboardingStep
+): ExpenseBudgetSource | null => {
+  if (step === OnboardingStep.ASK_MANUAL_EXPENSE_BREAKDOWN) return "manual";
+  if (step === OnboardingStep.ASK_GUIDED_EXPENSE_OTHERS) return "guided";
+  return null;
+};
+
+const buildExpenseBudgetDeficitReviewAnswer = (params: {
+  source: ExpenseBudgetSource;
+  originalAnswer: SessionAnswerValue;
+  plan: ExpenseBudgetPlanInput;
+  stage?: ExpenseBudgetDeficitStage;
+  previous?: ExpenseBudgetDeficitReviewAnswer | null;
+}): ExpenseBudgetDeficitReviewAnswer => ({
+  kind: "expense_budget_deficit_review",
+  source: params.source,
+  originalAnswer: params.previous?.originalAnswer ?? params.originalAnswer,
+  breakdown: cloneExpenseBreakdown(params.plan.breakdown),
+  customExpenseItems: (params.plan.customExpenseItems ?? []).map((item) => ({
+    label: item.label,
+    amount: item.amount
+  })),
+  additionalActiveIncome: params.previous?.additionalActiveIncome ?? 0,
+  additionalPassiveIncome: params.previous?.additionalPassiveIncome ?? 0,
+  pendingIncomeTypes: params.previous?.pendingIncomeTypes ?? [],
+  stage: params.stage ?? params.previous?.stage ?? "ask_income_more",
+  editingItemId: params.previous?.editingItemId ?? null,
+  deficitSaveApproved: params.previous?.deficitSaveApproved ?? false
+});
+
+const buildExpenseBudgetDeficitWarningText = (
+  context: RuntimeContext,
+  review: ExpenseBudgetDeficitReviewAnswer
+) => {
+  const plan = { breakdown: review.breakdown, customExpenseItems: review.customExpenseItems };
+  const incomeTotal = getExpenseBudgetIncomeTotal(context, review);
+  const expenseTotal = getExpenseBudgetTotal(plan);
+  const deficit = Math.max(0, expenseTotal - incomeTotal);
+  return [
+    "⚠️ Pengeluaran bulanan Boss lebih besar dari income.",
+    "",
+    `Income saat ini: ${formatMoney(incomeTotal)}/bulan`,
+    `Pengeluaran: ${formatMoney(expenseTotal)}/bulan`,
+    `Defisit: ${formatMoney(deficit)}/bulan`,
+    "",
+    "Masih ada income lain yang belum dimasukkan?",
+    "Balas `ada` kalau ada, atau `tidak ada` kalau memang tidak ada."
+  ].join("\n");
+};
+
+const buildExpenseBudgetIncomeTypeQuestionText = () =>
+  [
+    "Income tambahannya masuk jenis apa Boss?",
+    "",
+    "1. Active income",
+    "   Contoh: gaji, freelance, bonus, komisi, pemasukan usaha.",
+    "2. Passive income",
+    "   Contoh: dividen, sewa aset, bunga, royalti, return investasi.",
+    "3. Keduanya",
+    "",
+    "Balas nomornya atau sebut jenisnya ya Boss."
+  ].join("\n");
+
+const parseExpenseBudgetIncomeTypes = (rawAnswer: unknown): ExpenseBudgetIncomeType[] | null => {
+  if (typeof rawAnswer !== "string") return null;
+  const normalized = normalizeText(rawAnswer).toLowerCase();
+  if (!normalized) return null;
+  const wantsBoth =
+    /\b(3|dua-duanya|dua duanya|keduanya|semua|both)\b/.test(normalized) ||
+    (normalized.includes("active") && normalized.includes("passive")) ||
+    (normalized.includes("aktif") && normalized.includes("pasif"));
+  if (wantsBoth) return ["active", "passive"];
+
+  if (
+    /\b(1|active|aktif|gaji|freelance|bonus|komisi|usaha|bisnis)\b/.test(normalized)
+  ) {
+    return ["active"];
+  }
+
+  if (
+    /\b(2|passive|pasif|dividen|sewa|bunga|royalti|royalty|return|investasi)\b/.test(normalized)
+  ) {
+    return ["passive"];
+  }
+
+  return null;
+};
+
+const getIncomeAmountPromptText = (type: ExpenseBudgetIncomeType) =>
+  type === "active"
+    ? "Nominal active income tambahannya berapa per bulan Boss? Contoh: `2jt` atau `freelance 1,5jt`."
+    : "Nominal passive income tambahannya berapa per bulan Boss? Contoh: `500rb` atau `sewa 2jt`.";
+
+const buildExpenseBudgetFinalSaveConfirmationText = (
+  context: RuntimeContext,
+  review: ExpenseBudgetDeficitReviewAnswer
+) => {
+  const plan = { breakdown: review.breakdown, customExpenseItems: review.customExpenseItems };
+  const incomeTotal = getExpenseBudgetIncomeTotal(context, review);
+  const expenseTotal = getExpenseBudgetTotal(plan);
+  return [
+    "✅ Budget sudah aman untuk disimpan.",
+    "",
+    `Income: ${formatMoney(incomeTotal)}/bulan`,
+    `Pengeluaran: ${formatMoney(expenseTotal)}/bulan`,
+    `Sisa: ${formatMoney(Math.max(0, incomeTotal - expenseTotal))}/bulan`,
+    "",
+    "Mau saya simpan budget ini?",
+    "Balas `simpan` kalau sudah pas, atau `ubah` kalau masih mau revisi pengeluaran."
+  ].join("\n");
+};
+
+const getExpenseBudgetEditableItems = (
+  review: ExpenseBudgetDeficitReviewAnswer
+): ExpenseBudgetEditableItem[] => {
+  const items: ExpenseBudgetEditableItem[] = [];
+  for (const key of ["food", "transport", "bills", "entertainment"] as Array<keyof ExpenseBreakdown>) {
+    const amount = review.breakdown[key] ?? 0;
+    if (amount > 0) {
+      items.push({
+        id: `bucket:${key}`,
+        label: EXPENSE_BREAKDOWN_CONFIRMATION_LABELS[key],
+        amount,
+        type: "bucket",
+        key
+      });
+    }
+  }
+
+  review.customExpenseItems.forEach((item, index) => {
+    if (item.amount <= 0) return;
+    items.push({
+      id: `custom:${index}`,
+      label: item.label,
+      amount: item.amount,
+      type: "custom",
+      customIndex: index
+    });
+  });
+
+  const customTotal = review.customExpenseItems.reduce((sum, item) => sum + item.amount, 0);
+  const unresolvedOthers = Math.max(0, (review.breakdown.others ?? 0) - customTotal);
+  if (unresolvedOthers > 0) {
+    items.push({
+      id: "others",
+      label: EXPENSE_BREAKDOWN_CONFIRMATION_LABELS.others,
+      amount: unresolvedOthers,
+      type: "others",
+      key: "others"
+    });
+  }
+
+  return items;
+};
+
+const buildExpenseBudgetEditCategoryQuestionText = (
+  review: ExpenseBudgetDeficitReviewAnswer
+) => {
+  const items = getExpenseBudgetEditableItems(review);
+  return [
+    "Kategori pengeluaran mana yang mau diubah Boss?",
+    "",
+    ...items.map((item, index) => `${index + 1}. ${item.label}: ${formatMoney(item.amount)}`),
+    "",
+    "Balas nomor kategori atau nama kategorinya ya Boss."
+  ].join("\n");
+};
+
+const parseExpenseBudgetEditableSelection = (
+  rawAnswer: unknown,
+  items: ExpenseBudgetEditableItem[]
+) => {
+  if (typeof rawAnswer !== "string") return null;
+  const normalized = normalizeText(rawAnswer).toLowerCase();
+  const numberMatch = normalized.match(/\b\d+\b/);
+  if (numberMatch) {
+    const index = Number(numberMatch[0]) - 1;
+    if (items[index]) return items[index];
+  }
+
+  return (
+    items.find((item) => normalized.includes(item.label.toLowerCase())) ??
+    items.find((item) => item.label.toLowerCase().includes(normalized))
+  );
+};
+
+const applyExpenseBudgetItemAmount = (
+  review: ExpenseBudgetDeficitReviewAnswer,
+  selectedItem: ExpenseBudgetEditableItem,
+  amount: number
+): ExpenseBudgetDeficitReviewAnswer => {
+  const nextReview: ExpenseBudgetDeficitReviewAnswer = {
+    ...review,
+    breakdown: cloneExpenseBreakdown(review.breakdown),
+    customExpenseItems: review.customExpenseItems.map((item) => ({ ...item })),
+    editingItemId: null
+  };
+  const normalizedAmount = Math.max(0, Math.round(amount));
+
+  if (selectedItem.type === "bucket" && selectedItem.key) {
+    nextReview.breakdown[selectedItem.key] = normalizedAmount;
+    return nextReview;
+  }
+
+  if (selectedItem.type === "others") {
+    const customTotal = nextReview.customExpenseItems.reduce((sum, item) => sum + item.amount, 0);
+    nextReview.breakdown.others = customTotal + normalizedAmount;
+    return nextReview;
+  }
+
+  if (selectedItem.type === "custom" && selectedItem.customIndex !== undefined) {
+    const currentAmount = nextReview.customExpenseItems[selectedItem.customIndex]?.amount ?? 0;
+    const difference = normalizedAmount - currentAmount;
+    if (nextReview.customExpenseItems[selectedItem.customIndex]) {
+      nextReview.customExpenseItems[selectedItem.customIndex].amount = normalizedAmount;
+    }
+    nextReview.breakdown.others = Math.max(0, (nextReview.breakdown.others ?? 0) + difference);
+  }
+
+  return nextReview;
+};
+
+const wantsExpenseBudgetEdit = (rawAnswer: unknown) => {
+  if (typeof rawAnswer !== "string") return false;
+  const normalized = normalizeText(rawAnswer).toLowerCase();
+  return ["ubah", "edit", "revisi", "ganti", "atur ulang", "ubah lagi"].some((phrase) =>
+    normalized.includes(phrase)
+  );
+};
+
+const wantsDeficitBudgetSave = (rawAnswer: unknown) => {
+  if (typeof rawAnswer !== "string") return false;
+  const normalized = normalizeText(rawAnswer).toLowerCase();
+  return (
+    normalized.includes("simpan defisit") ||
+    normalized.includes("save defisit") ||
+    normalized.includes("tetap simpan defisit") ||
+    normalized.includes("setuju simpan defisit")
+  );
+};
+
+const buildExpenseBudgetAdjustQuestionText = () =>
+  [
+    "Oke, berarti belum ada income tambahan lagi.",
+    "",
+    "Mau ubah nominal pengeluaran dulu supaya budgetnya lebih aman?",
+    "Balas `ubah` untuk revisi kategori pengeluaran, atau `tetap simpan defisit` kalau mau tetap disimpan sebagai budget defisit."
+  ].join("\n");
+
+const buildExpenseBudgetChangeOrDeficitText = (
+  context: RuntimeContext,
+  review: ExpenseBudgetDeficitReviewAnswer
+) => {
+  const plan = { breakdown: review.breakdown, customExpenseItems: review.customExpenseItems };
+  const incomeTotal = getExpenseBudgetIncomeTotal(context, review);
+  const expenseTotal = getExpenseBudgetTotal(plan);
+  return [
+    "⚠️ Setelah diubah, pengeluaran masih lebih besar dari income.",
+    "",
+    `Income: ${formatMoney(incomeTotal)}/bulan`,
+    `Pengeluaran: ${formatMoney(expenseTotal)}/bulan`,
+    `Defisit: ${formatMoney(Math.max(0, expenseTotal - incomeTotal))}/bulan`,
+    "",
+    "Mau ubah kategori pengeluaran lain, atau tetap simpan budget ini sebagai budget defisit?",
+    "Balas `ubah lagi` atau `tetap simpan defisit`."
+  ].join("\n");
+};
+
+const buildExpenseBudgetDeficitSaveConfirmationText = (
+  context: RuntimeContext,
+  review: ExpenseBudgetDeficitReviewAnswer
+) => {
+  const plan = { breakdown: review.breakdown, customExpenseItems: review.customExpenseItems };
+  const incomeTotal = getExpenseBudgetIncomeTotal(context, review);
+  const expenseTotal = getExpenseBudgetTotal(plan);
+  return [
+    "⚠️ Konfirmasi terakhir ya Boss.",
+    "",
+    "Budget ini masih defisit:",
+    `Income: ${formatMoney(incomeTotal)}/bulan`,
+    `Pengeluaran: ${formatMoney(expenseTotal)}/bulan`,
+    `Defisit: ${formatMoney(Math.max(0, expenseTotal - incomeTotal))}/bulan`,
+    "",
+    "Saya hanya akan simpan budget defisit kalau Boss setuju eksplisit.",
+    "Ketik `simpan defisit` untuk menyimpan, atau `ubah` untuk revisi lagi."
+  ].join("\n");
+};
+
+
 const buildConfirmationReplyTexts = (
   context: RuntimeContext,
   normalizedAnswer: SessionAnswerValue
@@ -2298,6 +3062,10 @@ const buildConfirmationReplyTexts = (
     ).filter(
       (item): item is string => typeof item === "string" && item.trim().length > 0
     );
+  }
+
+  if (context.user.onboardingStep === OnboardingStep.ASK_MANUAL_EXPENSE_BREAKDOWN) {
+    return [buildManualExpenseAddMoreQuestionText()];
   }
 
   return [[
@@ -2613,6 +3381,8 @@ const buildPendingConfirmationReminder = (
         ? "Kalau mau tetap pakai target yang sekarang, tinggal bilang lanjut dengan target ini."
         : step === OnboardingStep.ASK_GOAL_TARGET_DATE
           ? "Pilih opsi yang mau dipakai ya Boss: 1 tetap deadline, 2 versi realistis, 3 ubah nominal, atau 4 ubah deadline."
+        : step === OnboardingStep.ASK_MANUAL_EXPENSE_BREAKDOWN
+          ? "Kalau masih ada kategori pengeluaran lain, balas `ada` lalu kirim kategorinya. Kalau sudah lengkap, balas `sudah`."
         : "Kalau sudah sesuai, saya lanjut pakai yang ini.",
       step === OnboardingStep.ASK_GOAL_TARGET_DATE &&
       pendingConfirmation &&
@@ -2624,12 +3394,15 @@ const buildPendingConfirmationReminder = (
         ? "Kalau lebih cocok pakai saran saya atau mau geser lagi bulannya, tinggal bilang aja. Kalau nominalnya yang mau dibenerin, bilang juga."
         : step === OnboardingStep.ASK_GOAL_TARGET_DATE
           ? "Kalau belum pas, bilang aja bagian mana yang mau diubah. Saya bisa ulang dari nominal atau target waktunya."
-          : "Kalau belum sesuai, bilang aja yang mau diubah dan saya bantu ulang dari bagian itu.",
+        : step === OnboardingStep.ASK_MANUAL_EXPENSE_BREAKDOWN
+          ? "Contoh tambahannya: `Keluarga: 500rb` atau `Cicilan motor: 1,2jt`."
+        : "Kalau belum sesuai, bilang aja yang mau diubah dan saya bantu ulang dari bagian itu.",
     ]
   );
 
 const CONFIRMATION_STEPS = new Set<OnboardingStep>([
-  OnboardingStep.ASK_GOAL_TARGET_DATE
+  OnboardingStep.ASK_GOAL_TARGET_DATE,
+  OnboardingStep.ASK_MANUAL_EXPENSE_BREAKDOWN
 ]);
 
 const shouldSkipAnswerConfirmation = (step: OnboardingStep) => !CONFIRMATION_STEPS.has(step);
@@ -2878,12 +3651,18 @@ const validateAnswerForStep = (context: RuntimeContext, rawAnswer: unknown) => {
       return parsed ? { value: parsed } : buildValidationReply(prompt, "Pilih salah satu mode pengeluaran ya Boss.");
     }
     case OnboardingStep.ASK_MANUAL_EXPENSE_BREAKDOWN: {
-      const parsed = typeof rawAnswer === "string" ? parseManualExpenseBreakdown(rawAnswer) : null;
-      return parsed && parseManualBreakdownTotal(parsed) !== null
-        ? { value: parsed }
+      if (typeof rawAnswer === "string" && isManualExpenseBreakdownTooGeneric(rawAnswer)) {
+        return buildManualExpenseTooGenericReply(prompt, rawAnswer);
+      }
+
+      const details =
+        typeof rawAnswer === "string" ? parseManualExpenseBreakdownDetails(rawAnswer) : [];
+      const breakdown = buildExpenseBreakdownFromDetails(details);
+      return details.length && parseManualBreakdownTotal(breakdown) !== null
+        ? { value: buildManualExpenseConfirmationAnswer(details) }
         : buildValidationReply(
             prompt,
-            "Pengeluaran bulanannya belum kebayang dari jawaban ini Boss. Coba tulis kategori dan angkanya ya, nanti saya bantu rapihin."
+            "Pengeluaran bulanannya belum kebayang dari jawaban ini Boss. Coba tulis kategori dan angkanya ya. Kalau belum punya rinciannya, balas `Saya belum punya, tolong bantu susun`."
           );
     }
     case OnboardingStep.ASK_PRIMARY_GOAL:
@@ -3073,10 +3852,42 @@ const persistConfirmedAnswerEffects = async (
     case OnboardingStep.ASK_BUDGET_MODE:
       await prisma.user.update({ where: { id: context.user.id }, data: { budgetMode: normalizedAnswer as BudgetMode } });
       break;
-    case OnboardingStep.ASK_MANUAL_EXPENSE_BREAKDOWN:
-      await replaceExpensePlan({ userId: context.user.id, source: ExpensePlanSource.MANUAL_USER_PLAN, breakdown: normalizedAnswer as ExpenseBreakdown });
+    case OnboardingStep.ASK_MANUAL_EXPENSE_BREAKDOWN: {
+      if (isExpenseBudgetDeficitReviewAnswer(normalizedAnswer)) {
+        await persistExpenseBudgetReviewAdditionalIncome(context, normalizedAnswer);
+        await persistExpenseBudgetPlan(
+          context,
+          {
+            breakdown: normalizedAnswer.breakdown,
+            ...(normalizedAnswer.customExpenseItems.length
+              ? { customExpenseItems: normalizedAnswer.customExpenseItems }
+              : {})
+          },
+          ExpensePlanSource.MANUAL_USER_PLAN
+        );
+        break;
+      }
+
+      const planInput = buildFinalManualExpensePlanInput(normalizedAnswer);
+      await persistExpenseBudgetPlan(context, planInput, ExpensePlanSource.MANUAL_USER_PLAN);
       break;
+    }
     case OnboardingStep.ASK_GUIDED_EXPENSE_OTHERS: {
+      if (isExpenseBudgetDeficitReviewAnswer(normalizedAnswer)) {
+        await persistExpenseBudgetReviewAdditionalIncome(context, normalizedAnswer);
+        await persistExpenseBudgetPlan(
+          context,
+          {
+            breakdown: normalizedAnswer.breakdown,
+            ...(normalizedAnswer.customExpenseItems.length
+              ? { customExpenseItems: normalizedAnswer.customExpenseItems }
+              : {})
+          },
+          ExpensePlanSource.GUIDED_ONBOARDING_PLAN
+        );
+        break;
+      }
+
       const onboardingSessionModel = getOnboardingSessionModel();
       const sessions = onboardingSessionModel
         ? await onboardingSessionModel.findMany({ where: { userId: context.user.id }, orderBy: { createdAt: "asc" } })
@@ -3116,15 +3927,13 @@ const persistConfirmedAnswerEffects = async (
       }
 
       if (
-        normalizedAnswer.kind === "category_amount" ||
         (normalizedAnswer.kind === "add_more" && normalizedAnswer.addMore === false)
       ) {
-        await replaceExpensePlan({
-          userId: context.user.id,
-          source: ExpensePlanSource.GUIDED_ONBOARDING_PLAN,
-          breakdown,
-          customExpenseItems: guidedOtherExpenseState.items
-        });
+        await persistExpenseBudgetPlan(
+          context,
+          { breakdown, customExpenseItems: guidedOtherExpenseState.items },
+          ExpensePlanSource.GUIDED_ONBOARDING_PLAN
+        );
       }
 
       break;
@@ -3480,6 +4289,74 @@ const requestAnswerConfirmation = async (
   );
 };
 
+const isGuidedExpenseFinalAnswer = (normalizedAnswer: SessionAnswerValue) => {
+  if (typeof normalizedAnswer === "number") return true;
+  if (!isGuidedOtherExpenseAnswer(normalizedAnswer)) return false;
+  if (normalizedAnswer.kind === "presence") return normalizedAnswer.hasOtherExpense === false;
+  if (normalizedAnswer.kind === "add_more") return normalizedAnswer.addMore === false;
+  return false;
+};
+
+const shouldCheckExpenseBudgetDeficit = (
+  context: RuntimeContext,
+  normalizedAnswer: SessionAnswerValue
+) => {
+  if (isExpenseBudgetDeficitReviewAnswer(normalizedAnswer)) return true;
+  if (context.user.onboardingStep === OnboardingStep.ASK_MANUAL_EXPENSE_BREAKDOWN) return true;
+  if (context.user.onboardingStep === OnboardingStep.ASK_GUIDED_EXPENSE_OTHERS) {
+    return isGuidedExpenseFinalAnswer(normalizedAnswer);
+  }
+  return false;
+};
+
+const requestExpenseBudgetDeficitReviewIfNeeded = async (params: {
+  context: RuntimeContext;
+  normalizedAnswer: SessionAnswerValue;
+  rawAnswer: unknown;
+  pendingConfirmation?: OnboardingSession | null;
+}): Promise<OnboardingResult | null> => {
+  const { context, normalizedAnswer, rawAnswer, pendingConfirmation } = params;
+  if (!shouldCheckExpenseBudgetDeficit(context, normalizedAnswer)) return null;
+
+  const plan = getExpenseBudgetPlanForCurrentStep(context, normalizedAnswer);
+  const source = getExpenseBudgetSourceForCurrentStep(context.user.onboardingStep);
+  if (!plan || !source) return null;
+
+  const existingReview = isExpenseBudgetDeficitReviewAnswer(normalizedAnswer)
+    ? normalizedAnswer
+    : null;
+  if (
+    existingReview?.deficitSaveApproved ||
+    getExpenseBudgetDeficitAmount(context, plan, existingReview ?? undefined) <= 0
+  ) {
+    return null;
+  }
+
+  const prompt = resolvePrompt(context);
+  const review = buildExpenseBudgetDeficitReviewAnswer({
+    source,
+    originalAnswer: normalizedAnswer,
+    plan,
+    previous: existingReview,
+    stage: "ask_income_more"
+  });
+
+  await saveSessionAnswer({
+    userId: context.user.id,
+    stepKey: context.user.onboardingStep,
+    questionKey: prompt.questionKey,
+    rawAnswer,
+    normalizedAnswer: review,
+    isCompleted: false,
+    replaceSessionId: pendingConfirmation?.id ?? null
+  });
+
+  return buildReplyResult(
+    [buildExpenseBudgetDeficitWarningText(context, review)],
+    createState({ user: context.user, prompt })
+  );
+};
+
 type PersistAnswerEffectsResult =
   | { kind: "ok" }
   | { kind: "validation"; message: string }
@@ -3503,12 +4380,62 @@ const tryPersistAnswerEffects = async (
   }
 };
 
+const persistExpenseBudgetReviewAdditionalIncome = async (
+  context: RuntimeContext,
+  review: ExpenseBudgetDeficitReviewAnswer
+) => {
+  const additionalActive = Math.max(0, review.additionalActiveIncome);
+  const additionalPassive = Math.max(0, review.additionalPassiveIncome);
+  if (additionalActive <= 0 && additionalPassive <= 0) return;
+
+  const existingStructuredIncome =
+    (context.activeIncomeMonthly ?? 0) + (context.passiveIncomeMonthly ?? 0);
+  if (existingStructuredIncome > 0 || context.estimatedMonthlyIncome === null) {
+    await upsertIncomeProfile({
+      userId: context.user.id,
+      activeIncomeMonthly: (context.activeIncomeMonthly ?? 0) + additionalActive,
+      passiveIncomeMonthly: (context.passiveIncomeMonthly ?? 0) + additionalPassive
+    });
+    return;
+  }
+
+  await upsertIncomeProfile({
+    userId: context.user.id,
+    estimatedMonthlyIncome:
+      (context.estimatedMonthlyIncome ?? context.monthlyIncomeTotal ?? 0) +
+      additionalActive +
+      additionalPassive
+  });
+};
+
+const persistExpenseBudgetPlan = async (
+  context: RuntimeContext,
+  plan: ExpenseBudgetPlanInput,
+  source: ExpensePlanSource
+) => {
+  await replaceExpensePlan({
+    userId: context.user.id,
+    source,
+    breakdown: plan.breakdown,
+    ...(plan.customExpenseItems?.length
+      ? { customExpenseItems: plan.customExpenseItems }
+      : {})
+  });
+};
+
 const continueWithoutConfirmation = async (
   context: RuntimeContext,
   normalizedAnswer: SessionAnswerValue,
   rawAnswer: unknown
 ): Promise<OnboardingResult> => {
   const prompt = resolvePrompt(context);
+  const deficitReview = await requestExpenseBudgetDeficitReviewIfNeeded({
+    context,
+    normalizedAnswer,
+    rawAnswer
+  });
+  if (deficitReview) return deficitReview;
+
   if (isFinalAssetStep(context)) {
     const effectResult = await tryPersistAnswerEffects(context, normalizedAnswer);
     if (effectResult.kind === "validation") {
@@ -3633,6 +4560,14 @@ const completePendingConfirmation = async (params: {
             : base;
         })()
       : normalizedAnswer;
+  const deficitReview = await requestExpenseBudgetDeficitReviewIfNeeded({
+    context,
+    normalizedAnswer: goalTargetSessionValue,
+    rawAnswer,
+    pendingConfirmation
+  });
+  if (deficitReview) return deficitReview;
+
   await resetAssetSessionScopeIfNeeded(context, pendingConfirmation);
   if (isFinalAssetStep(context)) {
     const effectResult = await tryPersistAnswerEffects(context, goalTargetSessionValue);
@@ -3726,6 +4661,560 @@ const continueFromConfirmedAnswer = async (
     prefixTexts: ["Oke, saya lanjut dari sini."]
   });
 
+const routeManualExpenseToGuidedSetup = async (
+  context: RuntimeContext
+): Promise<OnboardingResult> => {
+  await prisma.user.update({
+    where: { id: context.user.id },
+    data: { budgetMode: BudgetMode.GUIDED_PLAN }
+  });
+
+  const guidedUser = await moveToStep(context.user.id, OnboardingStep.ASK_GUIDED_EXPENSE_FOOD);
+  const guidedContext = await buildRuntimeContext(context.user.id, guidedUser);
+  const guidedPrompt = resolvePrompt(guidedContext);
+  const guidedPromptTexts = await formatOutgoingPromptForChatBubbles(guidedContext);
+
+  return buildReplyResult(
+    ["Siap Boss, saya bantu susun satu per satu.", ...guidedPromptTexts],
+    createState({ user: guidedUser, prompt: guidedPrompt }),
+    { preserveReplyTextBubbles: guidedPromptTexts.length > 1 }
+  );
+};
+
+const requestManualExpenseMergeConfirmation = async (
+  context: RuntimeContext,
+  prompt: OnboardingPrompt,
+  pendingConfirmation: OnboardingSession,
+  answer: ManualExpenseConfirmationAnswer,
+  rawAnswer: unknown,
+  candidate: ManualExpenseMergeCandidate
+): Promise<OnboardingResult> => {
+  const answerWithPrompt: ManualExpenseConfirmationAnswer = {
+    ...answer,
+    mergePromptBucket: candidate.bucket
+  };
+  await saveSessionAnswer({
+    userId: context.user.id,
+    stepKey: context.user.onboardingStep,
+    questionKey: prompt.questionKey,
+    rawAnswer,
+    normalizedAnswer: answerWithPrompt,
+    isCompleted: false,
+    replaceSessionId: pendingConfirmation.id
+  });
+
+  return buildReplyResult(
+    [buildManualExpenseMergeQuestionText(candidate)],
+    createState({ user: context.user, prompt })
+  );
+};
+
+const requestManualExpenseFinalReview = async (
+  context: RuntimeContext,
+  prompt: OnboardingPrompt,
+  pendingConfirmation: OnboardingSession,
+  answer: ManualExpenseConfirmationAnswer,
+  rawAnswer: unknown
+): Promise<OnboardingResult> => {
+  const answerForReview: ManualExpenseConfirmationAnswer = {
+    ...answer,
+    mergePromptBucket: null,
+    reviewReady: true
+  };
+  await saveSessionAnswer({
+    userId: context.user.id,
+    stepKey: context.user.onboardingStep,
+    questionKey: prompt.questionKey,
+    rawAnswer,
+    normalizedAnswer: answerForReview,
+    isCompleted: false,
+    replaceSessionId: pendingConfirmation.id
+  });
+
+  const replyTexts = buildManualExpenseFinalReviewReplyTexts(answerForReview);
+  return buildReplyResult(
+    replyTexts,
+    createState({ user: context.user, prompt }),
+    { preserveReplyTextBubbles: replyTexts.length > 1 }
+  );
+};
+
+const saveExpenseBudgetDeficitReviewReply = async (
+  context: RuntimeContext,
+  prompt: OnboardingPrompt,
+  pendingConfirmation: OnboardingSession,
+  review: ExpenseBudgetDeficitReviewAnswer,
+  rawAnswer: unknown,
+  replyText: string
+): Promise<OnboardingResult> => {
+  await saveSessionAnswer({
+    userId: context.user.id,
+    stepKey: context.user.onboardingStep,
+    questionKey: prompt.questionKey,
+    rawAnswer,
+    normalizedAnswer: review,
+    isCompleted: false,
+    replaceSessionId: pendingConfirmation.id
+  });
+
+  return buildReplyResult([replyText], createState({ user: context.user, prompt }));
+};
+
+const wantsRegularBudgetSave = (rawAnswer: unknown) => {
+  if (typeof rawAnswer === "string") {
+    const normalized = normalizeText(rawAnswer).toLowerCase();
+    if (normalized.includes("simpan") || normalized.includes("save")) return true;
+  }
+  return isPositiveAnswerConfirmation(rawAnswer);
+};
+
+const handleExpenseBudgetDeficitPendingConfirmation = async (
+  context: RuntimeContext,
+  prompt: OnboardingPrompt,
+  pendingConfirmation: OnboardingSession,
+  review: ExpenseBudgetDeficitReviewAnswer,
+  rawAnswer: unknown
+): Promise<OnboardingResult> => {
+  const plan = { breakdown: review.breakdown, customExpenseItems: review.customExpenseItems };
+
+  if (review.stage === "ask_income_more") {
+    const addMoreAnswer = parseAddMoreAnswer(rawAnswer);
+    if (addMoreAnswer === true) {
+      return saveExpenseBudgetDeficitReviewReply(
+        context,
+        prompt,
+        pendingConfirmation,
+        { ...review, stage: "ask_income_type" },
+        rawAnswer,
+        buildExpenseBudgetIncomeTypeQuestionText()
+      );
+    }
+
+    if (addMoreAnswer === false || isNegativeAnswerConfirmation(rawAnswer)) {
+      return saveExpenseBudgetDeficitReviewReply(
+        context,
+        prompt,
+        pendingConfirmation,
+        { ...review, stage: "ask_adjust_expense" },
+        rawAnswer,
+        buildExpenseBudgetAdjustQuestionText()
+      );
+    }
+
+    return buildReplyResult(
+      [buildExpenseBudgetDeficitWarningText(context, review)],
+      createState({ user: context.user, prompt })
+    );
+  }
+
+  if (review.stage === "ask_income_type") {
+    const incomeTypes = parseExpenseBudgetIncomeTypes(rawAnswer);
+    if (!incomeTypes) {
+      return buildReplyResult(
+        [buildExpenseBudgetIncomeTypeQuestionText()],
+        createState({ user: context.user, prompt })
+      );
+    }
+
+    const [nextType, ...remainingTypes] = incomeTypes;
+    const nextReview: ExpenseBudgetDeficitReviewAnswer = {
+      ...review,
+      pendingIncomeTypes: remainingTypes,
+      stage: nextType === "active" ? "ask_active_income_amount" : "ask_passive_income_amount"
+    };
+    return saveExpenseBudgetDeficitReviewReply(
+      context,
+      prompt,
+      pendingConfirmation,
+      nextReview,
+      rawAnswer,
+      getIncomeAmountPromptText(nextType)
+    );
+  }
+
+  if (
+    review.stage === "ask_active_income_amount" ||
+    review.stage === "ask_passive_income_amount"
+  ) {
+    const amount = parseMoneyInput(rawAnswer);
+    const currentType: ExpenseBudgetIncomeType =
+      review.stage === "ask_active_income_amount" ? "active" : "passive";
+    if (amount === null || amount <= 0) {
+      return buildReplyResult(
+        [getIncomeAmountPromptText(currentType)],
+        createState({ user: context.user, prompt })
+      );
+    }
+
+    const [nextType, ...remainingTypes] = review.pendingIncomeTypes;
+    const updatedReview: ExpenseBudgetDeficitReviewAnswer = {
+      ...review,
+      additionalActiveIncome:
+        review.additionalActiveIncome + (currentType === "active" ? amount : 0),
+      additionalPassiveIncome:
+        review.additionalPassiveIncome + (currentType === "passive" ? amount : 0),
+      pendingIncomeTypes: remainingTypes,
+      stage: nextType
+        ? nextType === "active"
+          ? "ask_active_income_amount"
+          : "ask_passive_income_amount"
+        : "ask_income_more"
+    };
+
+    if (nextType) {
+      return saveExpenseBudgetDeficitReviewReply(
+        context,
+        prompt,
+        pendingConfirmation,
+        updatedReview,
+        rawAnswer,
+        getIncomeAmountPromptText(nextType)
+      );
+    }
+
+    if (getExpenseBudgetDeficitAmount(context, plan, updatedReview) <= 0) {
+      return saveExpenseBudgetDeficitReviewReply(
+        context,
+        prompt,
+        pendingConfirmation,
+        { ...updatedReview, stage: "confirm_save" },
+        rawAnswer,
+        buildExpenseBudgetFinalSaveConfirmationText(context, updatedReview)
+      );
+    }
+
+    return saveExpenseBudgetDeficitReviewReply(
+      context,
+      prompt,
+      pendingConfirmation,
+      { ...updatedReview, stage: "ask_income_more" },
+      rawAnswer,
+      buildExpenseBudgetDeficitWarningText(context, updatedReview)
+    );
+  }
+
+  if (review.stage === "ask_adjust_expense" || review.stage === "ask_change_or_save_deficit") {
+    if (wantsExpenseBudgetEdit(rawAnswer)) {
+      const nextReview = { ...review, stage: "ask_expense_category" as const };
+      return saveExpenseBudgetDeficitReviewReply(
+        context,
+        prompt,
+        pendingConfirmation,
+        nextReview,
+        rawAnswer,
+        buildExpenseBudgetEditCategoryQuestionText(nextReview)
+      );
+    }
+
+    if (wantsDeficitBudgetSave(rawAnswer) || parseBooleanAnswer(rawAnswer) === false) {
+      return saveExpenseBudgetDeficitReviewReply(
+        context,
+        prompt,
+        pendingConfirmation,
+        { ...review, stage: "confirm_deficit_save" },
+        rawAnswer,
+        buildExpenseBudgetDeficitSaveConfirmationText(context, review)
+      );
+    }
+
+    return buildReplyResult(
+      [
+        review.stage === "ask_adjust_expense"
+          ? buildExpenseBudgetAdjustQuestionText()
+          : buildExpenseBudgetChangeOrDeficitText(context, review)
+      ],
+      createState({ user: context.user, prompt })
+    );
+  }
+
+  if (review.stage === "ask_expense_category") {
+    const editableItems = getExpenseBudgetEditableItems(review);
+    const selectedItem = parseExpenseBudgetEditableSelection(rawAnswer, editableItems);
+    if (!selectedItem) {
+      return buildReplyResult(
+        [buildExpenseBudgetEditCategoryQuestionText(review)],
+        createState({ user: context.user, prompt })
+      );
+    }
+
+    return saveExpenseBudgetDeficitReviewReply(
+      context,
+      prompt,
+      pendingConfirmation,
+      {
+        ...review,
+        editingItemId: selectedItem.id,
+        stage: "ask_expense_amount"
+      },
+      rawAnswer,
+      `Nominal baru untuk ${selectedItem.label} berapa per bulan Boss?`
+    );
+  }
+
+  if (review.stage === "ask_expense_amount") {
+    const amount = parseMoneyInput(rawAnswer);
+    const selectedItem = getExpenseBudgetEditableItems(review).find(
+      (item) => item.id === review.editingItemId
+    );
+    if (!selectedItem || amount === null || amount < 0) {
+      return buildReplyResult(
+        ["Nominal barunya belum valid. Coba kirim angka rupiah ya Boss."],
+        createState({ user: context.user, prompt })
+      );
+    }
+
+    const updatedReview = applyExpenseBudgetItemAmount(review, selectedItem, amount);
+    const updatedPlan = {
+      breakdown: updatedReview.breakdown,
+      customExpenseItems: updatedReview.customExpenseItems
+    };
+    if (getExpenseBudgetDeficitAmount(context, updatedPlan, updatedReview) <= 0) {
+      return saveExpenseBudgetDeficitReviewReply(
+        context,
+        prompt,
+        pendingConfirmation,
+        { ...updatedReview, stage: "confirm_save" },
+        rawAnswer,
+        buildExpenseBudgetFinalSaveConfirmationText(context, updatedReview)
+      );
+    }
+
+    return saveExpenseBudgetDeficitReviewReply(
+      context,
+      prompt,
+      pendingConfirmation,
+      { ...updatedReview, stage: "ask_change_or_save_deficit" },
+      rawAnswer,
+      buildExpenseBudgetChangeOrDeficitText(context, updatedReview)
+    );
+  }
+
+  if (review.stage === "confirm_deficit_save") {
+    if (wantsExpenseBudgetEdit(rawAnswer)) {
+      const nextReview = { ...review, stage: "ask_expense_category" as const };
+      return saveExpenseBudgetDeficitReviewReply(
+        context,
+        prompt,
+        pendingConfirmation,
+        nextReview,
+        rawAnswer,
+        buildExpenseBudgetEditCategoryQuestionText(nextReview)
+      );
+    }
+
+    if (!wantsDeficitBudgetSave(rawAnswer)) {
+      return buildReplyResult(
+        [buildExpenseBudgetDeficitSaveConfirmationText(context, review)],
+        createState({ user: context.user, prompt })
+      );
+    }
+
+    return completePendingConfirmation({
+      context,
+      pendingConfirmation,
+      normalizedAnswerOverride: {
+        ...review,
+        deficitSaveApproved: true
+      },
+      rawAnswerOverride: rawAnswer,
+      prefixTexts: ["Saya simpan sebagai budget defisit sesuai konfirmasi Boss."]
+    });
+  }
+
+  if (review.stage === "confirm_save") {
+    if (wantsExpenseBudgetEdit(rawAnswer)) {
+      const nextReview = { ...review, stage: "ask_expense_category" as const };
+      return saveExpenseBudgetDeficitReviewReply(
+        context,
+        prompt,
+        pendingConfirmation,
+        nextReview,
+        rawAnswer,
+        buildExpenseBudgetEditCategoryQuestionText(nextReview)
+      );
+    }
+
+    if (!wantsRegularBudgetSave(rawAnswer)) {
+      return buildReplyResult(
+        [buildExpenseBudgetFinalSaveConfirmationText(context, review)],
+        createState({ user: context.user, prompt })
+      );
+    }
+
+    return completePendingConfirmation({
+      context,
+      pendingConfirmation,
+      normalizedAnswerOverride: review,
+      rawAnswerOverride: rawAnswer,
+      prefixTexts: ["Oke, budget saya simpan."]
+    });
+  }
+
+  return buildReplyResult(
+    [buildExpenseBudgetDeficitWarningText(context, review)],
+    createState({ user: context.user, prompt })
+  );
+};
+
+const handleManualExpensePendingConfirmation = async (
+  context: RuntimeContext,
+  prompt: OnboardingPrompt,
+  pendingConfirmation: OnboardingSession,
+  rawAnswer: unknown
+): Promise<OnboardingResult> => {
+  const currentManualAnswer = isManualExpenseConfirmationAnswer(
+    pendingConfirmation.normalizedAnswerJson as SessionAnswerValue
+  )
+    ? (pendingConfirmation.normalizedAnswerJson as ManualExpenseConfirmationAnswer)
+    : null;
+
+  if (currentManualAnswer?.mergePromptBucket) {
+    const currentCandidate =
+      getManualExpenseMergeCandidates(currentManualAnswer).find(
+        (candidate) => candidate.bucket === currentManualAnswer.mergePromptBucket
+      ) ?? null;
+    const decision = parseManualExpenseMergeDecision(rawAnswer);
+
+    if (!currentCandidate) {
+      const clearedAnswer: ManualExpenseConfirmationAnswer = {
+        ...currentManualAnswer,
+        mergePromptBucket: null
+      };
+      return completePendingConfirmation({
+        context,
+        pendingConfirmation,
+        normalizedAnswerOverride: clearedAnswer,
+        rawAnswerOverride: rawAnswer,
+        prefixTexts: ["Siap, saya pakai pengaturan kategori ini."]
+      });
+    }
+
+    if (!decision) {
+      return buildReplyResult(
+        [
+          `Untuk kategori ${currentCandidate.label}, balas \`gabung\` kalau mau dijadikan satu atau \`pisah\` kalau mau tetap kategori masing-masing ya Boss.`
+        ],
+        createState({ user: context.user, prompt })
+      );
+    }
+
+    const updatedAnswer: ManualExpenseConfirmationAnswer = {
+      ...currentManualAnswer,
+      mergeDecisions: {
+        ...currentManualAnswer.mergeDecisions,
+        [currentCandidate.bucket]: decision
+      },
+      mergePromptBucket: null
+    };
+    const nextCandidate = getNextManualExpenseMergeCandidate(updatedAnswer);
+
+    if (nextCandidate) {
+      return requestManualExpenseMergeConfirmation(
+        context,
+        prompt,
+        pendingConfirmation,
+        updatedAnswer,
+        rawAnswer,
+        nextCandidate
+      );
+    }
+
+    return requestManualExpenseFinalReview(
+      context,
+      prompt,
+      pendingConfirmation,
+      updatedAnswer,
+      rawAnswer
+    );
+  }
+
+  if (currentManualAnswer?.reviewReady) {
+    const addMoreAnswer = parseAddMoreAnswer(rawAnswer);
+    if (addMoreAnswer === false || isPositiveAnswerConfirmation(rawAnswer)) {
+      return continueFromConfirmedAnswer(context, pendingConfirmation);
+    }
+
+    if (addMoreAnswer === true) {
+      const collectingAnswer: ManualExpenseConfirmationAnswer = {
+        ...currentManualAnswer,
+        mergeDecisions: {},
+        mergePromptBucket: null,
+        reviewReady: false
+      };
+      await saveSessionAnswer({
+        userId: context.user.id,
+        stepKey: context.user.onboardingStep,
+        questionKey: prompt.questionKey,
+        rawAnswer,
+        normalizedAnswer: collectingAnswer,
+        isCompleted: false,
+        replaceSessionId: pendingConfirmation.id
+      });
+      return buildManualExpenseAddMorePromptReply(prompt, context);
+    }
+  }
+
+  if (isManualExpenseHelpRequest(rawAnswer)) {
+    await invalidatePendingConfirmation(pendingConfirmation.id);
+    return routeManualExpenseToGuidedSetup(context);
+  }
+
+  const addMoreAnswer = parseAddMoreAnswer(rawAnswer);
+  if (addMoreAnswer === false || isPositiveAnswerConfirmation(rawAnswer)) {
+    if (currentManualAnswer) {
+      const nextCandidate = getNextManualExpenseMergeCandidate(currentManualAnswer);
+      if (nextCandidate) {
+        return requestManualExpenseMergeConfirmation(
+          context,
+          prompt,
+          pendingConfirmation,
+          currentManualAnswer,
+          rawAnswer,
+          nextCandidate
+        );
+      }
+
+      return requestManualExpenseFinalReview(
+        context,
+        prompt,
+        pendingConfirmation,
+        currentManualAnswer,
+        rawAnswer
+      );
+    }
+
+    return continueFromConfirmedAnswer(context, pendingConfirmation);
+  }
+
+  if (typeof rawAnswer === "string" && isManualExpenseBreakdownTooGeneric(rawAnswer)) {
+    return buildManualExpenseTooGenericReply(prompt, rawAnswer);
+  }
+
+  const additionalDetails =
+    typeof rawAnswer === "string" ? parseManualExpenseBreakdownDetails(rawAnswer) : [];
+  const parsedAdditional = buildExpenseBreakdownFromDetails(additionalDetails);
+
+  if (additionalDetails.length && parseManualBreakdownTotal(parsedAdditional) !== null) {
+    const additionalAnswer = buildManualExpenseConfirmationAnswer(additionalDetails);
+    const merged =
+      currentManualAnswer !== null
+        ? mergeManualExpenseAnswers(currentManualAnswer, additionalAnswer)
+        : additionalAnswer;
+    return requestAnswerConfirmation(context, merged, rawAnswer, pendingConfirmation);
+  }
+
+  if (addMoreAnswer === true) {
+    return buildManualExpenseAddMorePromptReply(prompt, context);
+  }
+
+  return buildPendingConfirmationReminder(
+    context,
+    prompt,
+    context.user.onboardingStep,
+    pendingConfirmation
+  );
+};
+
 const advanceOnboarding = async (user: User, rawAnswer: unknown): Promise<OnboardingResult> => {
   const initialStep = user.onboardingStep;
   const currentUser = await migrateLegacyGoalDecisionStepIfNeeded(user);
@@ -3749,6 +5238,23 @@ const advanceOnboarding = async (user: User, rawAnswer: unknown): Promise<Onboar
     context.user.onboardingStep,
     prompt.questionKey
   );
+  const pendingDeficitReview =
+    pendingConfirmation &&
+    isExpenseBudgetDeficitReviewAnswer(
+      pendingConfirmation.normalizedAnswerJson as SessionAnswerValue
+    )
+      ? (pendingConfirmation.normalizedAnswerJson as ExpenseBudgetDeficitReviewAnswer)
+      : null;
+
+  if (pendingConfirmation && pendingDeficitReview) {
+    return handleExpenseBudgetDeficitPendingConfirmation(
+      context,
+      prompt,
+      pendingConfirmation,
+      pendingDeficitReview,
+      rawAnswer
+    );
+  }
 
   if (
     pendingConfirmation &&
@@ -3824,6 +5330,18 @@ const advanceOnboarding = async (user: User, rawAnswer: unknown): Promise<Onboar
     );
   }
 
+  if (
+    pendingConfirmation &&
+    context.user.onboardingStep === OnboardingStep.ASK_MANUAL_EXPENSE_BREAKDOWN
+  ) {
+    return handleManualExpensePendingConfirmation(
+      context,
+      prompt,
+      pendingConfirmation,
+      rawAnswer
+    );
+  }
+
   if (pendingConfirmation && isPositiveAnswerConfirmation(rawAnswer)) {
     return continueFromConfirmedAnswer(context, pendingConfirmation);
   }
@@ -3861,6 +5379,13 @@ const advanceOnboarding = async (user: User, rawAnswer: unknown): Promise<Onboar
       context.user.onboardingStep,
       pendingConfirmation
     );
+  }
+
+  if (
+    context.user.onboardingStep === OnboardingStep.ASK_MANUAL_EXPENSE_BREAKDOWN &&
+    isManualExpenseHelpRequest(rawAnswer)
+  ) {
+    return routeManualExpenseToGuidedSetup(context);
   }
 
   if (isClarificationInsteadOfAnswer(rawAnswer) || isOptionExplanationQuestion(prompt, rawAnswer)) {
