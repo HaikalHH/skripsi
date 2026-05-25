@@ -395,10 +395,14 @@ const addModuleCandidate = (
 const looksLikeTransactionMutation = (text: string) =>
   /\b(hapus|delete|ubah|edit|ganti|koreksi)\b/i.test(text);
 
+const looksLikePortfolioAssetCommand = (text: string) =>
+  /\b(?:tambah|catat|punya)\s+(?:emas|saham|properti|deposito|bisnis|tabungan|cash|kas)\b/i.test(text) ||
+  /\bbeli emas\b/i.test(text);
+
 const looksLikePortfolio = (text: string) =>
-  /\b(portfolio|portofolio|aset investasi|aset saya|asetku|nilai aset|berapa aset|komposisi aset|pergerakan harian portfolio|pergerakan harian portofolio|perubahan harian portfolio|perubahan harian portofolio|aset paling naik|aset paling turun|risiko portfolio|risiko portofolio|aset paling dominan|holding terbesar|aset terbesar|portfolio terlalu numpuk|portofolio terlalu numpuk|aset paling cuan|aset paling rugi|performa portfolio|performa portofolio|profit portfolio|rugi portfolio|diversifikasi portfolio|diversifikasi portofolio|portfolio terdiversifikasi|portofolio terdiversifikasi|tambah emas|beli emas|tambah saham|tambah properti|tambah deposito|tambah bisnis|tambah tabungan|tambah cash|tambah kas|catat emas|catat saham|catat tabungan)\b/i.test(
+  /\b(portfolio|portofolio|aset investasi|aset saya|asetku|nilai aset|berapa aset|komposisi aset|pergerakan harian portfolio|pergerakan harian portofolio|perubahan harian portfolio|perubahan harian portofolio|aset paling naik|aset paling turun|risiko portfolio|risiko portofolio|aset paling dominan|holding terbesar|aset terbesar|portfolio terlalu numpuk|portofolio terlalu numpuk|aset paling cuan|aset paling rugi|performa portfolio|performa portofolio|profit portfolio|rugi portfolio|diversifikasi portfolio|diversifikasi portofolio|portfolio terdiversifikasi|portofolio terdiversifikasi)\b/i.test(
     text
-  );
+  ) || looksLikePortfolioAssetCommand(text);
 
 const looksLikeMarket = (text: string) =>
   !looksLikePortfolio(text) &&

@@ -36,7 +36,7 @@ export const getExpensesPrompt: PromptFlowHandler = ({ step, context }) => {
           "⛽ Transport: 500.000",
           "📱 Tagihan: 700.000",
           "🎮 Hiburan: 800.000",
-          "📦 Lainnya: 300.000"
+          "🛒 Belanja: 300.000"
         ].join("\n"),
         inputType: "text"
       };
@@ -79,9 +79,9 @@ export const getExpensesPrompt: PromptFlowHandler = ({ step, context }) => {
         return {
           stepKey: step,
           questionKey: OnboardingQuestionKey.GUIDED_EXPENSE_OTHERS,
-          title: "Kategori Pengeluaran Lain",
+          title: "Kategori Tambahan",
           body: [
-            "Siap Boss. Kategori pengeluaran lainnya apa?",
+            "Siap Boss. Kategori tambahan apa?",
             "Contoh: `parkir`, `jajan kantor`, atau `bantuan keluarga`."
           ].join("\n\n"),
           inputType: "text"
@@ -92,7 +92,7 @@ export const getExpensesPrompt: PromptFlowHandler = ({ step, context }) => {
         return {
           stepKey: step,
           questionKey: OnboardingQuestionKey.GUIDED_EXPENSE_OTHERS,
-          title: "Nominal Pengeluaran Lain",
+          title: "Nominal Kategori Tambahan",
           body: `Untuk ${context.guidedOtherExpensePendingLabel ?? "kategori ini"}, biasanya habis berapa per bulan Boss?`,
           inputType: "money"
         };
@@ -102,7 +102,7 @@ export const getExpensesPrompt: PromptFlowHandler = ({ step, context }) => {
         return {
           stepKey: step,
           questionKey: OnboardingQuestionKey.GUIDED_EXPENSE_OTHERS,
-          title: "Tambah Pengeluaran Lain?",
+          title: "Tambah Kategori?",
           body: "Masih ada pengeluaran lain lagi nggak Boss? Balas `ada` atau `ga ada` ya.",
           inputType: "single_select",
           options: YES_NO_OPTIONS
@@ -112,7 +112,7 @@ export const getExpensesPrompt: PromptFlowHandler = ({ step, context }) => {
       return {
         stepKey: step,
         questionKey: OnboardingQuestionKey.GUIDED_EXPENSE_OTHERS,
-        title: "Pengeluaran Lainnya",
+        title: "Kategori Tambahan",
         body: "Di luar makan, transport, tagihan, dan hiburan tadi, masih ada pengeluaran lain nggak Boss? Balas `ada` atau `ga ada` ya.",
         inputType: "single_select",
         options: YES_NO_OPTIONS

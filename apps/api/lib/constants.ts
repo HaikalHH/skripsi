@@ -25,7 +25,7 @@ export const HELP_TEXT = [
   "",
   "💼 Aset dan portfolio",
   "- Tambah aset: `/tambah aset`.",
-  "- Contoh: `catat tabungan 10jt`, `catat emas`, `catat saham BBCA 2 lot harga 9000`, atau `catat properti rumah 300jt`.",
+  "- Contoh: `catat tabungan 10jt`, `catat emas`, `catat saham BBCA 2 lot harga 9000`, atau `catat properti rumah senilai 300jt`.",
   "- Cek portfolio: `portfolio`, `aset saya berapa sekarang`, atau `komposisi aset`.",
   "",
   "📰 Market dan news",

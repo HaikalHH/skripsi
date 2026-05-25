@@ -21,7 +21,7 @@ const ONBOARDING_EXPENSE_BUCKET_LABELS: Record<keyof ExpenseBreakdown, string> =
   transport: "Transport",
   bills: "Tagihan & kewajiban rutin",
   entertainment: "Hiburan & lifestyle",
-  others: "Lainnya"
+  others: "Pengeluaran tambahan"
 };
 
 const ONBOARDING_EXPENSE_BUCKET_EXPLANATIONS: Record<keyof ExpenseBreakdown, string> = {
@@ -29,7 +29,7 @@ const ONBOARDING_EXPENSE_BUCKET_EXPLANATIONS: Record<keyof ExpenseBreakdown, str
   transport: "bensin, parkir, tol, ojol, taksi, kereta, bus, dan perjalanan rutin",
   bills: "listrik, air, internet, pulsa, cicilan, asuransi, BPJS, sekolah/kuliah/les, dan kewajiban rutin lain",
   entertainment: "nongkrong, streaming, game, bioskop, konser, hobi, dan pengeluaran lifestyle serupa",
-  others: "kebutuhan keluarga, rumah tangga, donasi, pet, hadiah, dan item lain yang tidak masuk kategori utama"
+  others: "kategori tambahan yang ditulis sendiri oleh user saat onboarding"
 };
 
 const toNumber = (value: unknown): number => {

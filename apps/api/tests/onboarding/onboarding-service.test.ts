@@ -608,8 +608,8 @@ describe("onboarding service", () => {
     expect(review.replyText).toContain("*Aku sudah rapihin pengeluaran bulanan Boss*");
     expect(review.replyText).toContain("📱 *Tagihan*: Rp300.000");
     expect(review.replyText).toContain("⛽ *Transport*: Rp100.000");
-    expect(review.replyText).toContain("📦 *Makan*: Rp500.000");
-    expect(review.replyText).toContain("📦 *Minum*: Rp200.000");
+    expect(review.replyText).toContain("🧾 *Makan*: Rp500.000");
+    expect(review.replyText).toContain("🧾 *Minum*: Rp200.000");
     expect(review.replyText).toContain("*Rp1.100.000/bulan*");
     expect(review.replyText).not.toContain("Sekarang aset yang sudah Boss punya apa aja?");
     expect(hoisted.store.users[0].onboardingStep).toBe(
@@ -636,6 +636,56 @@ describe("onboarding service", () => {
         { label: "makan", amount: 500000 },
         { label: "minum", amount: 200000 }
       ]
+    });
+  });
+
+  it("keeps shopping-style onboarding expenses as custom budget categories", async () => {
+    seedUser({
+      onboardingStep: OnboardingStep.ASK_MANUAL_EXPENSE_BREAKDOWN,
+      budgetMode: BudgetMode.MANUAL_PLAN
+    });
+    hoisted.store.financialProfiles = [
+      {
+        userId: "user_1",
+        monthlyIncomeTotal: 5000000,
+        monthlyExpenseTotal: null,
+        potentialMonthlySaving: null,
+        emergencyFundTarget: null,
+        activeIncomeMonthly: 5000000,
+        passiveIncomeMonthly: null,
+        estimatedMonthlyIncome: null
+      }
+    ];
+
+    await sendText(
+      "Makan 200rb minum 100rb jajan 500rb belanja 500rb jalan2 200rb bensin motor 100rb",
+      "msg_manual_belanja_custom"
+    );
+    const mergeFood = await sendText("sudah", "msg_manual_belanja_done");
+    expect(mergeFood.replyText).toContain("Makan");
+    expect(mergeFood.replyText).toContain("Jajan");
+
+    const review = await sendText("gabung", "msg_manual_belanja_merge_food");
+    expect(review.replyText).toContain("🍽️ *Makan & Minum*: Rp800.000");
+    expect(review.replyText).toContain("⛽ *Transport*: Rp100.000");
+    expect(review.replyText).toContain("🎮 *Hiburan*: Rp200.000");
+    expect(review.replyText).toContain("🧾 *Belanja*: Rp500.000");
+    expect(review.replyText).not.toContain("*Lainnya*");
+    expect(review.replyText).not.toContain("Lainnya: Rp500.000");
+
+    const completed = await sendText("lanjut", "msg_manual_belanja_save");
+    expect(completed.replyText).toContain("*Aset apa aja yang Boss punya saat ini?*");
+    expect(replaceExpensePlan).toHaveBeenCalledWith({
+      userId: "user_1",
+      source: ExpensePlanSource.MANUAL_USER_PLAN,
+      breakdown: {
+        food: 800000,
+        transport: 100000,
+        bills: 0,
+        entertainment: 200000,
+        others: 500000
+      },
+      customExpenseItems: [{ label: "belanja", amount: 500000 }]
     });
   });
 

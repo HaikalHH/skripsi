@@ -215,21 +215,21 @@ describe("onboarding flow service", () => {
       ]
     });
 
-    expect(prompt.title).toBe("Pengeluaran Lainnya");
+    expect(prompt.title).toBe("Kategori Tambahan");
     expect(prompt.inputType).toBe("single_select");
     expect(formatPromptForChat(prompt)).toContain("masih ada pengeluaran lain");
     expect(formatPromptForChat(prompt)).not.toContain("kira-kira berapa");
 
-    expect(categoryPrompt.title).toBe("Kategori Pengeluaran Lain");
-    expect(formatPromptForChat(categoryPrompt).toLowerCase()).toContain("kategori pengeluaran lainnya apa");
+    expect(categoryPrompt.title).toBe("Kategori Tambahan");
+    expect(formatPromptForChat(categoryPrompt).toLowerCase()).toContain("kategori tambahan apa");
     expect(formatPromptForChat(categoryPrompt)).not.toContain("Berikut kategori pengeluarannya:");
     expect(formatPromptForChat(categoryPrompt)).not.toContain("Makan & kebutuhan harian");
     expect(formatPromptForChat(categoryPrompt)).not.toContain("Parkir");
 
-    expect(amountPrompt.title).toBe("Nominal Pengeluaran Lain");
+    expect(amountPrompt.title).toBe("Nominal Kategori Tambahan");
     expect(formatPromptForChat(amountPrompt)).toContain("Untuk Parkir");
 
-    expect(addMorePrompt.title).toBe("Tambah Pengeluaran Lain?");
+    expect(addMorePrompt.title).toBe("Tambah Kategori?");
     expect(formatPromptForChat(addMorePrompt)).not.toContain("Berikut kategori pengeluarannya:");
     expect(formatPromptForChat(addMorePrompt)).not.toContain("Makan & kebutuhan harian");
     expect(formatPromptForChat(addMorePrompt)).toContain("Masih ada pengeluaran lain lagi");
@@ -282,7 +282,8 @@ describe("onboarding flow service", () => {
     expect(text).toContain("Sekarang ceritain pengeluaran bulanan Boss");
     expect(text.toLowerCase()).toContain("nanti aku bantu rapihin");
     expect(text).toContain("🍽️ Makan: 1.500.000");
-    expect(text).toContain("📦 Lainnya: 300.000");
+    expect(text).toContain("Belanja: 300.000");
+    expect(text).not.toContain("Lainnya: 300.000");
   });
 
   it("only offers manual or guided budget setup choices", () => {

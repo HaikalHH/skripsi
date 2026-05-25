@@ -2326,7 +2326,7 @@ const EXPENSE_BREAKDOWN_CONFIRMATION_LABELS: Record<keyof ExpenseBreakdown, stri
   transport: "Transport",
   bills: "Tagihan",
   entertainment: "Hiburan",
-  others: "Lainnya"
+  others: "Pengeluaran tambahan"
 };
 
 type ManualExpenseMergeDecision = "merge" | "split";
@@ -2441,7 +2441,7 @@ const MANUAL_EXPENSE_BUCKET_EMOJI: Partial<Record<keyof ExpenseBreakdown, string
   transport: "⛽",
   bills: "📱",
   entertainment: "🎮",
-  others: "📦"
+  others: "🧾"
 };
 
 const formatManualExpenseMergeLabel = (label: string) =>
@@ -2530,6 +2530,21 @@ const parseManualExpenseMergeDecision = (
   return null;
 };
 
+const addCustomExpenseItem = (
+  items: Array<{ label: string; amount: number }>,
+  detail: Pick<ManualExpenseBreakdownDetail, "label" | "amount">
+) => {
+  const label = normalizeText(detail.label);
+  if (!label || detail.amount <= 0) return;
+  const key = label.toLowerCase();
+  const existing = items.find((item) => item.label.toLowerCase() === key);
+  if (existing) {
+    existing.amount += detail.amount;
+    return;
+  }
+  items.push({ label, amount: detail.amount });
+};
+
 const buildFinalManualExpensePlanInput = (answer: SessionAnswerValue) => {
   if (!isManualExpenseConfirmationAnswer(answer)) {
     return {
@@ -2542,16 +2557,18 @@ const buildFinalManualExpensePlanInput = (answer: SessionAnswerValue) => {
   const customExpenseItems: Array<{ label: string; amount: number }> = [];
   const candidates = getManualExpenseMergeCandidates(answer);
 
+  for (const detail of answer.details) {
+    if (detail.bucket !== "others") continue;
+    addCustomExpenseItem(customExpenseItems, detail);
+  }
+
   for (const candidate of candidates) {
     if (answer.mergeDecisions[candidate.bucket] !== "split") continue;
     breakdown[candidate.bucket] = Math.max(0, breakdown[candidate.bucket] - candidate.total);
     breakdown.others += candidate.total;
-    customExpenseItems.push(
-      ...candidate.details.map((detail) => ({
-        label: detail.label,
-        amount: detail.amount
-      }))
-    );
+    for (const detail of candidate.details) {
+      addCustomExpenseItem(customExpenseItems, detail);
+    }
   }
 
   return {
@@ -2598,7 +2615,7 @@ const MANUAL_EXPENSE_REVIEW_LABELS: Record<keyof ExpenseBreakdown, string> = {
   transport: "⛽ *Transport*",
   bills: "📱 *Tagihan*",
   entertainment: "🎮 *Hiburan*",
-  others: "📦 *Lainnya*"
+  others: "🧾 *Pengeluaran tambahan*"
 };
 
 const buildManualExpenseReviewLines = (
@@ -2617,7 +2634,7 @@ const buildManualExpenseReviewLines = (
   }
 
   for (const item of customExpenseItems ?? []) {
-    lines.push(`📦 *${formatManualExpenseMergeLabel(item.label)}*: ${formatMoney(item.amount)}`);
+    lines.push(`🧾 *${formatManualExpenseMergeLabel(item.label)}*: ${formatMoney(item.amount)}`);
   }
 
   return lines;
@@ -4288,10 +4305,11 @@ const buildPostOnboardingActiveText = () =>
   [
     "💼 Mulai sekarang Boss bisa pakai Finance AI begini:",
     "- Catat transaksi natural: `makan 35rb`, `gaji 9,2jt`, atau `beli bensin 100rb`.",
-    "- Cek laporan: `laporan minggu ini`, `/monthly report`, atau `/cashflow report`.",
-    "- Lihat arah target: kirim `lihat timeline` kapan pun.",
+    "- Cek laporan: `laporan hari ini`, `laporan minggu ini`, `/monthly report`, atau `/cashflow report`.",
+    "- Kategori budget: `/budget set` atau `lihat list kategori budget`.",
+    "- Target: `lihat timeline`, `/goal status`, atau `nabung 500rb`.",
     "- Reminder otomatis: `status reminder aku`, `matikan reminder budget`, atau `pause reminder 12 jam`.",
-    "- Update aset/target: `catat tabungan 10jt`, `catat emas`, `catat saham BBCA 2 lot harga 9000`, `catat properti rumah senilai 300jt`, atau `nabung 500rb`."
+    "- Aset dan portfolio: `/tambah aset`, `catat tabungan 10jt`, `catat emas`, `catat saham BBCA 2 lot harga 9000`, atau `catat properti rumah senilai 300jt`."
   ].join("\n");
 
 const buildCompletedReplyTexts = (state: OnboardingState) =>

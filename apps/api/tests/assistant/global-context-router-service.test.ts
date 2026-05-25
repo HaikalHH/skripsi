@@ -14,6 +14,14 @@ describe("global context router service", () => {
     });
   });
 
+  it("routes direct asset recording examples to portfolio first", () => {
+    expect(routeGlobalTextContext("catat tabungan 10jt").moduleOrder[0]).toBe("PORTFOLIO");
+    expect(routeGlobalTextContext("catat emas").moduleOrder[0]).toBe("PORTFOLIO");
+    expect(routeGlobalTextContext("catat saham BBCA 2 lot harga 9000").moduleOrder[0]).toBe("PORTFOLIO");
+    expect(routeGlobalTextContext("catat properti rumah senilai 300jt").moduleOrder[0]).toBe("PORTFOLIO");
+    expect(routeGlobalTextContext("catat kas BCA senilai 1jt").moduleOrder[0]).toBe("PORTFOLIO");
+  });
+
   it("keeps goal writes behind explicit conversational command flows", () => {
     expect(routeGlobalTextContext("mau nabung 50 juta").command).toEqual({
       kind: "NONE"
