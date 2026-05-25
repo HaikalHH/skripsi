@@ -36,8 +36,8 @@ export const YES_NO_OPTIONS: OnboardingOption[] = [
 export const START_OPTIONS: OnboardingOption[] = [{ value: "START", label: "Oke saya siap" }];
 
 export const BUDGET_MODE_OPTIONS: OnboardingOption[] = [
-  { value: BudgetMode.MANUAL_PLAN, label: "Saya sudah punya gambaran pengeluaran" },
-  { value: BudgetMode.GUIDED_PLAN, label: "Saya belum punya, tolong bantu susun" }
+  { value: BudgetMode.MANUAL_PLAN, label: "Sudah punya" },
+  { value: BudgetMode.GUIDED_PLAN, label: "Belum, bantu susun" }
 ];
 
 export const GOAL_OPTIONS: OnboardingOption[] = [
