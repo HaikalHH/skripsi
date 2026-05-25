@@ -12,8 +12,13 @@ export const getExpensesPrompt: PromptFlowHandler = ({ step, context }) => {
         stepKey: step,
         questionKey: OnboardingQuestionKey.BUDGET_MODE,
         title: "Mulai Dari Mana",
-        body: "Biar saya bisa bantu lebih pas, enaknya kita mulai lihat pengeluaran kamu lewat cara yang mana Boss?",
+        body: [
+          "Sebelum itu, aku perlu tahu dulu pengeluaran bulanan Boss supaya hitungannya lebih realistis.",
+          "",
+          "Boss sudah punya gambaran pengeluaran bulanan?"
+        ].join("\n"),
         inputType: "single_select",
+        optionHeading: null,
         options: BUDGET_MODE_OPTIONS
       };
     case OnboardingStep.ASK_MANUAL_EXPENSE_BREAKDOWN:

@@ -349,8 +349,9 @@ describe("onboarding confirmation flow", () => {
     const result = await sendText("1 dan 2", "msg_goal_selection");
 
     expect(result.handled).toBe(true);
-    expect(result.replyText).toContain("Biar langkahnya rapi");
-    expect(result.replyText).toContain("Biar saya bisa bantu lebih pas");
+    expect(result.replyText).toContain("*Siap, target Boss sudah aku catat dulu*");
+    expect(result.replyText).toContain("Boss memilih beberapa target keuangan");
+    expect(result.replyText).toContain("Boss sudah punya gambaran pengeluaran bulanan?");
     expect(result.replyText).not.toContain("balas `benar`");
     expect(hoisted.store.users[0].onboardingStep).toBe(OnboardingStep.ASK_BUDGET_MODE);
     expect(

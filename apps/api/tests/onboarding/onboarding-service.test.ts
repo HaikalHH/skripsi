@@ -441,7 +441,7 @@ describe("onboarding service", () => {
 
     expect(result.handled).toBe(true);
     expect(result.replyText).toContain("baru kebaca sebagai total pengeluaran");
-    expect(result.replyText).toContain("Saya belum punya, tolong bantu susun");
+    expect(result.replyText).toContain("*Belum, bantu susun*");
     expect(hoisted.store.users[0].onboardingStep).toBe(
       OnboardingStep.ASK_MANUAL_EXPENSE_BREAKDOWN
     );

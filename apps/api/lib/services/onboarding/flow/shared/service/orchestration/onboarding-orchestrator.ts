@@ -344,7 +344,7 @@ const buildManualExpenseTooGenericReply = (
       "Makan 1,5jt, transport 500rb, tagihan 700rb",
       "",
       "Kalau Boss belum punya rinciannya, balas:",
-      "`Saya belum punya, tolong bantu susun`"
+      "*Belum, bantu susun*"
     ].join("\n")
   ]);
 };
@@ -1629,28 +1629,12 @@ const buildAutomaticGoalRecommendationText = (sessions: OnboardingSession[]) => 
   const recommendation = getGoalPlanRecommendation(sessions);
   if (recommendation.orderedGoals.length <= 1) return null;
 
-  const leadGoals =
-    recommendation.executionMode === "PARALLEL"
-      ? recommendation.orderedGoals.slice(0, 2)
-      : recommendation.orderedGoals.slice(0, 1);
-  const laterGoals = recommendation.orderedGoals.slice(leadGoals.length);
-  const laterGoalNames = laterGoals.map((goal) => goal.goalName);
-
-  const lines = ["Biar langkahnya rapi, saya bantu urutin targetnya ya Boss."];
-
-  if (recommendation.executionMode === "PARALLEL" && leadGoals.length >= 2) {
-    lines.push(
-      `${joinNaturalLabels(leadGoals.map((goal) => goal.goalName))} enaknya jalan bareng dulu karena waktunya berdekatan.`
-    );
-  } else {
-    lines.push(`Saya saranin fokus dulu ke ${leadGoals[0]?.goalName} ya Boss.`);
-  }
-
-  if (laterGoalNames.length) {
-    lines.push(`Setelah itu baru lanjut ke ${joinNaturalLabels(laterGoalNames)}.`);
-  }
-
-  return lines.join("\n");
+  return [
+    "✅ *Siap, target Boss sudah aku catat dulu*",
+    "",
+    "Boss memilih beberapa target keuangan.",
+    "Nanti aku akan bantu isi detailnya satu per satu, mulai dari nominal target, dan deadline."
+  ].join("\n");
 };
 
 const syncPriorityOrderSession = async (params: {
@@ -3735,7 +3719,7 @@ const validateAnswerForStep = (context: RuntimeContext, rawAnswer: unknown) => {
         ? { value: buildManualExpenseConfirmationAnswer(details) }
         : buildValidationReply(
             prompt,
-            "Pengeluaran bulanannya belum kebayang dari jawaban ini Boss. Coba tulis kategori dan angkanya ya. Kalau belum punya rinciannya, balas `Saya belum punya, tolong bantu susun`."
+            "Pengeluaran bulanannya belum kebayang dari jawaban ini Boss. Coba tulis kategori dan angkanya ya. Kalau belum punya rinciannya, balas *Belum, bantu susun*."
           );
     }
     case OnboardingStep.ASK_PRIMARY_GOAL:

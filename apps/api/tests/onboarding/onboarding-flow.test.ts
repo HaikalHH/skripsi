@@ -289,8 +289,11 @@ describe("onboarding flow service", () => {
     const prompt = getPromptForStep(OnboardingStep.ASK_BUDGET_MODE, baseContext);
     const text = formatPromptForChat(prompt);
 
-    expect(text).toContain("1. Saya sudah punya gambaran pengeluaran");
-    expect(text).toContain("2. Saya belum punya, tolong bantu susun");
+    expect(text).toContain("pengeluaran bulanan Boss supaya hitungannya lebih realistis");
+    expect(text).toContain("Boss sudah punya gambaran pengeluaran bulanan?");
+    expect(text).not.toContain("Pilihan:");
+    expect(text).toContain("1. Sudah punya");
+    expect(text).toContain("2. Belum, bantu susun");
     expect(text).not.toContain("3.");
     expect(text).not.toContain("Lihat dari catatan transaksi saya bulan ini");
   });
