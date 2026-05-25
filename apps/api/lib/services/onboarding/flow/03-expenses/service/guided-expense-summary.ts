@@ -79,7 +79,12 @@ export const formatGuidedExpenseSummaryText = (
 };
 
 export const getAssetTransitionLeadText = () =>
-  "Sip, gambaran pengeluaran bulanannya sudah kebaca. Sekarang saya cek aset yang sudah jalan ya Boss.";
+  [
+    "✅ *Oke, kita lanjut ya Boss*",
+    "",
+    "Pengeluaran bulanan Boss sudah kebaca.",
+    "Sekarang aku mau cek aset yang Boss punya, supaya gambaran keuangannya lebih lengkap."
+  ].join("\n");
 
 const EXPENSE_TO_ASSET_TRANSITION_STEPS = new Set<OnboardingStep>([
   OnboardingStep.ASK_MANUAL_EXPENSE_BREAKDOWN,

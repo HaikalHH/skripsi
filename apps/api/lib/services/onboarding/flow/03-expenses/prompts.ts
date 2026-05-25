@@ -22,15 +22,16 @@ export const getExpensesPrompt: PromptFlowHandler = ({ step, context }) => {
         questionKey: OnboardingQuestionKey.MANUAL_EXPENSE_BREAKDOWN,
         title: "Cerita Pengeluaran",
         body: [
-          "Ceritain aja pengeluaran bulanan kamu dengan gaya santai Boss.",
-          "Saya bantu rapihin. Kalau ada kebutuhan lain seperti keluarga, cicilan, atau urusan rumah, tinggal tulis aja juga.",
+          "💸 Sekarang ceritain pengeluaran bulanan Boss",
           "",
-          "Contoh kalau mau:",
-          "Makan: 1500000",
-          "Transport: 500000",
-          "Tagihan: 700000",
-          "Hiburan: 800000",
-          "Lainnya: 300000"
+          "Tulis aja apa adanya, nanti aku bantu rapihin.",
+          "",
+          "Contoh:",
+          "🍽️ Makan: 1.500.000",
+          "⛽ Transport: 500.000",
+          "📱 Tagihan: 700.000",
+          "🎮 Hiburan: 800.000",
+          "📦 Lainnya: 300.000"
         ].join("\n"),
         inputType: "text"
       };

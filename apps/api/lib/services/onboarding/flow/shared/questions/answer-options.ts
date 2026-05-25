@@ -21,11 +21,11 @@ export const GOAL_NONE_VALUE = "NONE_YET";
 export const ASSET_NONE_VALUE = "NONE";
 
 export const EMPLOYMENT_OPTIONS: OnboardingOption[] = [
-  { value: EmploymentType.STUDENT, label: "🧑‍🎓Mahasiswa" },
-  { value: EmploymentType.EMPLOYEE, label: "👔Karyawan" },
-  { value: EmploymentType.FREELANCER, label: "💻Freelance" },
-  { value: EmploymentType.ENTREPRENEUR, label: "💼Pengusaha" },
-  { value: EmploymentType.OTHER, label: "Lainnya" }
+  { value: EmploymentType.STUDENT, label: "🎓 Mahasiswa" },
+  { value: EmploymentType.EMPLOYEE, label: "💼 Karyawan" },
+  { value: EmploymentType.FREELANCER, label: "🧑‍💻 Freelance" },
+  { value: EmploymentType.ENTREPRENEUR, label: "🧳 Pengusaha" },
+  { value: EmploymentType.OTHER, label: "✍️ Lainnya" }
 ];
 
 export const YES_NO_OPTIONS: OnboardingOption[] = [
@@ -41,12 +41,12 @@ export const BUDGET_MODE_OPTIONS: OnboardingOption[] = [
 ];
 
 export const GOAL_OPTIONS: OnboardingOption[] = [
-  { value: FinancialGoalType.EMERGENCY_FUND, label: "🚨Nabung dana darurat" },
-  { value: FinancialGoalType.HOUSE, label: "🏠Beli rumah" },
-  { value: FinancialGoalType.VEHICLE, label: "🚗Beli kendaraan" },
-  { value: FinancialGoalType.VACATION, label: "🏖️Liburan" },
-  { value: GOAL_NONE_VALUE, label: "Belum ada target" },
-  { value: FinancialGoalType.CUSTOM, label: "Custom target" }
+  { value: FinancialGoalType.EMERGENCY_FUND, label: "🚨 Dana darurat" },
+  { value: FinancialGoalType.HOUSE, label: "🏠 Beli rumah" },
+  { value: FinancialGoalType.VEHICLE, label: "🚗 Beli kendaraan" },
+  { value: FinancialGoalType.VACATION, label: "🏖️ Liburan" },
+  { value: GOAL_NONE_VALUE, label: "🧭 Belum ada target" },
+  { value: FinancialGoalType.CUSTOM, label: "✍️ Custom target" }
 ];
 
 export const GOAL_EXPENSE_STRATEGY_OPTIONS: OnboardingOption[] = [
@@ -66,8 +66,8 @@ export const ADD_MORE_OPTIONS: OnboardingOption[] = [
 ];
 
 export const ACTIVE_INCOME_FREQUENCY_OPTIONS: OnboardingOption[] = [
-  { value: "SINGLE", label: "Satu kali gajian" },
-  { value: "MULTIPLE", label: "Lebih dari satu kali gajian" }
+  { value: "SINGLE", label: "Satu kali" },
+  { value: "MULTIPLE", label: "Lebih dari satu kali" }
 ];
 
 export const PERSONALIZATION_OPTIONS: OnboardingOption[] = [
@@ -76,11 +76,11 @@ export const PERSONALIZATION_OPTIONS: OnboardingOption[] = [
 ];
 
 export const ASSET_OPTIONS: OnboardingOption[] = [
-  { value: AssetType.SAVINGS, label: "Tabungan" },
-  { value: AssetType.GOLD, label: "Emas" },
-  { value: AssetType.STOCK, label: "Saham" },
-  { value: AssetType.PROPERTY, label: "Properti" },
-  { value: ASSET_NONE_VALUE, label: "Belum punya" }
+  { value: AssetType.SAVINGS, label: "💰 Tabungan" },
+  { value: AssetType.GOLD, label: "🪙 Emas" },
+  { value: AssetType.STOCK, label: "📈 Saham" },
+  { value: AssetType.PROPERTY, label: "🏠 Properti" },
+  { value: ASSET_NONE_VALUE, label: "❌ Belum punya" }
 ];
 
 export const GOLD_TYPE_OPTIONS: OnboardingOption[] = [

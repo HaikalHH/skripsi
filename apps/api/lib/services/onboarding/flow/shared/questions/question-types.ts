@@ -78,5 +78,6 @@ export type OnboardingPrompt = {
   chatBubbleBodies?: string[];
   inputType: OnboardingInputType;
   options?: OnboardingOption[];
+  optionHeading?: string | null;
   allowSkip?: boolean;
 };

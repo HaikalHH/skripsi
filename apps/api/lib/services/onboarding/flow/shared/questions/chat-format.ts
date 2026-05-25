@@ -7,15 +7,21 @@ const shouldRenderPromptOptions = (prompt: OnboardingPrompt) => {
   return true;
 };
 
+const appendPromptOptions = (lines: string[], prompt: OnboardingPrompt) => {
+  const options = prompt.options ?? [];
+  lines.push("");
+  if (prompt.optionHeading !== null) {
+    lines.push(prompt.optionHeading ?? "Pilihan:");
+  }
+  for (const [index, option] of options.entries()) {
+    lines.push(`${index + 1}. ${option.label}`);
+  }
+};
+
 export const formatPromptForChat = (prompt: OnboardingPrompt) => {
   const lines = [prompt.body];
   if (shouldRenderPromptOptions(prompt)) {
-    const options = prompt.options ?? [];
-    lines.push("");
-    lines.push("Pilihan:");
-    for (const [index, option] of options.entries()) {
-      lines.push(`${index + 1}. ${option.label}`);
-    }
+    appendPromptOptions(lines, prompt);
   }
   return lines.join("\n").trim();
 };
@@ -28,11 +34,8 @@ export const formatPromptForChatBubbles = (prompt: OnboardingPrompt) => {
     return baseBodies;
   }
 
-  const options = prompt.options ?? [];
-  const optionLines = ["", "Pilihan:"];
-  for (const [index, option] of options.entries()) {
-    optionLines.push(`${index + 1}. ${option.label}`);
-  }
+  const optionLines: string[] = [];
+  appendPromptOptions(optionLines, prompt);
 
   if (!baseBodies.length) {
     return [optionLines.join("\n").trim()];

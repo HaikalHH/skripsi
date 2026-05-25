@@ -13,14 +13,22 @@ export const getStartAndTargetsPrompt: PromptFlowHandler = ({ step }) => {
         questionKey: OnboardingQuestionKey.START_CONFIRMATION,
         title: "Finance Copilot",
         body: [
-          "Halo Boss",
+          "👋 Halo Boss!",
           "",
-          "Saya calon asisten keuangan pribadi anda",
+          "Aku asisten keuangan pribadi kamu 💰",
+          "Siap bantu kamu ngatur uang dengan lebih rapi.",
           "",
-          "Saya bisa membantu mencatat pemasukan & pengeluaran, memantau tabungan, memberi analisis keuangan, dan mempresentasikannya setiap saat",
+          "Aku bisa bantu:",
           "",
-          "Boss siap memulai?",
-          "Kalau sudah siap, langsung balas saja ya Boss."
+          "📝 Catat pemasukan & pengeluaran",
+          "📊 Pantau tabungan dan budget",
+          "🎯 Bantu susun target keuangan",
+          "🔍 Kasih insight dari kebiasaan finansial kamu",
+          "📈 Tampilkan progres keuangan kapan saja",
+          "",
+          "Mulai dari hal simpel dulu ya.",
+          "",
+          "Kalau sudah siap, langsung balas saja ya Boss. 🚀"
         ].join("\n"),
         inputType: "single_select",
         options: START_OPTIONS
@@ -41,11 +49,13 @@ export const getStartAndTargetsPrompt: PromptFlowHandler = ({ step }) => {
         questionKey: OnboardingQuestionKey.GOAL_SELECTION,
         title: "Target",
         body: [
-          "Pilih dulu target keuangan yang lagi pengen kamu capai.",
-          "Kalau ada beberapa, boleh pilih lebih dari satu sekaligus ya Boss.",
-          "Nanti saya bantu lanjutkan satu per satu sesuai kondisi kamu."
+          "🎯 Mau kejar target apa dulu, Boss?",
+          "",
+          "Pilih satu atau beberapa target keuangan yang ingin Boss capai.",
+          "Nanti aku bantu susun prioritas dan hitung rencana nabungnya satu per satu."
         ].join("\n"),
         inputType: "multi_select",
+        optionHeading: "Pilihan target:",
         options: GOAL_OPTIONS
       };
     default:

@@ -15,6 +15,48 @@ import {
   STEP_ACTIVE_INCOME_CYCLE_CONFIRM,
   STEP_ACTIVE_INCOME_CYCLE_SELECT
 } from "@/lib/services/onboarding/flow/helpers/custom-step-keys";
+import type { OnboardingOption } from "@/lib/services/onboarding/flow/shared/questions/question-types";
+
+const monthFormatter = new Intl.DateTimeFormat("id-ID", {
+  month: "long",
+  timeZone: "Asia/Jakarta"
+});
+
+const getCurrentJakartaMonthParts = () => {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "Asia/Jakarta"
+  }).formatToParts(new Date());
+
+  return {
+    month: Number(parts.find((part) => part.type === "month")?.value ?? "1") - 1,
+    year: Number(parts.find((part) => part.type === "year")?.value ?? "1970")
+  };
+};
+
+const formatMonthName = (year: number, month: number) =>
+  monthFormatter.format(new Date(Date.UTC(year, month, 1, 12)));
+
+const getCyclePeriodExample = (payday: number | null | undefined) => {
+  if (!payday || payday < 1 || payday > 31) return null;
+
+  const { month, year } = getCurrentJakartaMonthParts();
+  const endDay = payday === 1 ? new Date(Date.UTC(year, month + 1, 0)).getUTCDate() : payday - 1;
+  const endMonth = payday === 1 ? month : month + 1;
+  const endYear = year + Math.floor(endMonth / 12);
+  const normalizedEndMonth = endMonth % 12;
+
+  return `${payday} ${formatMonthName(year, month)} - ${endDay} ${formatMonthName(
+    endYear,
+    normalizedEndMonth
+  )}`;
+};
+
+const getActiveIncomeCycleConfirmOptions = (payday: number | null | undefined): OnboardingOption[] => [
+  { value: "YES", label: `Ya, pakai tanggal ${payday ?? "-"}` },
+  { value: "NO", label: "Tidak, lanjut dulu" }
+];
 
 export const getIncomePrompt: PromptFlowHandler = ({ step, context }) => {
   switch (step) {
@@ -23,9 +65,15 @@ export const getIncomePrompt: PromptFlowHandler = ({ step, context }) => {
         stepKey: step,
         questionKey: OnboardingQuestionKey.EMPLOYMENT_TYPES,
         title: "Pola Income",
-        body:
-          "Biar saya lebih ngerti kondisi kamu sekarang, peran atau aktivitas kamu saat ini apa aja?\nKalau campuran, boleh pilih lebih dari satu ya Boss.",
+        body: [
+          "👤 Boss sekarang lagi berperan sebagai apa?",
+          "",
+          "Biar aku bisa kasih saran keuangan yang lebih sesuai, pilih aktivitas atau kondisi yang paling menggambarkan Boss saat ini.",
+          "",
+          "Boleh pilih lebih dari satu ya."
+        ].join("\n"),
         inputType: "multi_select",
+        optionHeading: null,
         options: EMPLOYMENT_OPTIONS
       };
     case OnboardingStep.ASK_HAS_ACTIVE_INCOME:
@@ -42,8 +90,9 @@ export const getIncomePrompt: PromptFlowHandler = ({ step, context }) => {
         stepKey: step,
         questionKey: QUESTION_ACTIVE_INCOME_COUNT,
         title: "Pola Gajian",
-        body: "Dalam sebulan biasanya Boss menerima income aktif dengan pola yang mana?",
+        body: "💸 Biasanya Boss gajian berapa kali dalam sebulan?",
         inputType: "single_select",
+        optionHeading: null,
         options: ACTIVE_INCOME_FREQUENCY_OPTIONS
       };
     case OnboardingStep.ASK_ACTIVE_INCOME:
@@ -54,7 +103,7 @@ export const getIncomePrompt: PromptFlowHandler = ({ step, context }) => {
         title: "Income Aktif",
         body:
           context.activeIncomeMode === "MULTIPLE" || (context.activeIncomeCount ?? 1) > 1
-            ? `Income aktif ke-${activeIncomeNumber} nominalnya berapa Boss?`
+            ? `💰Income aktif ke-${activeIncomeNumber} nominalnya berapa Boss?`
             : "Biasanya pemasukan utama kamu per bulan kira-kira berapa Boss?",
         inputType: "money"
       };
@@ -80,25 +129,34 @@ export const getIncomePrompt: PromptFlowHandler = ({ step, context }) => {
         inputType: "integer"
       };
     case STEP_ACTIVE_INCOME_CYCLE_CONFIRM:
+      const cyclePayday = context.activeIncomeLatestPayday ?? null;
+      const cycleExample = getCyclePeriodExample(cyclePayday);
       return {
         stepKey: step,
         questionKey: QUESTION_ACTIVE_INCOME_CYCLE_CONFIRM,
         title: "Awal Periode Report",
         body: [
-          `Tanggal ${context.activeIncomeLatestPayday ?? "-"} ini mau dijadikan awal periode report bulanan Boss?`,
+          `📅 Mau pakai tanggal ${cyclePayday ?? "-"} sebagai awal periode bulanan, Boss?`,
           "",
-          "Kalau iya, nanti /monthly report dan /cashflow report mengikuti tanggal ini.",
-          "Kalau bukan, saya lanjut tanya income aktif berikutnya dulu."
+          `Nanti laporan seperti monthly report dan cashflow report akan dihitung dari tanggal ${cyclePayday ?? "-"} ke tanggal ${
+            cyclePayday ? (cyclePayday === 1 ? "akhir" : cyclePayday - 1) : "-"
+          } bulan berikutnya.`,
+          "",
+          "Contoh:",
+          cycleExample ?? "-",
+          "",
+          "Balas:"
         ].join("\n"),
         inputType: "single_select",
-        options: YES_NO_OPTIONS
+        optionHeading: null,
+        options: getActiveIncomeCycleConfirmOptions(cyclePayday)
       };
     case STEP_ACTIVE_INCOME_ADD_MORE:
       return {
         stepKey: step,
         questionKey: QUESTION_ACTIVE_INCOME_ADD_MORE,
         title: "Tambah Income Aktif?",
-        body: "Masih ada income aktif lain lagi Boss, atau sudah itu aja?",
+        body: "💸 Masih ada income aktif lain Boss?, atau sudah itu aja?",
         inputType: "single_select",
         options: YES_NO_OPTIONS
       };
@@ -124,7 +182,7 @@ export const getIncomePrompt: PromptFlowHandler = ({ step, context }) => {
         stepKey: step,
         questionKey: OnboardingQuestionKey.HAS_PASSIVE_INCOME,
         title: "Income Pasif",
-        body: "Selain itu ada income pasif juga Boss?",
+        body: "💰Selain itu ada income pasif juga Boss?",
         inputType: "single_select",
         options: YES_NO_OPTIONS
       };
@@ -133,8 +191,16 @@ export const getIncomePrompt: PromptFlowHandler = ({ step, context }) => {
         stepKey: step,
         questionKey: OnboardingQuestionKey.PASSIVE_INCOME_MONTHLY,
         title: "Income Pasif",
-        body:
-          "Kalau ada pemasukan sampingan yang rutin, kira-kira per bulan berapa Boss? Kalau belum pasti, boleh jawab kisaran seperti `sekitar 7jtan` atau `1-5jt`.",
+        body: [
+          "💼 Pemasukan sampingan Boss kira-kira berapa per bulan?",
+          "",
+          "Boleh isi nominal pasti atau kisaran.",
+          "",
+          "Contoh:",
+          "2 juta",
+          "sekitar 7 juta",
+          "1-5 juta"
+        ].join("\n"),
         inputType: "money"
       };
     case OnboardingStep.ASK_ESTIMATED_MONTHLY_INCOME:

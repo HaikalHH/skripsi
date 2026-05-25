@@ -3,6 +3,10 @@ import { describe, expect, it } from "vitest";
 import { formatPromptForChat } from "@/lib/services/onboarding/flow/shared/questions/chat-format";
 import { getPromptForStep } from "@/lib/services/onboarding/flow/get-prompt-for-step";
 import { getNextOnboardingStep } from "@/lib/services/onboarding/flow/next-step";
+import {
+  STEP_ACTIVE_INCOME_COUNT,
+  STEP_ACTIVE_INCOME_CYCLE_CONFIRM
+} from "@/lib/services/onboarding/flow/helpers/custom-step-keys";
 import type { OnboardingPromptContext } from "@/lib/services/onboarding/flow/shared/questions/question-types";
 
 const baseContext: OnboardingPromptContext = {
@@ -40,21 +44,84 @@ const getCurrentJakartaTargetExamples = () => {
   };
 };
 
+const getCurrentJakartaCycleExample = (payday: number) => {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "Asia/Jakarta"
+  }).formatToParts(new Date());
+  const month = Number(parts.find((part) => part.type === "month")?.value ?? "1") - 1;
+  const year = Number(parts.find((part) => part.type === "year")?.value ?? "1970");
+  const endDay = payday === 1 ? new Date(Date.UTC(year, month + 1, 0)).getUTCDate() : payday - 1;
+  const endMonth = payday === 1 ? month : month + 1;
+  const endYear = year + Math.floor(endMonth / 12);
+  const monthName = (inputYear: number, inputMonth: number) =>
+    new Intl.DateTimeFormat("id-ID", {
+      month: "long",
+      timeZone: "Asia/Jakarta"
+    }).format(new Date(Date.UTC(inputYear, inputMonth, 1, 12)));
+
+  return `${payday} ${monthName(year, month)} - ${endDay} ${monthName(endYear, endMonth % 12)}`;
+};
+
 describe("onboarding flow service", () => {
   it("does not render numbered options for boolean prompts", () => {
     const prompt = getPromptForStep(OnboardingStep.ASK_HAS_PASSIVE_INCOME, baseContext);
     const text = formatPromptForChat(prompt);
 
     expect(text).not.toContain("Pilihan:");
-    expect(text).toBe("Selain itu ada income pasif juga Boss?");
+    expect(text).toBe("💰Selain itu ada income pasif juga Boss?");
   });
 
   it("still renders numbered options for multi-choice prompts", () => {
     const prompt = getPromptForStep(OnboardingStep.ASK_GOAL_SELECTION, baseContext);
     const text = formatPromptForChat(prompt);
 
-    expect(text).toContain("Pilihan:");
-    expect(text).toContain("1. 🚨Nabung dana darurat");
+    expect(text).toContain("Pilihan target:");
+    expect(text).toContain("1. 🚨 Dana darurat");
+  });
+
+  it("renders employment role prompt without an extra option heading", () => {
+    const prompt = getPromptForStep(OnboardingStep.ASK_EMPLOYMENT_TYPES, baseContext);
+    const text = formatPromptForChat(prompt);
+
+    expect(text).toContain("Boss sekarang lagi berperan sebagai apa?");
+    expect(text).not.toContain("Pilihan:");
+    expect(text).toContain("1. 🎓 Mahasiswa");
+    expect(text).toContain("5. ✍️ Lainnya");
+  });
+
+  it("renders active income frequency prompt without an extra option heading", () => {
+    const prompt = getPromptForStep(STEP_ACTIVE_INCOME_COUNT, baseContext);
+    const text = formatPromptForChat(prompt);
+
+    expect(text).toContain("Biasanya Boss gajian berapa kali dalam sebulan?");
+    expect(text).not.toContain("Pilihan:");
+    expect(text).toContain("1. Satu kali");
+    expect(text).toContain("2. Lebih dari satu kali");
+  });
+
+  it("renders active income cycle confirmation with a payday-based period example", () => {
+    const prompt = getPromptForStep(STEP_ACTIVE_INCOME_CYCLE_CONFIRM, {
+      ...baseContext,
+      activeIncomeLatestPayday: 25
+    });
+    const text = formatPromptForChat(prompt);
+
+    expect(text).toContain("Mau pakai tanggal 25 sebagai awal periode bulanan");
+    expect(text).toContain("dari tanggal 25 ke tanggal 24 bulan berikutnya");
+    expect(text).toContain(getCurrentJakartaCycleExample(25));
+    expect(text).toContain("1. Ya, pakai tanggal 25");
+    expect(text).toContain("2. Tidak, lanjut dulu");
+  });
+
+  it("renders passive income amount prompt with multiline examples", () => {
+    const prompt = getPromptForStep(OnboardingStep.ASK_PASSIVE_INCOME, baseContext);
+    const text = formatPromptForChat(prompt);
+
+    expect(text).toContain("Pemasukan sampingan Boss kira-kira berapa per bulan?");
+    expect(text).toContain("Boleh isi nominal pasti atau kisaran.");
+    expect(text).toContain("Contoh:\n2 juta\nsekitar 7 juta\n1-5 juta");
   });
 
   it("uses branched gold prompts instead of the old generic asset copy", () => {
@@ -65,9 +132,39 @@ describe("onboarding flow service", () => {
       currentGoldType: "BULLION"
     });
 
-    expect(formatPromptForChat(typePrompt)).toContain("Emas yang kamu punya bentuknya apa Boss?");
+    expect(formatPromptForChat(typePrompt)).toContain("*Emas Boss bentuknya apa?*");
+    expect(formatPromptForChat(typePrompt)).toContain("Pilih yang sesuai ya:");
+    expect(formatPromptForChat(typePrompt)).not.toContain("Pilihan:");
     expect(formatPromptForChat(typePrompt)).toContain("1. Batangan");
     expect(formatPromptForChat(gramsPrompt)).toContain("Berapa gram emas batangannya Boss?");
+  });
+
+  it("renders gold brand prompt without an extra option heading", () => {
+    const prompt = getPromptForStep(OnboardingStep.ASK_ASSET_GOLD_BRAND, baseContext);
+    const text = formatPromptForChat(prompt);
+
+    expect(text).toContain("*Emas batangan Boss mereknya apa?*");
+    expect(text).toContain("Pilih merek yang sesuai:");
+    expect(text).not.toContain("Pilihan:");
+    expect(text).toContain("1. Antam");
+    expect(text).toContain("4. Lainnya");
+  });
+
+  it("renders stock symbol prompt with concise examples", () => {
+    const prompt = getPromptForStep(OnboardingStep.ASK_ASSET_STOCK_SYMBOL, baseContext);
+    const text = formatPromptForChat(prompt);
+
+    expect(text).toContain("*Saham apa aja yang Boss punya?*");
+    expect(text).toContain("Kirim kode sahamnya ya.");
+    expect(text).toContain("*BBCA, BBRI, TLKM*");
+  });
+
+  it("renders property type prompt with concise examples", () => {
+    const prompt = getPromptForStep(OnboardingStep.ASK_ASSET_PROPERTY_NAME, baseContext);
+    const text = formatPromptForChat(prompt);
+
+    expect(text).toContain("*Properti yang Boss punya jenisnya apa?*");
+    expect(text).toContain("*rumah*, *apartemen*, atau *tanah*");
   });
 
   it("frames savings prompts with tabungan wording", () => {
@@ -75,9 +172,9 @@ describe("onboarding flow service", () => {
     const balancePrompt = getPromptForStep(OnboardingStep.ASK_ASSET_SAVINGS_BALANCE, baseContext);
 
     expect(namePrompt.title).toBe("Detail Tabungan");
-    expect(formatPromptForChat(namePrompt)).toContain("Tabungan ini kamu taruh di mana Boss?");
-    expect(formatPromptForChat(namePrompt)).toContain("bank, cash, atau e-wallet");
-    expect(formatPromptForChat(namePrompt)).toContain("`DANA`");
+    expect(formatPromptForChat(namePrompt)).toContain("*Tabungan Boss disimpan di mana?*");
+    expect(formatPromptForChat(namePrompt)).toContain("nama bank, e-wallet, atau cash");
+    expect(formatPromptForChat(namePrompt)).toContain("*BCA*, *Jago*, *SeaBank*, *DANA*, atau *cash*");
     expect(balancePrompt.title).toBe("Jumlah Tabungan");
     expect(formatPromptForChat(balancePrompt)).toContain("Jumlah tabungannya sekarang berapa Boss?");
   });
@@ -86,9 +183,10 @@ describe("onboarding flow service", () => {
     const prompt = getPromptForStep(OnboardingStep.ASK_ASSET_SELECTION, baseContext);
     const text = formatPromptForChat(prompt);
 
-    expect(text).toContain("Sekarang aset yang sudah Boss punya apa aja?");
-    expect(text).toContain("Kalau ada beberapa, boleh pilih sekaligus.");
+    expect(text).toContain("*Aset apa aja yang Boss punya saat ini?*");
+    expect(text).toContain("Boleh pilih lebih dari satu:");
     expect(text).toContain("Belum punya");
+    expect(text).not.toContain("Pilihan:");
     expect(text).not.toContain("Quick setup-nya sudah beres.");
     expect(text).not.toContain("ditambah di dashboard");
   });
@@ -141,11 +239,11 @@ describe("onboarding flow service", () => {
     const prompt = getPromptForStep(OnboardingStep.ASK_ASSET_SELECTION, baseContext);
     const text = formatPromptForChat(prompt);
 
-    expect(text).toContain("1. Tabungan");
-    expect(text).toContain("2. Emas");
-    expect(text).toContain("3. Saham");
-    expect(text).toContain("4. Properti");
-    expect(text).toContain("5. Belum punya");
+    expect(text).toContain("1. 💰 Tabungan");
+    expect(text).toContain("2. 🪙 Emas");
+    expect(text).toContain("3. 📈 Saham");
+    expect(text).toContain("4. 🏠 Properti");
+    expect(text).toContain("5. ❌ Belum punya");
     expect(text).not.toContain("Crypto");
     expect(text).not.toContain("Reksa dana");
   });
@@ -171,7 +269,9 @@ describe("onboarding flow service", () => {
     expect(text).not.toContain("Pilihan:");
     expect(text.toLowerCase()).not.toContain("oke saya siap");
     expect(text).toContain("Halo Boss");
-    expect(text.toLowerCase()).toContain("calon asisten keuangan pribadi anda");
+    expect(text.toLowerCase()).toContain("asisten keuangan pribadi kamu");
+    expect(text.toLowerCase()).toContain("catat pemasukan & pengeluaran");
+    expect(text.toLowerCase()).toContain("pantau tabungan dan budget");
     expect(text.toLowerCase()).toContain("langsung balas saja");
   });
 
@@ -179,9 +279,10 @@ describe("onboarding flow service", () => {
     const prompt = getPromptForStep(OnboardingStep.ASK_MANUAL_EXPENSE_BREAKDOWN, baseContext);
     const text = formatPromptForChat(prompt);
 
-    expect(text.toLowerCase()).toContain("gaya santai");
-    expect(text.toLowerCase()).toContain("saya bantu rapihin");
-    expect(text.toLowerCase()).toContain("contoh kalau mau");
+    expect(text).toContain("Sekarang ceritain pengeluaran bulanan Boss");
+    expect(text.toLowerCase()).toContain("nanti aku bantu rapihin");
+    expect(text).toContain("🍽️ Makan: 1.500.000");
+    expect(text).toContain("📦 Lainnya: 300.000");
   });
 
   it("only offers manual or guided budget setup choices", () => {
@@ -198,9 +299,9 @@ describe("onboarding flow service", () => {
     const prompt = getPromptForStep("ASK_ACTIVE_INCOME_COUNT" as OnboardingStep, baseContext);
     const text = formatPromptForChat(prompt);
 
-    expect(text).toContain("Dalam sebulan biasanya Boss menerima income aktif dengan pola yang mana?");
-    expect(text).toContain("1. Satu kali gajian");
-    expect(text).toContain("2. Lebih dari satu kali gajian");
+    expect(text).toContain("Biasanya Boss gajian berapa kali dalam sebulan?");
+    expect(text).toContain("1. Satu kali");
+    expect(text).toContain("2. Lebih dari satu kali");
     expect(text).not.toContain("Contoh:");
     expect(text).not.toContain("Balas angkanya aja");
   });

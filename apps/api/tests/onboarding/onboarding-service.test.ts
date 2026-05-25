@@ -367,7 +367,8 @@ describe("onboarding service", () => {
         monthlyIncomeTotal: 9200000,
         monthlyExpenseTotal: 2650000,
         potentialMonthlySaving: 6550000,
-        emergencyFundTarget: 15900000,      }
+        emergencyFundTarget: 15900000,
+      }
     ];
     addSession({
       stepKey: OnboardingStep.ASK_GOAL_SELECTION,
@@ -408,8 +409,9 @@ describe("onboarding service", () => {
     expect(result.replyText).toContain("Berikut kategori pengeluarannya:");
     expect(result.replyText).toContain("Total pengeluaran: Rp2.650.000/bulan");
     expect(result.replyText).toContain("Sisa dari income: Rp6.550.000/bulan");
-    expect(result.replyText).toContain("Sip, gambaran pengeluaran bulanannya sudah kebaca.");
-    expect(result.replyText).toContain("Sekarang aset yang sudah Boss punya apa aja?");
+    expect(result.replyText).toContain("*Oke, kita lanjut ya Boss*");
+    expect(result.replyText).toContain("Pengeluaran bulanan Boss sudah kebaca.");
+    expect(result.replyText).toContain("*Aset apa aja yang Boss punya saat ini?*");
     expect(result.replyText).not.toContain("Quick setup-nya sudah beres");
     expect(result.replyText).not.toContain("ditambah di dashboard");
     expect(hoisted.store.users[0].onboardingStep).toBe(OnboardingStep.ASK_ASSET_SELECTION);
@@ -492,8 +494,9 @@ describe("onboarding service", () => {
     );
 
     expect(first.handled).toBe(true);
-    expect(first.replyText).toContain("Siap, saya catat dulu");
-    expect(first.replyText).toContain("Masih ada kategori pengeluaran lain");
+    expect(first.replyText).toContain("*Siap, aku catat dulu*");
+    expect(first.replyText).toContain("Ada pengeluaran lain yang mau ditambah");
+    expect(first.replyText).toContain("Balas *ada* atau *sudah*");
     expect(first.replyText).not.toContain("Makan: Rp1.000.000");
     expect(hoisted.store.users[0].onboardingStep).toBe(
       OnboardingStep.ASK_MANUAL_EXPENSE_BREAKDOWN
@@ -504,8 +507,8 @@ describe("onboarding service", () => {
     const additional = await sendText("cicilan motor 500rb", "msg_manual_add_more");
 
     expect(additional.handled).toBe(true);
-    expect(additional.replyText).toContain("Siap, saya catat dulu");
-    expect(additional.replyText).toContain("Masih ada kategori pengeluaran lain");
+    expect(additional.replyText).toContain("*Siap, aku catat dulu*");
+    expect(additional.replyText).toContain("Ada pengeluaran lain yang mau ditambah");
     expect(additional.replyText).not.toContain("Total: Rp1.700.000");
     expect(hoisted.store.sessions.at(-1)?.isCompleted).toBe(false);
     expect(replaceExpensePlan).not.toHaveBeenCalled();
@@ -513,11 +516,14 @@ describe("onboarding service", () => {
     const review = await sendText("sudah", "msg_manual_review");
 
     expect(review.handled).toBe(true);
-    expect(review.replyText).toContain("Saya rapihin pengeluaran bulanan");
-    expect(review.replyText).toContain("Makan: Rp1.000.000");
-    expect(review.replyText).toContain("Transport: Rp200.000");
-    expect(review.replyText).toContain("Tagihan: Rp500.000");
-    expect(review.replyText).toContain("Total: Rp1.700.000");
+    expect(review.replyText).toContain("*Aku sudah rapihin pengeluaran bulanan Boss*");
+    expect(review.replyText).toContain("Ini yang aku tangkap");
+    expect(review.replyText).toContain("🍽️ *Makan & Minum*: Rp1.000.000");
+    expect(review.replyText).toContain("⛽ *Transport*: Rp200.000");
+    expect(review.replyText).toContain("📱 *Tagihan*: Rp500.000");
+    expect(review.replyText).toContain("*Rp1.700.000/bulan*");
+    expect(review.replyText).toContain("balas *lanjut*");
+    expect(review.replyText).toContain("balas *ada*");
     expect(hoisted.store.users[0].onboardingStep).toBe(
       OnboardingStep.ASK_MANUAL_EXPENSE_BREAKDOWN
     );
@@ -564,20 +570,24 @@ describe("onboarding service", () => {
     );
 
     expect(first.handled).toBe(true);
-    expect(first.replyText).toContain("Siap, saya catat dulu");
+    expect(first.replyText).toContain("*Siap, aku catat dulu*");
     expect(first.replyText).not.toContain("Tagihan: Rp300.000");
     expect(first.replyText).not.toContain("Makan: Rp700.000");
     expect(first.replyText).not.toContain("Transport: Rp100.000");
-    expect(first.replyText).toContain("Masih ada kategori pengeluaran lain");
+    expect(first.replyText).toContain("Ada pengeluaran lain yang mau ditambah");
     expect(replaceExpensePlan).not.toHaveBeenCalled();
 
     const billsMergeQuestion = await sendText("sudah", "msg_manual_merge_done");
 
     expect(billsMergeQuestion.handled).toBe(true);
-    expect(billsMergeQuestion.replyText).toContain("kategori Tagihan");
-    expect(billsMergeQuestion.replyText).toContain("- listrik: Rp200.000");
-    expect(billsMergeQuestion.replyText).toContain("- indihome: Rp100.000");
-    expect(billsMergeQuestion.replyText).toContain("Balas `gabung` atau `pisah`");
+    expect(billsMergeQuestion.replyText).toContain("*Aku lihat ada beberapa pengeluaran yang mirip, Boss*");
+    expect(billsMergeQuestion.replyText).toContain("Sepertinya ini masih satu kategori");
+    expect(billsMergeQuestion.replyText).toContain("📱 Tagihan");
+    expect(billsMergeQuestion.replyText).toContain("• Listrik: *Rp200.000*");
+    expect(billsMergeQuestion.replyText).toContain("• Indihome: *Rp100.000*");
+    expect(billsMergeQuestion.replyText).toContain("Total kalau digabung: *Rp300.000*");
+    expect(billsMergeQuestion.replyText).toContain("*gabung* untuk digabung");
+    expect(billsMergeQuestion.replyText).toContain("*pisah* untuk tetap dipisah");
     expect(hoisted.store.users[0].onboardingStep).toBe(
       OnboardingStep.ASK_MANUAL_EXPENSE_BREAKDOWN
     );
@@ -586,20 +596,21 @@ describe("onboarding service", () => {
     const foodMergeQuestion = await sendText("gabung", "msg_manual_merge_bills");
 
     expect(foodMergeQuestion.handled).toBe(true);
-    expect(foodMergeQuestion.replyText).toContain("kategori Makan");
-    expect(foodMergeQuestion.replyText).toContain("- makan: Rp500.000");
-    expect(foodMergeQuestion.replyText).toContain("- minum: Rp200.000");
+    expect(foodMergeQuestion.replyText).toContain("🍽️ Makan");
+    expect(foodMergeQuestion.replyText).toContain("• Makan: *Rp500.000*");
+    expect(foodMergeQuestion.replyText).toContain("• Minum: *Rp200.000*");
+    expect(foodMergeQuestion.replyText).toContain("Mau aku gabung jadi *Makan & Minum*");
     expect(replaceExpensePlan).not.toHaveBeenCalled();
 
     const review = await sendText("pisah", "msg_manual_split_food");
 
     expect(review.handled).toBe(true);
-    expect(review.replyText).toContain("Saya rapihin pengeluaran bulanan");
-    expect(review.replyText).toContain("Tagihan: Rp300.000");
-    expect(review.replyText).toContain("Transport: Rp100.000");
-    expect(review.replyText).toContain("makan: Rp500.000");
-    expect(review.replyText).toContain("minum: Rp200.000");
-    expect(review.replyText).toContain("Total: Rp1.100.000");
+    expect(review.replyText).toContain("*Aku sudah rapihin pengeluaran bulanan Boss*");
+    expect(review.replyText).toContain("📱 *Tagihan*: Rp300.000");
+    expect(review.replyText).toContain("⛽ *Transport*: Rp100.000");
+    expect(review.replyText).toContain("📦 *Makan*: Rp500.000");
+    expect(review.replyText).toContain("📦 *Minum*: Rp200.000");
+    expect(review.replyText).toContain("*Rp1.100.000/bulan*");
     expect(review.replyText).not.toContain("Sekarang aset yang sudah Boss punya apa aja?");
     expect(hoisted.store.users[0].onboardingStep).toBe(
       OnboardingStep.ASK_MANUAL_EXPENSE_BREAKDOWN
@@ -609,7 +620,7 @@ describe("onboarding service", () => {
     const completed = await sendText("sudah", "msg_manual_final_done");
 
     expect(completed.handled).toBe(true);
-    expect(completed.replyText).toContain("Sekarang aset yang sudah Boss punya apa aja?");
+    expect(completed.replyText).toContain("*Aset apa aja yang Boss punya saat ini?*");
     expect(hoisted.store.users[0].onboardingStep).toBe(OnboardingStep.ASK_ASSET_SELECTION);
     expect(replaceExpensePlan).toHaveBeenCalledWith({
       userId: "user_1",
@@ -648,7 +659,7 @@ describe("onboarding service", () => {
 
     await sendText("makan 1500000", "msg_deficit_manual_breakdown");
     const review = await sendText("sudah", "msg_deficit_manual_review");
-    expect(review.replyText).toContain("Total: Rp1.500.000");
+    expect(review.replyText).toContain("*Rp1.500.000/bulan*");
     expect(replaceExpensePlan).not.toHaveBeenCalled();
 
     const warning = await sendText("sudah", "msg_deficit_manual_final");
@@ -672,7 +683,7 @@ describe("onboarding service", () => {
     expect(replaceExpensePlan).not.toHaveBeenCalled();
 
     const completed = await sendText("simpan", "msg_deficit_manual_save");
-    expect(completed.replyText).toContain("Sekarang aset yang sudah Boss punya apa aja?");
+    expect(completed.replyText).toContain("*Aset apa aja yang Boss punya saat ini?*");
     expect(hoisted.store.users[0].onboardingStep).toBe(OnboardingStep.ASK_ASSET_SELECTION);
     expect(hoisted.upsertIncomeProfile).toHaveBeenLastCalledWith({
       userId: "user_1",
@@ -755,7 +766,7 @@ describe("onboarding service", () => {
     expect(replaceExpensePlan).not.toHaveBeenCalled();
 
     const completed = await sendText("simpan", "msg_deficit_guided_save");
-    expect(completed.replyText).toContain("Sekarang aset yang sudah Boss punya apa aja?");
+    expect(completed.replyText).toContain("*Aset apa aja yang Boss punya saat ini?*");
     expect(hoisted.store.users[0].onboardingStep).toBe(OnboardingStep.ASK_ASSET_SELECTION);
     expect(replaceExpensePlan).toHaveBeenCalledWith({
       userId: "user_1",
@@ -777,7 +788,8 @@ describe("onboarding service", () => {
         monthlyIncomeTotal: 9200000,
         monthlyExpenseTotal: 2500000,
         potentialMonthlySaving: 6700000,
-        emergencyFundTarget: 15000000,      }
+        emergencyFundTarget: 15000000,
+      }
     ];
     addSession({
       stepKey: OnboardingStep.ASK_GUIDED_EXPENSE_FOOD,
@@ -841,10 +853,9 @@ describe("onboarding service", () => {
     expect(completed.replyText).toContain("- jajan istri: Rp500.000/bulan");
     expect(completed.replyText).toContain("Total pengeluaran: Rp2.500.000/bulan");
     expect(completed.replyText).toContain("Sisa dari income: Rp6.700.000/bulan");
-    expect(completed.replyText).toContain(
-      "Sip, gambaran pengeluaran bulanannya sudah kebaca. Sekarang saya cek aset yang sudah jalan ya Boss."
-    );
-    expect(completed.replyText).toContain("Sekarang aset yang sudah Boss punya apa aja?");
+    expect(completed.replyText).toContain("*Oke, kita lanjut ya Boss*");
+    expect(completed.replyText).toContain("Pengeluaran bulanan Boss sudah kebaca.");
+    expect(completed.replyText).toContain("*Aset apa aja yang Boss punya saat ini?*");
     expect(completed.replyText).not.toContain("Quick setup-nya sudah beres.");
     expect(completed.replyTexts).toEqual([
       [
@@ -858,19 +869,21 @@ describe("onboarding service", () => {
         "Total pengeluaran: Rp2.500.000/bulan",
         "Sisa dari income: Rp6.700.000/bulan",
         "",
-        "Sip, gambaran pengeluaran bulanannya sudah kebaca. Sekarang saya cek aset yang sudah jalan ya Boss."
+        "✅ *Oke, kita lanjut ya Boss*",
+        "",
+        "Pengeluaran bulanan Boss sudah kebaca.",
+        "Sekarang aku mau cek aset yang Boss punya, supaya gambaran keuangannya lebih lengkap."
       ].join("\n"),
       [
-        "Sekarang aset yang sudah Boss punya apa aja?",
+        "📦 *Aset apa aja yang Boss punya saat ini?*",
         "",
-        "Kalau ada beberapa, boleh pilih sekaligus. Kalau belum ada, pilih `Belum punya` ya.",
+        "Boleh pilih lebih dari satu:",
         "",
-        "Pilihan:",
-        "1. Tabungan",
-        "2. Emas",
-        "3. Saham",
-        "4. Properti",
-        "5. Belum punya"
+        "1. 💰 Tabungan",
+        "2. 🪙 Emas",
+        "3. 📈 Saham",
+        "4. 🏠 Properti",
+        "5. ❌ Belum punya"
       ].join("\n")
     ]);
     expect(completed.preserveReplyTextBubbles).toBe(true);
@@ -899,7 +912,8 @@ describe("onboarding service", () => {
         monthlyIncomeTotal: 10000000,
         monthlyExpenseTotal: 3500000,
         potentialMonthlySaving: 6500000,
-        emergencyFundTarget: 21000000,      }
+        emergencyFundTarget: 21000000,
+      }
     ];
     addSession({
       stepKey: OnboardingStep.ASK_GOAL_SELECTION,
@@ -956,7 +970,8 @@ describe("onboarding service", () => {
         monthlyIncomeTotal: 10000000,
         monthlyExpenseTotal: 3500000,
         potentialMonthlySaving: 6500000,
-        emergencyFundTarget: 21000000,      }
+        emergencyFundTarget: 21000000,
+      }
     ];
 
     addSession({
@@ -1010,7 +1025,7 @@ describe("onboarding service", () => {
 
     const frequency = await sendText("gaji utama sama freelance", "msg_income_frequency");
     expect(frequency.handled).toBe(true);
-    expect(frequency.replyText).toContain("Income aktif ke-1 nominalnya berapa Boss?");
+    expect(frequency.replyText).toContain("💰Income aktif ke-1 nominalnya berapa Boss?");
     expect(hoisted.store.sessions.at(-1)?.normalizedAnswerJson).toBe("MULTIPLE");
     expect(hoisted.store.users[0].onboardingStep).toBe(OnboardingStep.ASK_ACTIVE_INCOME);
 
@@ -1019,26 +1034,28 @@ describe("onboarding service", () => {
     expect(hoisted.store.users[0].onboardingStep).toBe(OnboardingStep.ASK_SALARY_DATE);
 
     const firstPayday = await sendText("tanggal 25", "msg_income_first_payday");
-    expect(firstPayday.replyText).toContain("Tanggal 25 ini mau dijadikan awal periode report bulanan");
+    expect(firstPayday.replyText).toContain("Mau pakai tanggal 25 sebagai awal periode bulanan");
+    expect(firstPayday.replyText).toContain("dari tanggal 25 ke tanggal 24 bulan berikutnya");
     expect(hoisted.store.users[0].onboardingStep).toBe("ASK_ACTIVE_INCOME_CYCLE_CONFIRM" as OnboardingStep);
 
     const firstNotCycle = await sendText("engga", "msg_income_first_not_cycle");
-    expect(firstNotCycle.replyText).toContain("Masih ada income aktif lain lagi");
+    expect(firstNotCycle.replyText).toContain("Masih ada income aktif lain");
     expect(hoisted.store.users[0].salaryDate).toBeNull();
     expect(hoisted.store.users[0].onboardingStep).toBe("ASK_ACTIVE_INCOME_ADD_MORE" as OnboardingStep);
 
     const addMore = await sendText("masih", "msg_income_add_more");
-    expect(addMore.replyText).toContain("Income aktif ke-2 nominalnya berapa Boss?");
+    expect(addMore.replyText).toContain("💰Income aktif ke-2 nominalnya berapa Boss?");
     expect(hoisted.store.users[0].onboardingStep).toBe(OnboardingStep.ASK_ACTIVE_INCOME);
 
     const secondAmount = await sendText("2jt", "msg_income_second_amount");
     expect(secondAmount.replyText).toContain("Income aktif ke-2 biasanya masuk tanggal berapa");
 
     const secondPayday = await sendText("tanggal 10", "msg_income_second_payday");
-    expect(secondPayday.replyText).toContain("Tanggal 10 ini mau dijadikan awal periode report bulanan");
+    expect(secondPayday.replyText).toContain("Mau pakai tanggal 10 sebagai awal periode bulanan");
+    expect(secondPayday.replyText).toContain("dari tanggal 10 ke tanggal 9 bulan berikutnya");
 
     const secondNotCycle = await sendText("nggak", "msg_income_second_not_cycle");
-    expect(secondNotCycle.replyText).toContain("Masih ada income aktif lain lagi");
+    expect(secondNotCycle.replyText).toContain("Masih ada income aktif lain");
     expect(hoisted.store.users[0].salaryDate).toBeNull();
 
     const doneWithoutCycle = await sendText("udah itu aja", "msg_income_done_without_cycle");
@@ -1048,7 +1065,7 @@ describe("onboarding service", () => {
     expect(hoisted.store.users[0].onboardingStep).toBe("ASK_ACTIVE_INCOME_CYCLE_SELECT" as OnboardingStep);
 
     const selectedCycle = await sendText("income kedua aja", "msg_income_select_cycle");
-    expect(selectedCycle.replyText).toContain("Selain itu ada income pasif juga Boss?");
+    expect(selectedCycle.replyText).toContain("💰Selain itu ada income pasif juga Boss?");
     expect(hoisted.store.users[0].salaryDate).toBe(10);
     expect(hoisted.store.financialProfiles[0]?.activeIncomeMonthly).toBe(12000000);
     expect(hoisted.store.users[0].onboardingStep).toBe(OnboardingStep.ASK_HAS_PASSIVE_INCOME);
@@ -1105,7 +1122,8 @@ describe("onboarding service", () => {
         monthlyIncomeTotal: 9200000,
         monthlyExpenseTotal: 2500000,
         potentialMonthlySaving: 6700000,
-        emergencyFundTarget: 15000000,      }
+        emergencyFundTarget: 15000000,
+      }
     ];
 
     const result = await sendText("udah itu aja", "msg_asset_add_more_done");
@@ -1128,7 +1146,8 @@ describe("onboarding service", () => {
         monthlyIncomeTotal: 9200000,
         monthlyExpenseTotal: 2500000,
         potentialMonthlySaving: 6700000,
-        emergencyFundTarget: 15000000,      }
+        emergencyFundTarget: 15000000,
+      }
     ];
     vi.mocked(generateOnboardingAnalysis).mockRejectedValueOnce(new Error("AI down"));
 
@@ -1160,7 +1179,8 @@ describe("onboarding service", () => {
         monthlyIncomeTotal: 12000000,
         monthlyExpenseTotal: 5000000,
         potentialMonthlySaving: 7000000,
-        emergencyFundTarget: 30000000,      }
+        emergencyFundTarget: 30000000,
+      }
     ];
     hoisted.store.financialGoals = [
       {
@@ -1367,7 +1387,8 @@ describe("onboarding service", () => {
         monthlyIncomeTotal: 12000000,
         monthlyExpenseTotal: 5000000,
         potentialMonthlySaving: 7000000,
-        emergencyFundTarget: 30000000,      }
+        emergencyFundTarget: 30000000,
+      }
     ];
     addSession({
       stepKey: OnboardingStep.ASK_GOAL_SELECTION,

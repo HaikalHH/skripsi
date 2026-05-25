@@ -3015,7 +3015,7 @@ describe("inbound + reminder e2e (mock DB)", () => {
       sentAt: "2026-02-24T12:00:00.000Z"
     });
     expect(start.status).toBe(200);
-    expect(start.body.replyText).toContain("Pilih dulu target keuangan yang lagi pengen kamu capai");
+    expect(start.body.replyText).toContain("Mau kejar target apa dulu");
     expect(store.users).toHaveLength(1);
     expect(store.users[0]?.waNumber).toBe("251796920508426");
   });
@@ -3040,7 +3040,7 @@ describe("inbound + reminder e2e (mock DB)", () => {
     });
 
     expect(result.status).toBe(200);
-    expect(result.body.replyText).toContain("Pilih dulu target keuangan yang lagi pengen kamu capai");
+    expect(result.body.replyText).toContain("Mau kejar target apa dulu");
   });
 
   it("processes messages after onboarding without access gating", async () => {

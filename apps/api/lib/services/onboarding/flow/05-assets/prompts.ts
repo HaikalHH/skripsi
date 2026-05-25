@@ -28,10 +28,12 @@ const getAssetPromptForStep = (
         questionKey: OnboardingQuestionKey.ASSET_SELECTION,
         title: "Aset Yang Sudah Jalan",
         body: [
-          "Sekarang aset yang sudah Boss punya apa aja?",
-          "Kalau ada beberapa, boleh pilih sekaligus. Kalau belum ada, pilih `Belum punya` ya."
-        ].join("\n\n"),
+          "📦 *Aset apa aja yang Boss punya saat ini?*",
+          "",
+          "Boleh pilih lebih dari satu:"
+        ].join("\n"),
         inputType: "multi_select",
+        optionHeading: null,
         options: ASSET_OPTIONS
       };
     case OnboardingStep.ASK_ASSET_SAVINGS_NAME:
@@ -39,7 +41,14 @@ const getAssetPromptForStep = (
         stepKey: step,
         questionKey: OnboardingQuestionKey.ASSET_SAVINGS_NAME,
         title: "Detail Tabungan",
-        body: "Tabungan ini kamu taruh di mana Boss? Bisa di bank, cash, atau e-wallet. Contohnya `BCA`, `Jago`, `SeaBank`, `cash`, atau `DANA`.",
+        body: [
+          "💰 *Tabungan Boss disimpan di mana?*",
+          "",
+          "Boleh sebut nama bank, e-wallet, atau cash.",
+          "",
+          "Contoh:",
+          "*BCA*, *Jago*, *SeaBank*, *DANA*, atau *cash*"
+        ].join("\n"),
         inputType: "text"
       };
     case OnboardingStep.ASK_ASSET_SAVINGS_BALANCE:
@@ -56,8 +65,13 @@ const getAssetPromptForStep = (
         stepKey: OnboardingStep.ASK_ASSET_GOLD_TYPE,
         questionKey: OnboardingQuestionKey.ASSET_GOLD_TYPE,
         title: "Detail Emas",
-        body: "Emas yang kamu punya bentuknya apa Boss?",
+        body: [
+          "🪙 *Emas Boss bentuknya apa?*",
+          "",
+          "Pilih yang sesuai ya:"
+        ].join("\n"),
         inputType: "single_select",
+        optionHeading: null,
         options: GOLD_TYPE_OPTIONS
       };
     case OnboardingStep.ASK_ASSET_GOLD_BRAND:
@@ -65,8 +79,13 @@ const getAssetPromptForStep = (
         stepKey: step,
         questionKey: OnboardingQuestionKey.ASSET_GOLD_BRAND,
         title: "Brand Emas",
-        body: "Kalau emas batangan, mereknya apa Boss?",
+        body: [
+          "🪙 *Emas batangan Boss mereknya apa?*",
+          "",
+          "Pilih merek yang sesuai:"
+        ].join("\n"),
         inputType: "single_select",
+        optionHeading: null,
         options: GOLD_BRAND_OPTIONS
       };
     case OnboardingStep.ASK_ASSET_GOLD_GRAMS:
@@ -107,7 +126,14 @@ const getAssetPromptForStep = (
         stepKey: step,
         questionKey: OnboardingQuestionKey.ASSET_STOCK_SYMBOL,
         title: "Detail Saham",
-        body: "Saham apa yang kamu punya Boss? Boleh kirim kode seperti `BBRI` atau `BBCA`.",
+        body: [
+          "📈 *Saham apa aja yang Boss punya?*",
+          "",
+          "Kirim kode sahamnya ya.",
+          "",
+          "Contoh:",
+          "*BBCA, BBRI, TLKM*"
+        ].join("\n"),
         inputType: "text"
       };
     case OnboardingStep.ASK_ASSET_STOCK_LOTS:
@@ -123,7 +149,12 @@ const getAssetPromptForStep = (
         stepKey: step,
         questionKey: OnboardingQuestionKey.ASSET_PROPERTY_NAME,
         title: "Detail Properti",
-        body: "Propertinya apa Boss? Contoh: `Rumah`, `Apartemen`, atau `Tanah`.",
+        body: [
+          "🏠 *Properti yang Boss punya jenisnya apa?*",
+          "",
+          "Contoh:",
+          "*rumah*, *apartemen*, atau *tanah*"
+        ].join("\n"),
         inputType: "text"
       };
     case OnboardingStep.ASK_ASSET_PROPERTY_ESTIMATED_VALUE:

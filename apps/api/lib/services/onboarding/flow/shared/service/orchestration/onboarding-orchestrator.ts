@@ -2452,16 +2452,55 @@ const getNextManualExpenseMergeCandidate = (
     (candidate) => !answer.mergeDecisions[candidate.bucket]
   ) ?? null;
 
+const MANUAL_EXPENSE_BUCKET_EMOJI: Partial<Record<keyof ExpenseBreakdown, string>> = {
+  food: "🍽️",
+  transport: "⛽",
+  bills: "📱",
+  entertainment: "🎮",
+  others: "📦"
+};
+
+const formatManualExpenseMergeLabel = (label: string) =>
+  label
+    .trim()
+    .split(/\s+/)
+    .map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1).toLowerCase()}`)
+    .join(" ");
+
+const getManualExpenseCombinedLabel = (candidate: ManualExpenseMergeCandidate) => {
+  const labels = Array.from(
+    new Set(candidate.details.map((detail) => formatManualExpenseMergeLabel(detail.label)))
+  );
+
+  return labels.length >= 2 ? labels.join(" & ") : candidate.label;
+};
+
 const buildManualExpenseMergeQuestionText = (candidate: ManualExpenseMergeCandidate) =>
-  [
-    `Saya lihat beberapa pengeluaran ini sama-sama bisa masuk kategori ${candidate.label}:`,
-    "",
-    ...candidate.details.map((detail) => `- ${detail.label}: ${formatMoney(detail.amount)}`),
-    "",
-    `Mau saya gabung jadi ${candidate.label} ${formatMoney(candidate.total)}, atau tetap dipisah sebagai kategori masing-masing?`,
-    "",
-    "Balas `gabung` atau `pisah` ya Boss."
-  ].join("\n");
+  {
+    const combinedLabel = getManualExpenseCombinedLabel(candidate);
+    const bucketEmoji = MANUAL_EXPENSE_BUCKET_EMOJI[candidate.bucket];
+
+    return [
+      "🧾 *Aku lihat ada beberapa pengeluaran yang mirip, Boss*",
+      "",
+      "Sepertinya ini masih satu kategori:",
+      "",
+      `${bucketEmoji ? `${bucketEmoji} ` : ""}${candidate.label}`,
+      "",
+      ...candidate.details.map(
+        (detail) =>
+          `• ${formatManualExpenseMergeLabel(detail.label)}: *${formatMoney(detail.amount)}*`
+      ),
+      "",
+      `Total kalau digabung: *${formatMoney(candidate.total)}*`,
+      "",
+      `Mau aku gabung jadi *${combinedLabel}*, atau tetap dipisah?`,
+      "",
+      "Balas:",
+      "*gabung* untuk digabung",
+      "*pisah* untuk tetap dipisah"
+    ].join("\n");
+  };
 
 const parseManualExpenseMergeDecision = (
   rawAnswer: unknown
@@ -2539,10 +2578,11 @@ const buildFinalManualExpensePlanInput = (answer: SessionAnswerValue) => {
 
 const buildManualExpenseAddMoreQuestionText = () =>
   [
-    "Siap, saya catat dulu.",
+    "✅ *Siap, aku catat dulu*",
     "",
-    "Masih ada kategori pengeluaran lain yang belum ditulis?",
-    "Balas `ada` kalau mau tambah lagi, atau `sudah` kalau sudah lengkap."
+    "Ada pengeluaran lain yang mau ditambah?",
+    "",
+    "Balas *ada* atau *sudah* ya, Boss."
   ].join("\n");
 
 const buildManualExpenseBreakdownLines = (
@@ -2569,22 +2609,55 @@ const buildManualExpenseBreakdownLines = (
   return lines;
 };
 
+const MANUAL_EXPENSE_REVIEW_LABELS: Record<keyof ExpenseBreakdown, string> = {
+  food: "🍽️ *Makan & Minum*",
+  transport: "⛽ *Transport*",
+  bills: "📱 *Tagihan*",
+  entertainment: "🎮 *Hiburan*",
+  others: "📦 *Lainnya*"
+};
+
+const buildManualExpenseReviewLines = (
+  breakdown: ExpenseBreakdown,
+  customExpenseItems?: Array<{ label: string; amount: number }>
+) => {
+  const lines: string[] = [];
+  for (const key of Object.keys(MANUAL_EXPENSE_REVIEW_LABELS) as Array<keyof ExpenseBreakdown>) {
+    const customTotal =
+      key === "others"
+        ? (customExpenseItems ?? []).reduce((sum, item) => sum + item.amount, 0)
+        : 0;
+    const amount = Math.max(0, (breakdown[key] ?? 0) - customTotal);
+    if (amount <= 0) continue;
+    lines.push(`${MANUAL_EXPENSE_REVIEW_LABELS[key]}: ${formatMoney(amount)}`);
+  }
+
+  for (const item of customExpenseItems ?? []) {
+    lines.push(`📦 *${formatManualExpenseMergeLabel(item.label)}*: ${formatMoney(item.amount)}`);
+  }
+
+  return lines;
+};
+
 const buildManualExpenseFinalReviewReplyTexts = (answer: SessionAnswerValue) => {
   const planInput = buildFinalManualExpensePlanInput(answer);
   const total = parseManualBreakdownTotal(planInput.breakdown) ?? 0;
   return [
     [
-      "📝 Saya rapihin pengeluaran bulanan Boss:",
+      "🧾 *Aku sudah rapihin pengeluaran bulanan Boss*",
       "",
-      ...buildManualExpenseBreakdownLines(
+      "Ini yang aku tangkap:",
+      "",
+      ...buildManualExpenseReviewLines(
         planInput.breakdown,
         planInput.customExpenseItems
       ),
       "",
-      `Total: ${formatMoney(total)}`,
+      "📊 *Total pengeluaran rutin:*",
+      `*${formatMoney(total)}/bulan*`,
       "",
-      "Kalau ini sudah pas, saya lanjut.",
-      "Kalau masih ada yang mau ditambah, balas `ada` ya Boss."
+      "Kalau sudah pas, balas *lanjut*.",
+      "Kalau masih ada yang mau ditambah, balas *ada*."
     ].join("\n")
   ];
 };
